@@ -1,0 +1,4 @@
+apiVersion: wordpress.epfl.ch/v1
+kind: WordpressSite
+metadata:
+  name: test-site
