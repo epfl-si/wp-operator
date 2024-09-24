@@ -35,11 +35,38 @@ def create_ingress(networking_v1_api, namespace, name, path):
         body=body
     )
 
+def create_database(custom_api, namespace, name):
+    body = {
+        "apiVersion": "k8s.mariadb.com/v1alpha1",
+        "kind": "Database",
+        "metadata": {
+            "name": f"wp-db-{name}",
+            "namespace": namespace
+        },
+        "spec": {
+            "mariaDbRef": {
+                "name": "mariadb-min"
+            },
+            "characterSet": "utf8",
+            "collate": "utf8_general_ci"
+        }
+    }
+
+    custom_api.create_namespaced_custom_object(
+        group="k8s.mariadb.com",
+        version="v1alpha1",
+        namespace=namespace,
+        plural="databases",
+        body=body
+    )
+
 @kopf.on.create('wordpresssites')
 def create_fn(spec, name, namespace, logger, **kwargs):
     
     path = spec.get('path')
     config.load_kube_config()
     networking_v1_api = client.NetworkingV1Api()
+    custom_api = client.CustomObjectsApi()
 
     create_ingress(networking_v1_api, namespace, name, path)
+    create_database(custom_api, namespace, name)
