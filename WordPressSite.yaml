@@ -2,3 +2,17 @@ apiVersion: wordpress.epfl.ch/v1
 kind: WordpressSite
 metadata:
   name: test-site
+spec:
+  path: /test-site
+  visibility: public
+  kubernetes:
+    service: test
+  wordpress:
+    title: Super Test Site
+    tagline: Super Test Site tagline !
+    theme: wp-theme-2018
+    languages:
+      - fr
+      - en
+  epfl:
+    unit_id: 1814
