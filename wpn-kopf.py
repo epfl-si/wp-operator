@@ -116,6 +116,15 @@ def create_user(custom_api, namespace, name):
         body=body
     )
 
+def delete_user(custom_api, namespace, name):
+    custom_api.delete_namespaced_custom_object(
+        group="k8s.mariadb.com",
+        version="v1alpha1",
+        plural="users",
+        namespace=namespace,
+        name=f"wp-db-user-{name}"
+    )
+
 def create_grant(custom_api, namespace, name):
     body = {
         "apiVersion": "k8s.mariadb.com/v1alpha1",
@@ -174,3 +183,4 @@ def delete_fn(spec, name, namespace, logger, **kwargs):
     delete_ingress(networking_v1_api, namespace, name)
     delete_database(custom_api, namespace, name)
     delete_secret(api_instance, namespace, name)
+    delete_user(custom_api, namespace, name)
