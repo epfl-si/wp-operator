@@ -69,6 +69,35 @@ def create_secret(api_instance, namespace, name, secret):
 
     api_instance.create_namespaced_secret(namespace=namespace, body=body)
 
+def create_user(custom_api, namespace, name):
+    body = {
+        "apiVersion": "k8s.mariadb.com/v1alpha1",
+        "kind": "User",
+        "metadata": {
+            "name": f"wp-db-user-{name}",
+            "namespace": namespace
+        },
+        "spec": {
+            "mariaDbRef": {
+                "name": "mariadb-min"
+            },
+            "passwordSecretKeyRef": {
+                "name": f"wp-db-password-{name}",
+                "key": "password"
+            },
+            "host": "%",
+            "cleanupPolicy": "Delete"
+        }
+    }
+
+    custom_api.create_namespaced_custom_object(
+        group="k8s.mariadb.com",
+        version="v1alpha1",
+        namespace=namespace,
+        plural="users",
+        body=body
+    )
+
 @kopf.on.create('wordpresssites')
 def create_fn(spec, name, namespace, logger, **kwargs):
     
@@ -83,3 +112,4 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     create_ingress(networking_v1_api, namespace, name, path)
     create_database(custom_api, namespace, name)
     create_secret(api_instance, namespace, f"wp-db-password-{name}", secret)
+    create_user(custom_api, namespace, name)
