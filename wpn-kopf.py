@@ -156,6 +156,15 @@ def create_grant(custom_api, namespace, name):
         body=body
     )
 
+def delete_grant(custom_api, namespace, name):
+    custom_api.delete_namespaced_custom_object(
+        group="k8s.mariadb.com",
+        version="v1alpha1",
+        plural="grants",
+        namespace=namespace,
+        name=f"wordpress-{name}"
+    )
+
 @kopf.on.create('wordpresssites')
 def create_fn(spec, name, namespace, logger, **kwargs):
     
@@ -184,3 +193,4 @@ def delete_fn(spec, name, namespace, logger, **kwargs):
     delete_database(custom_api, namespace, name)
     delete_secret(api_instance, namespace, name)
     delete_user(custom_api, namespace, name)
+    delete_grant(custom_api, namespace, name)
