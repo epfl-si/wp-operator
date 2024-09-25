@@ -98,6 +98,37 @@ def create_user(custom_api, namespace, name):
         body=body
     )
 
+def create_grant(custom_api, namespace, name):
+    body = {
+        "apiVersion": "k8s.mariadb.com/v1alpha1",
+        "kind": "Grant",
+        "metadata": {
+            "name": f"wordpress-{name}",
+            "namespace": namespace
+        },
+        "spec": {
+            "mariaDbRef": {
+                "name": "mariadb-min"
+            },
+            "privileges": [
+                "ALL PRIVILEGES"
+            ],
+            "database": f"wp-db-{name}",
+            "table" : "*",
+            "username": f"wp-db-user-{name}",
+            "grantOption": False,
+            "host": "%"
+        }
+    }
+
+    custom_api.create_namespaced_custom_object(
+        group="k8s.mariadb.com",
+        version="v1alpha1",
+        namespace=namespace,
+        plural="grants",
+        body=body
+    )
+
 @kopf.on.create('wordpresssites')
 def create_fn(spec, name, namespace, logger, **kwargs):
     
@@ -113,3 +144,4 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     create_database(custom_api, namespace, name)
     create_secret(api_instance, namespace, f"wp-db-password-{name}", secret)
     create_user(custom_api, namespace, name)
+    create_grant(custom_api, namespace, name)
