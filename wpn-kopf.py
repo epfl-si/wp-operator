@@ -66,6 +66,15 @@ def create_database(custom_api, namespace, name):
         body=body
     )
 
+def delete_database(custom_api, namespace, name):
+    custom_api.delete_namespaced_custom_object(
+        group="k8s.mariadb.com",
+        version="v1alpha1",
+        plural="databases",
+        namespace=namespace,
+        name=f"wp-db-{name}"
+    )
+
 def create_secret(api_instance, namespace, name, secret):
     body = client.V1Secret(
         type="Opaque",
@@ -156,5 +165,7 @@ def create_fn(spec, name, namespace, logger, **kwargs):
 def delete_fn(spec, name, namespace, logger, **kwargs):
     config.load_kube_config()
     networking_v1_api = client.NetworkingV1Api()
+    custom_api = client.CustomObjectsApi()
 
     delete_ingress(networking_v1_api, namespace, name)
+    delete_database(custom_api, namespace, name)
