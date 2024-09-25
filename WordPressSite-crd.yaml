@@ -12,6 +12,8 @@ spec:
     singular: wordpresssite
     shortNames:
       - wp
+      - wps
+      - wordpresses
   scope: Namespaced
   versions:
   - name: v1
