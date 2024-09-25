@@ -35,6 +35,12 @@ def create_ingress(networking_v1_api, namespace, name, path):
         body=body
     )
 
+def delete_ingress(networking_v1_api, namespace, name):
+    networking_v1_api.delete_namespaced_ingress(
+        namespace=namespace,
+        name=name
+    )
+
 def create_database(custom_api, namespace, name):
     body = {
         "apiVersion": "k8s.mariadb.com/v1alpha1",
@@ -145,3 +151,10 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     create_secret(api_instance, namespace, f"wp-db-password-{name}", secret)
     create_user(custom_api, namespace, name)
     create_grant(custom_api, namespace, name)
+
+@kopf.on.delete('wordpresssites')
+def delete_fn(spec, name, namespace, logger, **kwargs):
+    config.load_kube_config()
+    networking_v1_api = client.NetworkingV1Api()
+
+    delete_ingress(networking_v1_api, namespace, name)
