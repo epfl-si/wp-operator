@@ -66,15 +66,6 @@ def create_database(custom_api, namespace, name):
         body=body
     )
 
-def delete_database(custom_api, namespace, name):
-    custom_api.delete_namespaced_custom_object(
-        group="k8s.mariadb.com",
-        version="v1alpha1",
-        plural="databases",
-        namespace=namespace,
-        name=f"wp-db-{name}"
-    )
-
 def create_secret(api_instance, namespace, name, secret):
     body = client.V1Secret(
         type="Opaque",
@@ -116,15 +107,6 @@ def create_user(custom_api, namespace, name):
         body=body
     )
 
-def delete_user(custom_api, namespace, name):
-    custom_api.delete_namespaced_custom_object(
-        group="k8s.mariadb.com",
-        version="v1alpha1",
-        plural="users",
-        namespace=namespace,
-        name=f"wp-db-user-{name}"
-    )
-
 def create_grant(custom_api, namespace, name):
     body = {
         "apiVersion": "k8s.mariadb.com/v1alpha1",
@@ -156,13 +138,13 @@ def create_grant(custom_api, namespace, name):
         body=body
     )
 
-def delete_grant(custom_api, namespace, name):
+def delete_custom_object_mariadb(custom_api, namespace, name, plural):
     custom_api.delete_namespaced_custom_object(
         group="k8s.mariadb.com",
         version="v1alpha1",
-        plural="grants",
+        plural=plural,
         namespace=namespace,
-        name=f"wordpress-{name}"
+        name=name
     )
 
 @kopf.on.create('wordpresssites')
@@ -190,7 +172,10 @@ def delete_fn(spec, name, namespace, logger, **kwargs):
     api_instance = client.CoreV1Api()
 
     delete_ingress(networking_v1_api, namespace, name)
-    delete_database(custom_api, namespace, name)
+    # Deleting database
+    delete_custom_object_mariadb(custom_api, namespace, f"wp-db-{name}", "databases")
     delete_secret(api_instance, namespace, name)
-    delete_user(custom_api, namespace, name)
-    delete_grant(custom_api, namespace, name)
+    # Deleting user
+    delete_custom_object_mariadb(custom_api, namespace, f"wp-db-user-{name}", "users")
+    # Deleting grant
+    delete_custom_object_mariadb(custom_api, namespace, f"wordpress-{name}", "grants")
