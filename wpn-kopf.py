@@ -60,6 +60,15 @@ def create_database(custom_api, namespace, name):
         body=body
     )
 
+def create_secret(api_instance, namespace, name, secret):
+    body = client.V1Secret(
+        type="Opaque",
+        metadata=client.V1ObjectMeta(name=name, namespace=namespace),
+        string_data={"password": secret}
+    )
+
+    api_instance.create_namespaced_secret(namespace=namespace, body=body)
+
 @kopf.on.create('wordpresssites')
 def create_fn(spec, name, namespace, logger, **kwargs):
     
@@ -67,6 +76,10 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     config.load_kube_config()
     networking_v1_api = client.NetworkingV1Api()
     custom_api = client.CustomObjectsApi()
+    api_instance = client.CoreV1Api()
+
+    secret = "secret" # Password, for the moment hard coded.
 
     create_ingress(networking_v1_api, namespace, name, path)
     create_database(custom_api, namespace, name)
+    create_secret(api_instance, namespace, f"wp-db-password-{name}", secret)
