@@ -5,12 +5,12 @@ define( 'ABSPATH', dirname(__FILE__) . '/volumes/wp/6/' );
 define( 'WP_DEBUG', 1);
 define( 'WP_DEBUG_DISPLAY', 1);
 
-define("WP_SITEURL", "https://wpn.fsd.team/site-E/");
+define("WP_SITEURL", "https://wpn.fsd.team/{$argv[1]}/");
 $_SERVER['HTTP_HOST'] = 'wpn.fsd.team';
 
-define("DB_USER", "wp-db-user-site-e");
+define("DB_USER", "wp-db-user-{$argv[2]}");
 define("DB_PASSWORD", "secret");
-define("DB_NAME", "wp-db-site-e");
+define("DB_NAME", "wp-db-{$argv[2]}");
 define("DB_HOST", "mariadb-min.wordpress-test.svc");
 
 global $table_prefix; $table_prefix = "wp_";
