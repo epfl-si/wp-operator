@@ -2,11 +2,12 @@ apiVersion: wordpress.epfl.ch/v1
 kind: WordpressSite
 metadata:
   name: test-site
+  namespace: wordpress-test
 spec:
   path: /test-site
   visibility: public
   kubernetes:
-    service: test
+    service: wpn-nginx
   wordpress:
     title: Super Test Site
     tagline: Super Test Site tagline !
@@ -15,4 +16,4 @@ spec:
       - fr
       - en
   epfl:
-    unit_id: 1814
+    unit_id: 1906
