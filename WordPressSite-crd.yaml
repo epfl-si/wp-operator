@@ -66,11 +66,11 @@ spec:
                   title:
                     description: WordpressSite's title
                     type: string
-                    pattern: ^[a-zA-Z]{3}(.*)$
+                    pattern: ^[\w -_.]{3,}$
                   tagline:
                     description: WordpressSite's tagline
                     type: string
-                    pattern: ^[a-zA-Z]{3}(.*)$
+                    pattern: ^[\w -_.]{3,}$
                   theme:
                     description: WordpressSite's theme
                     type: string
