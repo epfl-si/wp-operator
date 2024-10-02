@@ -34,7 +34,10 @@ function get_wordpress ($wp_env, $host, $uri) {
 
     for site in wordpress_sites:
         path = site['spec']['path']
-        php_code += f"""
+        
+        if (path != '/'):
+            print(f"{path=}")
+            php_code += f"""
         '{path}' => [
             'site_uri' => '{path}/',
             'wp_debug' => TRUE
@@ -72,15 +75,23 @@ function get_db_credentials ($wordpress) {
     for site in wordpress_sites:
         path = site['spec']['path']
         name = site['metadata']['name']
-        php_code += f"""
-            '{path}/' => [
-                'db_host' => 'mariadb-min',
-                'db_name' => 'wp-db-{name}',
-                'db_user' => 'wp-db-user-{name}',
-                'db_password' => 'secret'
-            ],"""
+        
+        if (path != '/'):
+            php_code += f"""
+        '{path}/' => [
+            'db_host' => 'mariadb-min',
+            'db_name' => 'wp-db-{name}',
+            'db_user' => 'wp-db-user-{name}',
+            'db_password' => 'secret'
+        ],"""
 
     php_code+= """
+        '/' => [ # This is the root site and is mandatory
+            'db_host' => 'mariadb-min',
+            'db_name' => 'wordpress-test',
+            'db_user' => 'wordpress',
+            'db_password' => 'secret'
+        ],
     ];
     error_log(print_r($wordpress, true));
     return $databases_config[$wordpress['site_uri']];
