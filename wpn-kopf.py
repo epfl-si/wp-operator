@@ -158,7 +158,7 @@ def create_fn(spec, name, namespace, logger, **kwargs):
 
     secret = "secret" # Password, for the moment hard coded.
 
-    create_ingress(networking_v1_api, namespace, name, path)
+    #   create_ingress(networking_v1_api, namespace, name, path)
     create_database(custom_api, namespace, name)
     create_secret(api_instance, namespace, f"wp-db-password-{name}", secret)
     create_user(custom_api, namespace, name)
@@ -171,7 +171,7 @@ def delete_fn(spec, name, namespace, logger, **kwargs):
     custom_api = client.CustomObjectsApi()
     api_instance = client.CoreV1Api()
 
-    delete_ingress(networking_v1_api, namespace, name)
+    # delete_ingress(networking_v1_api, namespace, name)
     # Deleting database
     delete_custom_object_mariadb(custom_api, namespace, f"wp-db-{name}", "databases")
     delete_secret(api_instance, namespace, name)
