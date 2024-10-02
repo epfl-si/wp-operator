@@ -48,10 +48,10 @@ function get_wordpress ($wp_env, $host, $uri) {
     ];
     $key = $uri;
     $array_paths = explode('/', $uri);
-    while ( ! array_key_exists($key, $sites_values) && $key != '' ) {{
+    while ( ! array_key_exists($key, $sites_values) && $key != '' ) {
         array_pop($array_paths);
         $key = implode('/', $array_paths);
-    }}
+    }
     if ( $key == '' ) $key = '/';
     error_log("Selected uri_path → " . $key);
     return array_merge($common_values, $sites_values[$key]);
