@@ -56,6 +56,15 @@ function get_wordpress ($wp_env, $host, $uri) {
         $key = implode('/', $array_paths);
     }
     if ( $key == '' ) $key = '/';
+    
+    /** This tempt to set the UPLOADS var that will be used
+     *  in the mu-plugins/epfl-functions.php in the `upload_dir`
+     *  filter. Otherwise, the UPLOADS constant is prefixed with
+     *  the ABSPATH in WordPress.
+     */
+    $site_upload_dir = '/data' . $sites_values[$key]['site_uri'] . 'uploads';
+    define('UPLOADS', $site_upload_dir);
+    
     error_log("Selected uri_path → " . $key);
     return array_merge($common_values, $sites_values[$key]);
 }
