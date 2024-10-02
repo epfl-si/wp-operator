@@ -46,7 +46,7 @@ function get_wordpress ($wp_env, $host, $uri) {
     php_code+="""
         '/' => [ // this is mandatory (used as default)!
             'site_uri' => '/',
-            'wp_debug' => TRUE
+            'wp_debug' => FALSE
         ],
     ];
     $key = $uri;
