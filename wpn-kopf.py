@@ -1,6 +1,121 @@
 # Kopf documentation : https://kopf.readthedocs.io/
 import kopf
 from kubernetes import client, config
+import base64
+configmap_name = "wpn-nginx"
+namespace_name = "wordpress-test"
+
+def list_wordpress_sites():
+    api = client.CustomObjectsApi()
+    
+    wordpress_sites = api.list_cluster_custom_object(
+        group="wordpress.epfl.ch",
+        version="v1",
+        plural="wordpresssites"
+    )
+    
+    return wordpress_sites.get('items', [])
+
+def generate_php_get_wordpress(wordpress_sites):
+    php_code = """<?php
+    
+namespace __entrypoint;
+    
+function get_wordpress ($wp_env, $host, $uri) {
+    $common_values = [
+        'host'       => 'wp-httpd',
+        'wp_env'     => getenv('WP_ENV'), // why ?
+        'wp_version' => '6'
+    ];
+
+    $sites_values = ["""
+
+    for site in wordpress_sites:
+        path = site['spec']['path']
+        php_code += f"""
+        '{path}' => [
+            'site_uri' => '{path}/',
+            'wp_debug' => TRUE
+        ],"""
+
+    php_code+="""
+        '/' => [ // this is mandatory (used as default)!
+            'site_uri' => '/',
+            'wp_debug' => TRUE
+        ],
+    ];
+    $key = $uri;
+    $array_paths = explode('/', $uri);
+    while ( ! array_key_exists($key, $sites_values) && $key != '' ) {{
+        array_pop($array_paths);
+        $key = implode('/', $array_paths);
+    }}
+    if ( $key == '' ) $key = '/';
+    error_log("Selected uri_path → " . $key);
+    return array_merge($common_values, $sites_values[$key]);
+}
+"""
+
+    return php_code
+
+def generate_php_get_credentials(wordpress_sites):
+    php_code ="""<?php
+    
+namespace __entrypoint;
+    
+function get_db_credentials ($wordpress) {
+
+    $databases_config = ["""
+
+    for site in wordpress_sites:
+        path = site['spec']['path']
+        name = site['metadata']['name']
+        php_code += f"""
+            '{path}/' => [
+                'db_host' => 'mariadb-min',
+                'db_name' => 'wp-db-{name}',
+                'db_user' => 'wp-db-user-{name}',
+                'db_password' => 'secret'
+            ],"""
+
+    php_code+= """
+    ];
+    error_log(print_r($wordpress, true));
+    return $databases_config[$wordpress['site_uri']];
+}
+"""
+
+    return php_code
+
+def get_nginx_configmap():
+    api = client.CoreV1Api()
+    configmap = api.read_namespaced_config_map(name=configmap_name, namespace=namespace_name)
+    return configmap
+
+def get_nginx_secret():
+    api = client.CoreV1Api()
+    secret = api.read_namespaced_secret(name=configmap_name, namespace=namespace_name)
+    return secret
+
+def regenerate_nginx_configmap(logger):
+    api = client.CoreV1Api()
+    
+    wordpress_sites = list_wordpress_sites()
+    
+    php_code_get_wordpress = generate_php_get_wordpress(wordpress_sites)
+    php_code_get_credentials = generate_php_get_credentials(wordpress_sites)
+    configmap = get_nginx_configmap()
+    secret = get_nginx_secret()
+
+    b = base64.b64encode(bytes(php_code_get_credentials, 'utf-8'))
+    base64_str = b.decode('utf-8')
+
+    configmap.data['get_wordpress.php'] = php_code_get_wordpress
+    secret.data['get_db_credentials.php'] = base64_str
+
+
+    api.replace_namespaced_config_map(name=configmap_name, namespace=namespace_name, body=configmap)
+    api.replace_namespaced_secret(name=configmap_name, namespace=namespace_name, body=secret)
 
 # Thanks to https://blog.knoldus.com/how-to-create-ingress-using-kubernetes-python-client%EF%BF%BC/
 def create_ingress(networking_v1_api, namespace, name, path):
@@ -164,6 +279,7 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     create_user(custom_api, namespace, name)
     create_grant(custom_api, namespace, name)
 
+    regenerate_nginx_configmap(logger)
 @kopf.on.delete('wordpresssites')
 def delete_fn(spec, name, namespace, logger, **kwargs):
     config.load_kube_config()
