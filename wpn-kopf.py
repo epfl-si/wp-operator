@@ -2,6 +2,8 @@
 import kopf
 from kubernetes import client, config
 import base64
+import subprocess
+
 configmap_name = "wpn-nginx"
 namespace_name = "wordpress-test"
 
@@ -116,6 +118,10 @@ def regenerate_nginx_configmap(logger):
 
     api.replace_namespaced_config_map(name=configmap_name, namespace=namespace_name, body=configmap)
     api.replace_namespaced_secret(name=configmap_name, namespace=namespace_name, body=secret)
+
+def execute_php_via_stdin(path, name):
+    # https://stackoverflow.com/a/92395
+    subprocess.call(f"php ../../ensure-wordpress-and-theme.php {path} {name}", shell=True)
 
 # Thanks to https://blog.knoldus.com/how-to-create-ingress-using-kubernetes-python-client%EF%BF%BC/
 def create_ingress(networking_v1_api, namespace, name, path):
@@ -280,6 +286,8 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     create_grant(custom_api, namespace, name)
 
     regenerate_nginx_configmap(logger)
+    execute_php_via_stdin(path, name)
+
 @kopf.on.delete('wordpresssites')
 def delete_fn(spec, name, namespace, logger, **kwargs):
     config.load_kube_config()
