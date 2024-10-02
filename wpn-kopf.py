@@ -36,8 +36,8 @@ function get_wordpress ($wp_env, $host, $uri) {
         name = site['metadata']['name']
         path = site['spec']['path']
         
-        if (path != '/'):
-            print(f"{path=}")
+        if (name != 'www'):
+            print(f"{name=}, {path=}") # DEBUG
             php_code += f"""
         '{path}' => [
             'site_uri' => '{path}/',
@@ -48,7 +48,7 @@ function get_wordpress ($wp_env, $host, $uri) {
     php_code+="""
         '/' => [ // this is mandatory (used as default)!
             'site_uri' => '/',
-            'site_name' => 'wordpress-test', ## FIXME
+            'site_name' => 'www', ## FIXME
             'wp_debug' => false,
         ],
     ];
