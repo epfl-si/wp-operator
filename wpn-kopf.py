@@ -16,7 +16,12 @@ def list_wordpress_sites():
         plural="wordpresssites"
     )
     
-    return wordpress_sites.get('items', [])
+    active_sites = [
+        site for site in wordpress_sites.get('items', [])
+        if site.get('status', {}).get('phase') == 'active'
+    ]
+    
+    return active_sites
 
 def generate_php_get_wordpress(wordpress_sites):
     php_code = """<?php
@@ -328,3 +333,5 @@ def delete_fn(spec, name, namespace, logger, **kwargs):
     delete_custom_object_mariadb(custom_api, namespace, f"wp-db-user-{name}", "users")
     # Deleting grant
     delete_custom_object_mariadb(custom_api, namespace, f"wordpress-{name}", "grants")
+
+    regenerate_nginx_configmap(logger)
