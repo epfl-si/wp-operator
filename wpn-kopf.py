@@ -22,7 +22,13 @@ def generate_php_get_wordpress(wordpress_sites):
     php_code = """<?php
     
 namespace __entrypoint;
-    
+/**
+ * This function is dynamically built by the WordPress Operator!
+ * Its main objectif is to match a URL's path to a k8s WordPress
+ * object name (https://domain/site-A/site-C/ ←→ `site-c`).
+ * It's also used to trigger some configuration, from the WordPress
+ * k8s object (defined in the CR), to a specific WordPress site.
+ */
 function get_wordpress ($wp_env, $host, $uri) {
     $common_values = [
         'host'       => 'wp-httpd',
