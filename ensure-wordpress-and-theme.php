@@ -5,7 +5,9 @@ define( 'ABSPATH', dirname(__FILE__) . '/volumes/wp/6/' );
 define( 'WP_DEBUG', 1);
 define( 'WP_DEBUG_DISPLAY', 1);
 
-define("WP_SITEURL", "https://wpn.fsd.team/{$argv[1]}/");
+$site_url = "wpn.fsd.team/{$argv[1]}/";
+$site_url = preg_replace('#/+#','/', $site_url);
+define("WP_SITEURL", "https://" . $site_url);
 $_SERVER['HTTP_HOST'] = 'wpn.fsd.team';
 
 define("DB_USER", "wp-db-user-{$argv[2]}");
