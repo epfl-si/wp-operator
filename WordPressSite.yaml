@@ -15,5 +15,6 @@ spec:
     languages:
       - fr
       - en
+    debug: true
   epfl:
     unit_id: 1906

@@ -81,6 +81,10 @@ spec:
                     items:
                       type: string
                       pattern: ^[a-z]{2}$
+                  debug:
+                    description: Whether or not activate the WP_DEBUG
+                    type: boolean
+                    default: false
                 required:
                   - title
                   - tagline
