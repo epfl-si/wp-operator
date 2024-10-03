@@ -49,7 +49,7 @@ spec:
                 type: string
                 pattern: ^/(.*)
               visibility:
-                description: Set the visitiblity of the WordpressSite (public / internal)
+                description: Set the visibility of the WordpressSite (public / internal)
                 type: string
                 pattern: ^(public|internal)$
               kubernetes:
