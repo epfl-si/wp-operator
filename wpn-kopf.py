@@ -141,9 +141,9 @@ def regenerate_nginx_configmap(logger):
     api.replace_namespaced_config_map(name=configmap_name, namespace=namespace_name, body=configmap)
     api.replace_namespaced_secret(name=configmap_name, namespace=namespace_name, body=secret)
 
-def execute_php_via_stdin(path, name):
+def execute_php_via_stdin(name, path, title, tagline):
     # https://stackoverflow.com/a/92395
-    subprocess.call(f"php ../../ensure-wordpress-and-theme.php {path} {name}", shell=True)
+    subprocess.call(f"php ../../ensure-wordpress-and-theme.php --name='{name}' --path='{path}' --title='{title}' --tagline='{tagline}'", shell=True)
 
 # Thanks to https://blog.knoldus.com/how-to-create-ingress-using-kubernetes-python-client%EF%BF%BC/
 def create_ingress(networking_v1_api, namespace, name, path):
@@ -294,6 +294,9 @@ def delete_custom_object_mariadb(custom_api, namespace, name, plural):
 def create_fn(spec, name, namespace, logger, **kwargs):
     
     path = spec.get('path')
+    wordpress = spec.get("wordpress")
+    title = wordpress["title"]
+    tagline = wordpress["tagline"]
     config.load_kube_config()
     networking_v1_api = client.NetworkingV1Api()
     custom_api = client.CustomObjectsApi()
@@ -308,7 +311,7 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     create_grant(custom_api, namespace, name)
 
     regenerate_nginx_configmap(logger)
-    execute_php_via_stdin(path, name)
+    execute_php_via_stdin(name, path, title, tagline)
 
 @kopf.on.delete('wordpresssites')
 def delete_fn(spec, name, namespace, logger, **kwargs):
