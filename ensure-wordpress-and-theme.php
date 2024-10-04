@@ -32,19 +32,40 @@ $longopts  = array(
     "title::",
     "tagline::",
     "theme::",
+    "discourage::",
 );
 $options = getopt($shortops, $longopts);
+if ( key_exists("h", $options) ) {
+  $help = <<<EOD
+
+Usage:
+  ensure-wordpress-and-theme.php --name="site-a" --path="/site-A"
+
+Options:
+  --name        Mandatory  Identifier (as in k8s CR's name). Example: "site-a"
+  --path        Mandatory  URL's path of the site. Example: "/site-A"
+  --title       Optional   Site's title (blogname). Example: "This is the site A"
+                           Default set to --name.
+  --tagline     Optional   Site's description (tagline). Example: "A site about A and a."
+  --theme       Optional   Set the site's theme.
+                           Default to __WORDPRESS_DEFAULT_THEME (wp-theme-2018)
+  --discourage  Optional   Set search engine visibility. 1 means discourage search
+                           engines from indexing this site, but it is up to search
+                           engines to honor this request.
+EOD;
+  echo $help . "\n";
+  exit();
+}
+
 if ( empty($options["name"]) || empty($options["path"]) ) {
   echo '"--name" and "--path" are required arguments.';
+  echo "\nUse -h to get additional help.\n";
   exit(1);
 }
 if ( empty($options["title"]) ) {
   $options["title"] = $options["name"];
 }
-if ( key_exists("h", $options) ) {
-  echo 'ensure-wordpress-and-theme.php --name="site-a" --path="/site-A" --title="Titre du site A" --tagline="Tagline du super site A"';
-  exit();
-}
+
 define( 'WP_CONTENT_DIR', dirname(__FILE__));
 define( 'ABSPATH', dirname(__FILE__) . __WORDPRESS_SOURCE_DIR );
 define( 'WP_DEBUG', 1);
