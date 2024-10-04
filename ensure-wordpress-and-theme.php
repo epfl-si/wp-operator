@@ -95,8 +95,10 @@ function get_admin_user_id () {
 /**
  * Whatever wp_install does, that was not already done above.
  */
-function ensure_other_basic_wordpress_things () {
-  update_option( 'blog_public', 1 );
+function ensure_other_basic_wordpress_things ( $options ) {
+  # Set search engine visibility. 1 means discourage search engines from
+  # indexing this site, but it is up to search engines to honor this request.
+  update_option( 'blog_public', ( empty($options["discourage"]) ? '1' : '0' ) );
   update_option( 'fresh_site', 1 );
   update_option( 'siteurl', wp_guess_url() );
 
@@ -130,7 +132,7 @@ function ensure_theme ( $options ) {
 }
 
 ensure_db_schema();
-ensure_other_basic_wordpress_things();
+ensure_other_basic_wordpress_things( $options );
 ensure_admin_user("admin", "admin@exemple.com", "secret");
 ensure_site_title( $options );
 ensure_tagline( $options );
