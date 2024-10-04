@@ -127,6 +127,7 @@ function ensure_other_basic_wordpress_things ( $options ) {
   update_option( 'blog_public', ( empty($options["discourage"]) ? '1' : '0' ) );
   update_option( 'fresh_site', 1 );
   update_option( 'siteurl', wp_guess_url() );
+  update_option( 'permalink_structure', '/%postname%/' );
 
   wp_install_defaults( get_admin_user_id() );
   wp_install_maybe_enable_pretty_permalinks();
