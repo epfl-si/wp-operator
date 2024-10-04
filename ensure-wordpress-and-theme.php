@@ -129,6 +129,10 @@ function ensure_other_basic_wordpress_things ( $options ) {
   update_option( 'siteurl', wp_guess_url() );
   update_option( 'permalink_structure', '/%postname%/' );
 
+  # Use a page as home page, instead of posts.
+  update_option( 'show_on_front', 'page' );
+  update_option( 'page_on_front', 2 ); // This is the sample page
+  
   wp_install_defaults( get_admin_user_id() );
   wp_install_maybe_enable_pretty_permalinks();
 
