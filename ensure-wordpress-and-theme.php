@@ -17,6 +17,11 @@
  * to work from outside the cluster, you have to use something like KubeVPN.
 **/
 
+error_log("  ...  Hello from wp-ops/ensure-wordpress-and-theme.php  ... ");
+
+error_reporting(E_ALL);
+ini_set('display_errors', 'On');
+
 define( '__WORDPRESS_SOURCE_DIR', '/volumes/wp/6/' );
 define( '__WORDPRESS_DOMAIN', 'wpn.fsd.team' );
 define( '__WORDPRESS_DEFAULT_THEME', 'wp-theme-2018' );
