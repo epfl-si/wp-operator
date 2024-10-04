@@ -162,9 +162,21 @@ function ensure_theme ( $options ) {
   print( switch_theme( $theme->get_stylesheet() ) );
 }
 
+function ensure_plugins ( $options ) {
+  # This is the default plugin list that should be activated at installation
+  $plugins = array(
+    "epfl-coming-soon/epfl-coming-soon.php",
+    "EPFL-settings/EPFL-settings.php",
+    "wp-gutenberg-epfl/plugin.php",
+    // "polylang/polylang.php",
+  );
+  update_option( 'active_plugins', $plugins );
+}
+
 ensure_db_schema();
 ensure_other_basic_wordpress_things( $options );
 ensure_admin_user("admin", "admin@exemple.com", "secret");
 ensure_site_title( $options );
 ensure_tagline( $options );
 ensure_theme( $options );
+ensure_plugins( $options );
