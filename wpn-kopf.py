@@ -1,13 +1,25 @@
 # Kopf documentation : https://kopf.readthedocs.io/
+#
+# Run with `kopf run -n wordpress-test wpn-kopf.py [--verbose]`
+#
 import kopf
+import logging
 from kubernetes import client, config
 import base64
 import subprocess
+import json
 
 configmap_name = "wpn-nginx"
 namespace_name = "wordpress-test"
 
+# Function that runs when the operator starts
+@kopf.on.startup()
+def startup_fn(**kwargs):
+    print("Operator started and initialized")
+    # TODO: check the presence of namespaces or cluster-wide flag here.
+
 def list_wordpress_sites():
+    logging.info(f"   ↳ [{namespace_name}] list_wordpress_sites")
     api = client.CustomObjectsApi()
     
     wordpress_sites = api.list_cluster_custom_object(
@@ -24,6 +36,7 @@ def list_wordpress_sites():
     return active_sites
 
 def generate_php_get_wordpress(wordpress_sites):
+    logging.info(f"   ↳ [{namespace_name}/cm] get_wordpress.php")
     php_code = """<?php
     
 namespace __entrypoint;
@@ -80,6 +93,7 @@ function get_wordpress ($wp_env, $host, $uri) {
     return php_code
 
 def generate_php_get_credentials(wordpress_sites):
+    logging.info(f"   ↳ [{namespace_name}/secret] get_db_credentials.php")
     php_code ="""<?php
     
 namespace __entrypoint;
@@ -127,6 +141,7 @@ def get_nginx_secret():
     return secret
 
 def regenerate_nginx_configmap(logger):
+    logging.info(f" ↳ [{namespace_name}/cm+secret] Recreating the config map + secret ({configmap_name})")
     api = client.CoreV1Api()
     
     wordpress_sites = list_wordpress_sites()
@@ -147,8 +162,14 @@ def regenerate_nginx_configmap(logger):
     api.replace_namespaced_secret(name=configmap_name, namespace=namespace_name, body=secret)
 
 def execute_php_via_stdin(name, path, title, tagline):
+    # Quick way to escape string before passing them to the shell
+    # see https://stackoverflow.com/a/44820658/960623
+    title = json.dumps(title)
+    tagline = json.dumps(tagline)
+    logging.info(f" ↳ [{namespace_name}/{name}] Configuring (ensure-wordpress-and-theme.php) with {name=}, {path=}, {title=}, {tagline=}")
     # https://stackoverflow.com/a/92395
-    subprocess.call(f"php ../../ensure-wordpress-and-theme.php --name='{name}' --path='{path}' --title='{title}' --tagline='{tagline}'", shell=True)
+    subprocess.call(f"php ../../ensure-wordpress-and-theme.php --name='{name}' --path='{path}' --title={title} --tagline={tagline}", shell=True)
+    logging.info(f" ↳ [{namespace_name}/{name}] End of configuring")
 
 # Thanks to https://blog.knoldus.com/how-to-create-ingress-using-kubernetes-python-client%EF%BF%BC/
 def create_ingress(networking_v1_api, namespace, name, path):
@@ -190,6 +211,7 @@ def delete_ingress(networking_v1_api, namespace, name):
     )
 
 def create_database(custom_api, namespace, name):
+    logging.info(f" ↳ [{namespace}/{name}] Create Database wp-db-{name}")
     body = {
         "apiVersion": "k8s.mariadb.com/v1alpha1",
         "kind": "Database",
@@ -214,19 +236,22 @@ def create_database(custom_api, namespace, name):
         body=body
     )
 
-def create_secret(api_instance, namespace, name, secret):
+def create_secret(api_instance, namespace, name, prefix, secret):
+    logging.info(f" ↳ [{namespace}/{name}] Create Secret name={prefix + name}")
     body = client.V1Secret(
         type="Opaque",
-        metadata=client.V1ObjectMeta(name=name, namespace=namespace),
+        metadata=client.V1ObjectMeta(name=prefix + name, namespace=namespace),
         string_data={"password": secret}
     )
 
     api_instance.create_namespaced_secret(namespace=namespace, body=body)
 
-def delete_secret(api_instance, namespace, name):
-    api_instance.delete_namespaced_secret(namespace=namespace, name=f"wp-db-password-{name}")
+def delete_secret(api_instance, namespace, name, prefix):
+    logging.info(f" ↳ [{namespace}/{name}] Delete Secret {prefix + name}")
+    api_instance.delete_namespaced_secret(namespace=namespace, name=prefix + name)
 
 def create_user(custom_api, namespace, name):
+    logging.info(f" ↳ [{namespace}/{name}] Create User name=wp-db-user-{name}")
     body = {
         "apiVersion": "k8s.mariadb.com/v1alpha1",
         "kind": "User",
@@ -256,6 +281,7 @@ def create_user(custom_api, namespace, name):
     )
 
 def create_grant(custom_api, namespace, name):
+    logging.info(f" ↳ [{namespace}/{name}] Create Grant {name=}")
     body = {
         "apiVersion": "k8s.mariadb.com/v1alpha1",
         "kind": "Grant",
@@ -286,18 +312,19 @@ def create_grant(custom_api, namespace, name):
         body=body
     )
 
-def delete_custom_object_mariadb(custom_api, namespace, name, plural):
+def delete_custom_object_mariadb(custom_api, namespace, name, prefix, plural):
+    logging.info(f" ↳ [{namespace}/{name}] Delete MariaDB object {prefix + name}")
     custom_api.delete_namespaced_custom_object(
         group="k8s.mariadb.com",
         version="v1alpha1",
         plural=plural,
         namespace=namespace,
-        name=name
+        name=prefix + name
     )
 
 @kopf.on.create('wordpresssites')
 def create_fn(spec, name, namespace, logger, **kwargs):
-    
+    logging.info(f"Create WordPressSite {name=} in {namespace=}")
     path = spec.get('path')
     wordpress = spec.get("wordpress")
     title = wordpress["title"]
@@ -311,15 +338,19 @@ def create_fn(spec, name, namespace, logger, **kwargs):
 
     #   create_ingress(networking_v1_api, namespace, name, path)
     create_database(custom_api, namespace, name)
-    create_secret(api_instance, namespace, f"wp-db-password-{name}", secret)
+    create_secret(api_instance, namespace, name, 'wp-db-password-', secret)
     create_user(custom_api, namespace, name)
     create_grant(custom_api, namespace, name)
 
     regenerate_nginx_configmap(logger)
     execute_php_via_stdin(name, path, title, tagline)
+    logging.info(f"End of create WordPressSite {name=} in {namespace=}")
+
 
 @kopf.on.delete('wordpresssites')
 def delete_fn(spec, name, namespace, logger, **kwargs):
+    print(kwargs['meta']['namespace'])
+    logging.info(f"Delete WordPressSite {name=} in {namespace=}")
     config.load_kube_config()
     networking_v1_api = client.NetworkingV1Api()
     custom_api = client.CustomObjectsApi()
@@ -327,11 +358,11 @@ def delete_fn(spec, name, namespace, logger, **kwargs):
 
     # delete_ingress(networking_v1_api, namespace, name)
     # Deleting database
-    delete_custom_object_mariadb(custom_api, namespace, f"wp-db-{name}", "databases")
-    delete_secret(api_instance, namespace, name)
+    delete_custom_object_mariadb(custom_api, namespace, name, "wp-db-", "databases")
+    delete_secret(api_instance, namespace, name, 'wp-db-password-')
     # Deleting user
-    delete_custom_object_mariadb(custom_api, namespace, f"wp-db-user-{name}", "users")
+    delete_custom_object_mariadb(custom_api, namespace, name, "wp-db-user-", "users")
     # Deleting grant
-    delete_custom_object_mariadb(custom_api, namespace, f"wordpress-{name}", "grants")
+    delete_custom_object_mariadb(custom_api, namespace, name, "wordpress-", "grants")
 
     regenerate_nginx_configmap(logger)
