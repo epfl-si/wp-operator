@@ -27,12 +27,15 @@ def list_wordpress_sites():
         version="v1",
         plural="wordpresssites"
     )
+    logging.info(wordpress_sites)
     
     active_sites = [
         site for site in wordpress_sites.get('items', [])
-        if site.get('status', {}).get('phase') == 'active'
+        # if site.get('status', {}).get('phase') == 'active' # FIXME
     ]
+    logging.info(active_sites)
     
+    logging.info(f"   ↳ [{namespace_name}] END OF list_wordpress_sites")
     return active_sites
 
 def generate_php_get_wordpress(wordpress_sites):
@@ -56,13 +59,18 @@ function get_wordpress ($wp_env, $host, $uri) {
 
     $sites_values = ["""
 
+    logging.info(f"     → MAYBE HELLP")
+    logging.info(f"     {wordpress_sites}")
+    
     for site in wordpress_sites:
         name = site['metadata']['name']
+        logging.info(f"     → DOING {name}")
         path = site['spec']['path']
         debug = site['spec']['wordpress']['debug']
         
         if (name != 'www'):
-            print(f"{name=}, {path=}") # DEBUG
+            print(f"DEBUG MAISON: {name=}, {path=}") # DEBUG
+            logging.info(f"     ↳ [{namespace_name}/cm] {name=}, {path=}")
             php_code += f"""
         '{path}' => [
             'site_uri' => '{path}/',
