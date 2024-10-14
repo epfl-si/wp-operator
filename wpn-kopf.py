@@ -5,6 +5,7 @@
 import kopf
 import logging
 from kubernetes import client, config
+from kubernetes.client.exceptions import ApiException
 import base64
 import subprocess
 import json
@@ -236,35 +237,49 @@ def create_database(custom_api, namespace, name):
         }
     }
 
-    custom_api.create_namespaced_custom_object(
-        group="k8s.mariadb.com",
-        version="v1alpha1",
-        namespace=namespace,
-        plural="databases",
-        body=body
-    )
+
+    try:
+        custom_api.create_namespaced_custom_object(
+            group="k8s.mariadb.com",
+            version="v1alpha1",
+            namespace=namespace,
+            plural="databases",
+            body=body
+        )
+    except ApiException as e:
+        if e.status != 409:
+            raise e
+        logging.info(f" ↳ [{namespace}/{name}] Database wp-db-{name} already exists")
 
 def create_secret(api_instance, namespace, name, prefix, secret):
     logging.info(f" ↳ [{namespace}/{name}] Create Secret name={prefix + name}")
+    secret_name = prefix + name
     body = client.V1Secret(
         type="Opaque",
-        metadata=client.V1ObjectMeta(name=prefix + name, namespace=namespace),
+        metadata=client.V1ObjectMeta(name=secret_name, namespace=namespace),
         string_data={"password": secret}
     )
 
-    api_instance.create_namespaced_secret(namespace=namespace, body=body)
+    try:
+        api_instance.create_namespaced_secret(namespace=namespace, body=body)
+    except ApiException as e:
+        if e.status != 409:
+            raise e
+        logging.info(f" ↳ [{namespace}/{name}] Secret {secret_name} already exists")
 
 def delete_secret(api_instance, namespace, name, prefix):
     logging.info(f" ↳ [{namespace}/{name}] Delete Secret {prefix + name}")
     api_instance.delete_namespaced_secret(namespace=namespace, name=prefix + name)
 
 def create_user(custom_api, namespace, name):
-    logging.info(f" ↳ [{namespace}/{name}] Create User name=wp-db-user-{name}")
+    user_name = f"wp-db-user-{name}"
+    password_name = f"wp-db-password-{name}"
+    logging.info(f" ↳ [{namespace}/{name}] Create User name={user_name}")
     body = {
         "apiVersion": "k8s.mariadb.com/v1alpha1",
         "kind": "User",
         "metadata": {
-            "name": f"wp-db-user-{name}",
+            "name": user_name,
             "namespace": namespace
         },
         "spec": {
@@ -272,7 +287,7 @@ def create_user(custom_api, namespace, name):
                 "name": "mariadb-min"
             },
             "passwordSecretKeyRef": {
-                "name": f"wp-db-password-{name}",
+                "name": password_name,
                 "key": "password"
             },
             "host": "%",
@@ -280,21 +295,28 @@ def create_user(custom_api, namespace, name):
         }
     }
 
-    custom_api.create_namespaced_custom_object(
-        group="k8s.mariadb.com",
-        version="v1alpha1",
-        namespace=namespace,
-        plural="users",
-        body=body
-    )
+    try:
+        custom_api.create_namespaced_custom_object(
+            group="k8s.mariadb.com",
+            version="v1alpha1",
+            namespace=namespace,
+            plural="users",
+            body=body
+        )
+    except ApiException as e:
+        if e.status != 409:
+            raise e
+        logging.info(f" ↳ [{namespace}/{name}] User {user_name} already exists")
+
 
 def create_grant(custom_api, namespace, name):
+    grant_name = f"wordpress-{name}"
     logging.info(f" ↳ [{namespace}/{name}] Create Grant {name=}")
     body = {
         "apiVersion": "k8s.mariadb.com/v1alpha1",
         "kind": "Grant",
         "metadata": {
-            "name": f"wordpress-{name}",
+            "name": grant_name,
             "namespace": namespace
         },
         "spec": {
@@ -312,13 +334,18 @@ def create_grant(custom_api, namespace, name):
         }
     }
 
-    custom_api.create_namespaced_custom_object(
-        group="k8s.mariadb.com",
-        version="v1alpha1",
-        namespace=namespace,
-        plural="grants",
-        body=body
-    )
+    try:
+        custom_api.create_namespaced_custom_object(
+            group="k8s.mariadb.com",
+            version="v1alpha1",
+            namespace=namespace,
+            plural="grants",
+            body=body
+        )
+    except ApiException as e:
+        if e.status != 409:
+            raise e
+        logging.info(f" ↳ [{namespace}/{name}] Grant {grant_name} already exists")
 
 def delete_custom_object_mariadb(custom_api, namespace, name, prefix, plural):
     logging.info(f" ↳ [{namespace}/{name}] Delete MariaDB object {prefix + name}")
