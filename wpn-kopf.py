@@ -163,7 +163,11 @@ def regenerate_nginx_configmap(logger):
     b = base64.b64encode(bytes(php_code_get_credentials, 'utf-8'))
     base64_str = b.decode('utf-8')
 
+    if not configmap.data:
+        configmap.data = {}
     configmap.data['get_wordpress.php'] = php_code_get_wordpress
+    if not secret.data:
+        secret.data = {}
     secret.data['get_db_credentials.php'] = base64_str
 
 
