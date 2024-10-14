@@ -141,13 +141,32 @@ function get_db_credentials ($wordpress) {
 
 def get_nginx_configmap():
     api = client.CoreV1Api()
-    configmap = api.read_namespaced_config_map(name=configmap_name, namespace=namespace_name)
-    return configmap
+    try:
+        return api.read_namespaced_config_map(name=configmap_name, namespace=namespace_name)
+    except ApiException as e:
+        if e.status != 404:
+            raise e
+
+    return api.create_namespaced_config_map(
+        namespace=namespace_name,
+        body=client.V1ConfigMap(
+            api_version="v1",
+            kind="ConfigMap",
+            metadata=client.V1ObjectMeta(name=configmap_name, namespace=namespace_name)))
 
 def get_nginx_secret():
     api = client.CoreV1Api()
-    secret = api.read_namespaced_secret(name=configmap_name, namespace=namespace_name)
-    return secret
+    try:
+        return api.read_namespaced_secret(name=configmap_name, namespace=namespace_name)
+    except ApiException as e:
+        if e.status != 404:
+            raise e
+    return api.create_namespaced_secret(
+        namespace=namespace_name,
+        body=client.V1Secret(
+            api_version="v1",
+            kind="Secret",
+            metadata=client.V1ObjectMeta(name=configmap_name, namespace=namespace_name)))
 
 def regenerate_nginx_configmap(logger):
     logging.info(f" ↳ [{namespace_name}/cm+secret] Recreating the config map + secret ({configmap_name})")
