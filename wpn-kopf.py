@@ -242,6 +242,15 @@ def delete_ingress(networking_v1_api, namespace, name):
         namespace=namespace,
         name=name
     )
+    try:
+        networking_v1_api.delete_namespaced_ingress(
+            namespace=namespace,
+            name=name
+        )
+    except ApiException as e:
+        if e.status != 404:
+            raise e
+        logging.info(f" ↳ [{namespace}/{name}] Ingress {name} already deleted")
 
 def create_database(custom_api, namespace, name):
     logging.info(f" ↳ [{namespace}/{name}] Create Database wp-db-{name}")
@@ -292,8 +301,15 @@ def create_secret(api_instance, namespace, name, prefix, secret):
         logging.info(f" ↳ [{namespace}/{name}] Secret {secret_name} already exists")
 
 def delete_secret(api_instance, namespace, name, prefix):
-    logging.info(f" ↳ [{namespace}/{name}] Delete Secret {prefix + name}")
-    api_instance.delete_namespaced_secret(namespace=namespace, name=prefix + name)
+    secret_name = prefix + name
+    try:
+        logging.info(f" ↳ [{namespace}/{name}] Delete Secret {secret_name}")
+
+        api_instance.delete_namespaced_secret(namespace=namespace, name=secret_name)
+    except ApiException as e:
+        if e.status != 404:
+            raise e
+        logging.info(f" ↳ [{namespace}/{name}] Secret {secret_name} already deleted")
 
 def create_user(custom_api, namespace, name):
     user_name = f"wp-db-user-{name}"
@@ -380,6 +396,20 @@ def delete_custom_object_mariadb(custom_api, namespace, name, prefix, plural):
         namespace=namespace,
         name=prefix + name
     )
+    mariadb_name = prefix + name;
+    logging.info(f" ↳ [{namespace}/{name}] Delete MariaDB object {mariadb_name}")
+     try:
+        custom_api.delete_namespaced_custom_object(
+            group="k8s.mariadb.com",
+            version="v1alpha1",
+            plural=plural,
+            namespace=namespace,
+            name=mariadb_name
+        )
+    except ApiException as e:
+        if e.status != 404:
+            raise e
+        logging.info(f" ↳ [{namespace}/{name}] MariaDB object {mariadb_name} already deleted")
 
 @kopf.on.create('wordpresssites')
 def create_fn(spec, name, namespace, logger, **kwargs):
