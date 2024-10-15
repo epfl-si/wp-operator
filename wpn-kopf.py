@@ -388,15 +388,7 @@ def create_grant(custom_api, namespace, name):
         logging.info(f" ↳ [{namespace}/{name}] Grant {grant_name} already exists")
 
 def delete_custom_object_mariadb(custom_api, namespace, name, prefix, plural):
-    logging.info(f" ↳ [{namespace}/{name}] Delete MariaDB object {prefix + name}")
-    custom_api.delete_namespaced_custom_object(
-        group="k8s.mariadb.com",
-        version="v1alpha1",
-        plural=plural,
-        namespace=namespace,
-        name=prefix + name
-    )
-    mariadb_name = prefix + name;
+    mariadb_name = prefix + name
     logging.info(f" ↳ [{namespace}/{name}] Delete MariaDB object {mariadb_name}")
     try:
         custom_api.delete_namespaced_custom_object(
