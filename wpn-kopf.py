@@ -11,6 +11,7 @@ import subprocess
 import json
 
 configmap_name = "wpn-nginx"
+secret_name = configmap_name
 namespace_name = "wordpress-test"
 
 # Function that runs when the operator starts
@@ -157,7 +158,7 @@ def get_nginx_configmap():
 def get_nginx_secret():
     api = client.CoreV1Api()
     try:
-        return api.read_namespaced_secret(name=configmap_name, namespace=namespace_name)
+        return api.read_namespaced_secret(name=secret_name, namespace=namespace_name)
     except ApiException as e:
         if e.status != 404:
             raise e
@@ -166,7 +167,7 @@ def get_nginx_secret():
         body=client.V1Secret(
             api_version="v1",
             kind="Secret",
-            metadata=client.V1ObjectMeta(name=configmap_name, namespace=namespace_name)))
+            metadata=client.V1ObjectMeta(name=secret_name, namespace=namespace_name)))
 
 def regenerate_nginx_configmap(logger):
     logging.info(f" ↳ [{namespace_name}/cm+secret] Recreating the config map + secret ({configmap_name})")
