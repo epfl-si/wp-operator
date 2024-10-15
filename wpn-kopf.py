@@ -201,7 +201,7 @@ def execute_php_via_stdin(name, path, title, tagline):
     tagline = json.dumps(tagline)
     logging.info(f" ↳ [{namespace_name}/{name}] Configuring (ensure-wordpress-and-theme.php) with {name=}, {path=}, {title=}, {tagline=}")
     # https://stackoverflow.com/a/89243
-    subprocess.run(["php",  f"--name={name}", "--path={path}", f"--title={title}", f"--tagline={tagline}"])
+    subprocess.run(["php", "../../ensure-wordpress-and-theme.php", f"--name={name}", f"--path={path}", f"--title={title}", f"--tagline={tagline}"])
     logging.info(f" ↳ [{namespace_name}/{name}] End of configuring")
 
 # Thanks to https://blog.knoldus.com/how-to-create-ingress-using-kubernetes-python-client%EF%BF%BC/
