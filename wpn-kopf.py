@@ -10,8 +10,8 @@ import base64
 import subprocess
 import json
 
-configmap_name = "wpn-nginx"
-secret_name = configmap_name
+configmap_name = "nginx-php-site-tree"
+secret_name = "nginx-php-mariadb-credentials"
 namespace_name = "wordpress-test"
 
 # Function that runs when the operator starts
