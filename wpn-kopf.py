@@ -192,7 +192,7 @@ def regenerate_nginx_configmap(logger):
 
 
     api.replace_namespaced_config_map(name=configmap_name, namespace=namespace_name, body=configmap)
-    api.replace_namespaced_secret(name=configmap_name, namespace=namespace_name, body=secret)
+    api.replace_namespaced_secret(name=secret_name, namespace=namespace_name, body=secret)
 
 def execute_php_via_stdin(name, path, title, tagline):
     # Quick way to escape string before passing them to the shell
@@ -398,7 +398,7 @@ def delete_custom_object_mariadb(custom_api, namespace, name, prefix, plural):
     )
     mariadb_name = prefix + name;
     logging.info(f" ↳ [{namespace}/{name}] Delete MariaDB object {mariadb_name}")
-     try:
+    try:
         custom_api.delete_namespaced_custom_object(
             group="k8s.mariadb.com",
             version="v1alpha1",
