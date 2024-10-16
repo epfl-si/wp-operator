@@ -66,11 +66,11 @@ spec:
                   title:
                     description: WordpressSite's title
                     type: string
-                    pattern: ^[\w -_.]{3,}$
+                    pattern: ^[\w \p{L}\p{M}\p{N}\p{P}\p{S} -_.]{3,}$
                   tagline:
                     description: WordpressSite's tagline
                     type: string
-                    pattern: ^[\w -_.]{3,}$
+                    pattern: ^[\w \p{L}\p{M}\p{N}\p{P}\p{S} -_.]{3,}$
                   theme:
                     description: WordpressSite's theme
                     type: string
