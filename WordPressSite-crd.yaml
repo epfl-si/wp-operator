@@ -66,11 +66,11 @@ spec:
                   title:
                     description: WordpressSite's title
                     type: string
-                    pattern: ^[\w \p{L}\p{M}\p{N}\p{P}\p{S} -_.]{3,}$
+                    pattern: ^[\w\p{L}\p{M}\p{N}\p{P}\p{S}@._\- ]{1,}$
                   tagline:
                     description: WordpressSite's tagline
                     type: string
-                    pattern: ^[\w \p{L}\p{M}\p{N}\p{P}\p{S} -_.]{3,}$
+                    pattern: ^[\w\p{L}\p{M}\p{N}\p{P}\p{S}@._\- ]{1,}$
                   theme:
                     description: WordpressSite's theme
                     type: string
@@ -117,3 +117,8 @@ spec:
     storage: true
     subresources:
       status: {}
+    additionalPrinterColumns:
+      - name: Path
+        type: string
+        description: "The path of the Wordpress site"
+        jsonPath: .spec.path
