@@ -251,10 +251,6 @@ def regenerate_nginx_configmap(logger):
     api.replace_namespaced_secret(name=Config.secret_name, namespace=Config.namespace_name, body=secret)
 
 def execute_php_via_stdin(name, path, title, tagline):
-    # Quick way to escape string before passing them to the shell
-    # see https://stackoverflow.com/a/44820658/960623
-    title = json.dumps(title)
-    tagline = json.dumps(tagline)
     logging.info(f" ↳ [{Config.namespace_name}/{name}] Configuring (ensure-wordpress-and-theme.php) with {name=}, {path=}, {title=}, {tagline=}")
     # https://stackoverflow.com/a/89243
     result = subprocess.run([Config.php, Config.wp_php_ensure,
