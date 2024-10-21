@@ -209,54 +209,6 @@ def execute_php_via_stdin(name, path, title, tagline):
     else:
         logging.info(f" ↳ [{Config.namespace_name}/{name}] End of configuring")
 
-# Thanks to https://blog.knoldus.com/how-to-create-ingress-using-kubernetes-python-client%EF%BF%BC/
-def create_ingress(networking_v1_api, namespace, name, path):
-    body = client.V1Ingress(
-        api_version="networking.k8s.io/v1",
-        kind="Ingress",
-        metadata=client.V1ObjectMeta(name=name, namespace=namespace),
-        spec=client.V1IngressSpec(
-            rules=[client.V1IngressRule(
-                host="wpn.fsd.team",
-                http=client.V1HTTPIngressRuleValue(
-                    paths=[client.V1HTTPIngressPath(
-                        path=path,
-                        path_type="Prefix",
-                        backend=client.V1IngressBackend(
-                            service=client.V1IngressServiceBackend(
-                                name="wpn-nginx-service",
-                                port=client.V1ServiceBackendPort(
-                                    number=80,
-                                )
-                            )
-                        )
-                    )]
-                )
-            )
-            ]
-        )
-    )
-
-    networking_v1_api.create_namespaced_ingress(
-        namespace=namespace,
-        body=body
-    )
-
-def delete_ingress(networking_v1_api, namespace, name):
-    networking_v1_api.delete_namespaced_ingress(
-        namespace=namespace,
-        name=name
-    )
-    try:
-        networking_v1_api.delete_namespaced_ingress(
-            namespace=namespace,
-            name=name
-        )
-    except ApiException as e:
-        if e.status != 404:
-            raise e
-        logging.info(f" ↳ [{namespace}/{name}] Ingress {name} already deleted")
-
 def create_database(custom_api, namespace, name):
     logging.info(f" ↳ [{namespace}/{name}] Create Database wp-db-{name}")
     body = {
@@ -422,7 +374,6 @@ def create_fn(spec, name, namespace, logger, **kwargs):
 
     secret = "secret" # Password, for the moment hard coded.
 
-    #   create_ingress(networking_v1_api, namespace, name, path)
     create_database(custom_api, namespace, name)
     create_secret(api_instance, namespace, name, 'wp-db-password-', secret)
     create_user(custom_api, namespace, name)
@@ -442,7 +393,6 @@ def delete_fn(spec, name, namespace, logger, **kwargs):
     custom_api = client.CustomObjectsApi()
     api_instance = client.CoreV1Api()
 
-    # delete_ingress(networking_v1_api, namespace, name)
     # Deleting database
     delete_custom_object_mariadb(custom_api, namespace, name, "wp-db-", "databases")
     delete_secret(api_instance, namespace, name, 'wp-db-password-')
