@@ -113,12 +113,20 @@ spec:
             description: Status defines the observed state of WordpressSite
             type: object
             x-kubernetes-preserve-unknown-fields: true
+    additionalPrinterColumns:
+      - name: Path
+        type: string
+        description: "URL path of the site"
+        jsonPath: ".spec.path"
+      - name: Unit
+        type: string
+        description: "WordPress site's unit"
+        jsonPath: ".spec.epfl.unit_id"
+      - name: Languages
+        type: string
+        description: "Initial languages for the site"
+        jsonPath: ".spec.wordpress.languages"
     served: true
     storage: true
     subresources:
       status: {}
-    additionalPrinterColumns:
-      - name: Path
-        type: string
-        description: "The path of the Wordpress site"
-        jsonPath: .spec.path
