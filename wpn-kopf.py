@@ -43,9 +43,8 @@ class Config:
     def load_from_command_line(cls):
         argv = cls.splice_our_argv()
         if argv is None:
-            # Still give Kopf's --help a chance, in the __main__ block below;
-            # we'll catch any missing args in .double_check() later
-            return
+            # Passing no flags to .parser() is legit, since all of them have default values.
+            argv = []
 
         cmdline = cls.parser().parse_args(argv)
         cls.php = cmdline.php
