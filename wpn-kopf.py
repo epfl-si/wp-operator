@@ -269,8 +269,8 @@ def create_database(custom_api, namespace, name):
             "mariaDbRef": {
                 "name": "mariadb-min"
             },
-            "characterSet": "utf8",
-            "collate": "utf8_general_ci"
+            "characterSet": "utf8mb4",
+            "collate": "utf8mb4_unicode_ci"
         }
     }
 
