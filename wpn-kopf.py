@@ -18,6 +18,7 @@ class Config:
     configmap_name = "nginx-php-site-tree"
     secret_name = "nginx-php-mariadb-credentials"
     namespace_name = "wordpress-test"
+    saved_argv = [arg for arg in sys.argv]
 
     @classmethod
     def parser(cls):
@@ -35,11 +36,6 @@ class Config:
         return parser
 
     @classmethod
-    def double_check(cls):
-        """Fail if one of the required command-line flags is missing."""
-        pass  # Right now they all have a default value; see above.
-
-    @classmethod
     def load_from_command_line(cls):
         argv = cls.splice_our_argv()
         if argv is None:
@@ -53,8 +49,11 @@ class Config:
 
     @classmethod
     def script_dir(cls):
-        script_full_path = os.path.join(os.getcwd(), sys.argv[0])
-        return os.path.dirname(script_full_path)
+        for arg in cls.saved_argv:
+            if "wpn-kopf.py" in arg:
+                script_full_path = os.path.join(os.getcwd(), arg)
+                return os.path.dirname(script_full_path)
+        return "."  # Take a guess
 
     @classmethod
     def file_in_script_dir(cls, basename):
@@ -74,7 +73,7 @@ class Config:
 # Function that runs when the operator starts
 @kopf.on.startup()
 def startup_fn(**kwargs):
-    Config.double_check()
+    Config.load_from_command_line()
     print("Operator started and initialized")
     # TODO: check the presence of namespaces or cluster-wide flag here.
 
@@ -461,7 +460,3 @@ def delete_fn(spec, name, namespace, logger, **kwargs):
     delete_custom_object_mariadb(custom_api, namespace, name, "wordpress-", "grants")
 
     regenerate_nginx_configmap(logger)
-
-if __name__ == '__main__':
-    Config.load_from_command_line()
-    sys.exit(kopf.cli.main())
