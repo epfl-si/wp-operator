@@ -88,19 +88,19 @@ def list_wordpress_sites():
         version="v1",
         plural="wordpresssites"
     )
-    logging.info(wordpress_sites)
+    logging.debug("f{len(wordpress_sites) WordPress sites")
     
     active_sites = [
         site for site in wordpress_sites.get('items', [])
         # if site.get('status', {}).get('phase') == 'active' # FIXME
     ]
-    logging.info(active_sites)
+    logging.debug("f{len(active_sites) active WordPress sites")
     
     logging.info(f"   ↳ [{Config.namespace_name}] END OF list_wordpress_sites")
     return active_sites
 
 def generate_php_get_wordpress(wordpress_sites):
-    logging.info(f"   ↳ [{Config.namespace_name}/cm] get_wordpress.php")
+    logging.debug(f"   ↳ [{Config.namespace_name}/cm] get_wordpress.php")
     php_code = """<?php
     
 namespace __entrypoint;
@@ -120,18 +120,17 @@ function get_wordpress ($wp_env, $host, $uri) {
 
     $sites_values = ["""
 
-    logging.info(f"     → MAYBE HELLP")
-    logging.info(f"     {wordpress_sites}")
+    logging.debug(f"     → MAYBE HELLP")
+    logging.debug(f"     {wordpress_sites}")
     
     for site in wordpress_sites:
         name = site['metadata']['name']
-        logging.info(f"     → DOING {name}")
+        logging.debug(f"     → DOING {name}")
         path = site['spec']['path']
         debug = site['spec']['wordpress']['debug']
         
         if (name != 'www'):
-            print(f"DEBUG MAISON: {name=}, {path=}") # DEBUG
-            logging.info(f"     ↳ [{Config.namespace_name}/cm] {name=}, {path=}")
+            logging.debug(f"     ↳ [{Config.namespace_name}/cm] {name=}, {path=}")
             php_code += f"""
         '{path}' => [
             'site_uri' => '{path}/',
@@ -162,7 +161,7 @@ function get_wordpress ($wp_env, $host, $uri) {
     return php_code
 
 def generate_php_get_credentials(wordpress_sites):
-    logging.info(f"   ↳ [{Config.namespace_name}/secret] get_db_credentials.php")
+    logging.debug(f"   ↳ [{Config.namespace_name}/secret] get_db_credentials.php")
     php_code ="""<?php
     
 namespace __entrypoint;
