@@ -50,7 +50,7 @@ class Config:
         cmdline = cls.parser().parse_args(argv)
         cls.php = cmdline.php
         cls.wp_php_ensure = cmdline.wp_php_ensure
-        cls.wp_dir = cmdline.wp_dir
+        cls.wp_dir = os.path.join(cmdline.wp_dir, '')
 
     @classmethod
     def script_dir(cls):
