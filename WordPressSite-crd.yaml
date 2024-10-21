@@ -81,6 +81,12 @@ spec:
                     items:
                       type: string
                       pattern: ^[a-z]{2}$
+                  plugins:
+                    description: WordpressSite's plugins
+                    type: array
+                    items:
+                      type: string
+                      pattern: ^[\w -_.]{3,}$
                   debug:
                     description: Whether or not activate the WP_DEBUG
                     type: boolean
@@ -126,6 +132,10 @@ spec:
         type: string
         description: "Initial languages for the site"
         jsonPath: ".spec.wordpress.languages"
+      - name: Plugins
+        type: string
+        description: "Initial plugins for the site"
+        jsonPath: ".spec.wordpress.plugins"
     served: true
     storage: true
     subresources:
