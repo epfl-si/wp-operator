@@ -185,3 +185,5 @@ ensure_site_title( $options );
 ensure_tagline( $options );
 ensure_theme( $options );
 ensure_plugins( $options );
+
+echo "WordPress successfully installed";

@@ -258,7 +258,7 @@ def execute_php_via_stdin(name, path, title, tagline):
                              f"--wp-dir={Config.wp_dir}",
                              f"--title={title}", f"--tagline={tagline}"], capture_output=True, text=True)
     print(result.stdout)
-    if "Wordpress successfully installed" not in result.stdout:
+    if "WordPress successfully installed" not in result.stdout:
         raise subprocess.CalledProcessError(0, "PHP script failed")
     else:
         logging.info(f" ↳ [{Config.namespace_name}/{name}] End of configuring")
