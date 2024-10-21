@@ -22,7 +22,6 @@ error_log("  ...  Hello from wp-ops/ensure-wordpress-and-theme.php  ... ");
 error_reporting(E_ALL);
 ini_set('display_errors', 'On');
 
-define( '__WORDPRESS_SOURCE_DIR', '/volumes/wp/6/' );
 define( '__WORDPRESS_DOMAIN', 'wpn.fsd.team' );
 define( '__WORDPRESS_DEFAULT_THEME', 'wp-theme-2018' );
 
@@ -33,6 +32,7 @@ define( '__WP_DB_USER_PREFIX', 'wp-db-user-' );
 $shortops = "h";
 $longopts  = array(
     "name:",
+    "wp-dir:",
     "path:",
     "title::",
     "tagline::",
@@ -48,6 +48,7 @@ Usage:
 
 Options:
   --name        Mandatory  Identifier (as in k8s CR's name). Example: "site-a"
+  --wp-dir      Mandatory  The path to the WordPress installation to load.
   --path        Mandatory  URL's path of the site. Example: "/site-A"
   --title       Optional   Site's title (blogname). Example: "This is the site A"
                            Default set to --name.
@@ -62,17 +63,21 @@ EOD;
   exit();
 }
 
-if ( empty($options["name"]) || empty($options["path"]) ) {
-  echo '"--name" and "--path" are required arguments.';
-  echo "\nUse -h to get additional help.\n";
-  exit(1);
+foreach(["name", "path", "wp-dir"] as $opt) {
+  if ( empty($options[$opt]) ) {
+    echo "\"--$opt\" is required.";
+    echo "\nUse -h to get additional help.\n";
+    exit(1);
+  }
 }
+
 if ( empty($options["title"]) ) {
   $options["title"] = $options["name"];
 }
 
-define( 'WP_CONTENT_DIR', dirname(__FILE__));
-define( 'ABSPATH', dirname(__FILE__) . __WORDPRESS_SOURCE_DIR );
+
+define( 'ABSPATH', $options["wp-dir"]);
+define( 'WP_CONTENT_DIR', ABSPATH);  # Meh.
 define( 'WP_DEBUG', 1);
 define( 'WP_DEBUG_DISPLAY', 1);
 

@@ -2,12 +2,16 @@
 #
 # Run with `kopf run -n wordpress-test wpn-kopf.py [--verbose]`
 #
+import argparse
 import kopf
+import kopf.cli
 import logging
 from kubernetes import client, config
 from kubernetes.client.exceptions import ApiException
 import base64
+import os
 import subprocess
+import sys
 import json
 
 class Config:
@@ -15,9 +19,63 @@ class Config:
     secret_name = "nginx-php-mariadb-credentials"
     namespace_name = "wordpress-test"
 
+    @classmethod
+    def parser(cls):
+        parser = argparse.ArgumentParser(
+            prog='wpn-kopf',
+            description='The WordPress Next Operator',
+            epilog='Happy operating!')
+        
+        parser.add_argument('--wp-dir', help='The path to the WordPress sources to load and call.',
+                            default="../volumes/wp/6/")   # TODO: this only makes sense in dev.
+        parser.add_argument('--php', help='The path to the PHP command-line (CLI) executable.',
+                            default="php")
+        parser.add_argument('--wp-php-ensure', help='The path to the PHP script that ensures the postconditions.',
+                            default=cls.file_in_script_dir("ensure-wordpress-and-theme.php"))
+        return parser
+
+    @classmethod
+    def double_check(cls):
+        """Fail if one of the required command-line flags is missing."""
+        pass  # Right now they all have a default value; see above.
+
+    @classmethod
+    def load_from_command_line(cls):
+        argv = cls.splice_our_argv()
+        if argv is None:
+            # Still give Kopf's --help a chance, in the __main__ block below;
+            # we'll catch any missing args in .double_check() later
+            return
+
+        cmdline = cls.parser().parse_args(argv)
+        cls.php = cmdline.php
+        cls.wp_php_ensure = cmdline.wp_php_ensure
+        cls.wp_dir = cmdline.wp_dir
+
+    @classmethod
+    def script_dir(cls):
+        script_full_path = os.path.join(os.getcwd(), sys.argv[0])
+        return os.path.dirname(script_full_path)
+
+    @classmethod
+    def file_in_script_dir(cls, basename):
+        return os.path.join(cls.script_dir(), basename)
+
+    @classmethod
+    def splice_our_argv(cls):
+        if "--" in sys.argv:
+            # E.g.   kopf run ./wpn-kopf.py  -- --php=/usr/local/bin/php --wp-dir=yadda/yadda
+            end_of_kopf = sys.argv.index("--")
+            ret = sys.argv[end_of_kopf + 1:]
+            sys.argv[end_of_kopf:] = []
+            return ret
+        else:
+            return None
+
 # Function that runs when the operator starts
 @kopf.on.startup()
 def startup_fn(**kwargs):
+    Config.double_check()
     print("Operator started and initialized")
     # TODO: check the presence of namespaces or cluster-wide flag here.
 
@@ -202,7 +260,10 @@ def execute_php_via_stdin(name, path, title, tagline):
     tagline = json.dumps(tagline)
     logging.info(f" ↳ [{Config.namespace_name}/{name}] Configuring (ensure-wordpress-and-theme.php) with {name=}, {path=}, {title=}, {tagline=}")
     # https://stackoverflow.com/a/89243
-    result = subprocess.run(["php", "../../ensure-wordpress-and-theme.php", f"--name={name}", f"--path={path}", f"--title={title}", f"--tagline={tagline}"], capture_output=True, text=True)
+    result = subprocess.run([Config.php, Config.wp_php_ensure,
+                             f"--name={name}", f"--path={path}",
+                             f"--wp-dir={Config.wp_dir}",
+                             f"--title={title}", f"--tagline={tagline}"], capture_output=True, text=True)
     print(result.stdout)
     if "Wordpress successfully installed" not in result.stdout:
         raise subprocess.CalledProcessError(0, "PHP script failed")
@@ -402,3 +463,7 @@ def delete_fn(spec, name, namespace, logger, **kwargs):
     delete_custom_object_mariadb(custom_api, namespace, name, "wordpress-", "grants")
 
     regenerate_nginx_configmap(logger)
+
+if __name__ == '__main__':
+    Config.load_from_command_line()
+    sys.exit(kopf.cli.main())
