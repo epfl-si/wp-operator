@@ -109,6 +109,14 @@ def generate_nginx_index(wordpress_sites):
     for site in wordpress_sites:
         path = site['spec']['path']
         name = site['metadata']['name']
+
+        template_vars = dict(
+            path=path, name=name,
+            db_host='mariadb-min',
+            db_name=f'wp-db-{name}',
+            db_user=f'wp-db-user-{name}',
+            db_password='secret')
+
         nginx_conf = nginx_conf + '''
 
     # START: configuring %(name)s here.
@@ -116,19 +124,23 @@ def generate_nginx_index(wordpress_sites):
       return 301 %(path)s/;
     }
     location %(path)s/ {
-      # PHP queries are those with no dot in them, 
-      # or those that end with .php:
+''' % template_vars
+        # PHP queries are those with no dot in them, 
+        # or those that end with .php:
+        nginx_conf = nginx_conf + '''
       location ~ ^[^.]*$ {
         fastcgi_pass unix:/run/php-fpm.sock;
       }
       location ~ \\.php$ {
         fastcgi_pass unix:/run/php-fpm.sock;
       }
-      # All the PHP traffic goes through a single entry point. This
-      # avoids stat()s on NFS when we know (through regexes below)
-      # that the query is for WordPress. If, on the other hand, the
-      # query turns out to be for a static file, then all
-      # fastcgi_param directives will have bo effect.
+''' % template_vars
+        # All the PHP traffic goes through a single entry point. This
+        # avoids stat()s on NFS when we know (through regexes below)
+        # that the query is for WordPress. If, on the other hand, the
+        # query turns out to be for a static file, then all
+        # fastcgi_param directives will have bo effect.
+        nginx_conf = nginx_conf + '''
       fastcgi_param SCRIPT_FILENAME /wp/nginx-entrypoint/nginx-entrypoint.php;
  
       fastcgi_param WP_DEBUG           true;
@@ -160,22 +172,20 @@ def generate_nginx_index(wordpress_sites):
       fastcgi_param SERVER_NAME        $server_name;
  
       fastcgi_param WP_ENV             test;
- 
-      # PHP only, required if PHP was built with --enable-force-cgi-redirect
+''' % template_vars
+        # PHP only, required if PHP was built with --enable-force-cgi-redirect
+        nginx_conf = nginx_conf + '''
       fastcgi_param REDIRECT_STATUS 200;
       fastcgi_param HTTP_PROXY      '';
     }
     # END: configuring %(name)s here.
 
-''' % dict(path=path, name=name,
-           db_host='mariadb-min',
-           db_name=f'wp-db-{name}',
-           db_user=f'wp-db-user-{name}',
-           db_password='secret')
+''' % template_vars
 
     nginx_conf = nginx_conf + '''
     # nginx sites end here.
 '''
+
     return nginx_conf
 
 def generate_php_get_wordpress(wordpress_sites):
