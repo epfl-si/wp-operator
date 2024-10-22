@@ -136,6 +136,7 @@ spec:
         type: string
         description: "Initial plugins for the site"
         jsonPath: ".spec.wordpress.plugins"
+        priority: 1
     served: true
     storage: true
     subresources:
