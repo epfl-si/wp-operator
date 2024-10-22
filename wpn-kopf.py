@@ -102,9 +102,14 @@ def generate_nginx_index(wordpress_sites):
     # nginx sites start here.
 '''
     for site in wordpress_sites:
-        nginx_conf = nginx_conf + f'''
+        path = site['spec']['path']
+        nginx_conf = nginx_conf + '''
+
+    location = %(path)s {
+      return 301 %(path)s/;
+    }
     # FIXME: configure site{site['metadata']['name']}  here.
-'''
+''' % dict(path=path)
 
     nginx_conf = nginx_conf + '''
     # nginx sites end here.
