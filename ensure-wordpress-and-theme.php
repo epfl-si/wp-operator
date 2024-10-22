@@ -22,13 +22,6 @@ error_log("  ...  Hello from wp-ops/ensure-wordpress-and-theme.php  ... ");
 error_reporting(E_ALL);
 ini_set('display_errors', 'On');
 
-define( '__WORDPRESS_DOMAIN', 'wpn.fsd.team' );
-define( '__WORDPRESS_DEFAULT_THEME', 'wp-theme-2018' );
-
-define( '__WP_DB_FQDN', 'mariadb-min.wordpress-test.svc' );
-define( '__WP_DB_NAME_PREFIX', 'wp-db-' );
-define( '__WP_DB_USER_PREFIX', 'wp-db-user-' );
-
 $shortops = "h";
 $longopts  = array(
     "name:",
@@ -38,6 +31,11 @@ $longopts  = array(
     "tagline::",
     "theme::",
     "discourage::",
+    "wp-host:",
+    "db-host:",
+    "db-name:",
+    "db-user:",
+    "db-password:",
 );
 $options = getopt($shortops, $longopts);
 if ( key_exists("h", $options) ) {
@@ -48,6 +46,10 @@ Usage:
 
 Options:
   --name        Mandatory  Identifier (as in k8s CR's name). Example: "site-a"
+  --wp-host     Mandatory  Hostname (“site_name”) for WordPress
+  --db-host     Mandatory  Hostname of the database to connect to
+  --db-user     Mandatory  Username of the database to connect to
+  --db-password Mandatory  Password for the database to connect to
   --wp-dir      Mandatory  The path to the WordPress installation to load.
   --path        Mandatory  URL's path of the site. Example: "/site-A"
   --title       Optional   Site's title (blogname). Example: "This is the site A"
@@ -63,11 +65,16 @@ EOD;
   exit();
 }
 
-foreach(["name", "path", "wp-dir"] as $opt) {
+function bad_option ($message) {
+  echo $message;
+  echo "\nUse -h to get additional help.\n";
+  exit(1);
+}
+
+foreach(["name", "path", "wp-dir", "wp-host",
+         "db-host", "db-name", "db-user", "db-password"] as $opt) {
   if ( empty($options[$opt]) ) {
-    echo "\"--$opt\" is required.";
-    echo "\nUse -h to get additional help.\n";
-    exit(1);
+    bad_option("\"--$opt\" is required.");
   }
 }
 
@@ -81,6 +88,10 @@ define( 'WP_CONTENT_DIR', ABSPATH);  # Meh.
 define( 'WP_DEBUG', 1);
 define( 'WP_DEBUG_DISPLAY', 1);
 
+define( '__WORDPRESS_DOMAIN', $options["wp-host"] );
+define( '__WORDPRESS_DEFAULT_THEME', 'wp-theme-2018' );
+
+
 function ensure_clean_site_url($path) {
   $site_url = __WORDPRESS_DOMAIN . "/{$path}/";
   return preg_replace('#/+#','/', $site_url);
@@ -89,10 +100,10 @@ define("WP_SITEURL", "https://" . ensure_clean_site_url($options["path"]));
 
 $_SERVER['HTTP_HOST'] = __WORDPRESS_DOMAIN;
 
-define("DB_USER", __WP_DB_USER_PREFIX . $options["name"] );
-define("DB_PASSWORD", "secret"); // FIXME
-define("DB_NAME", __WP_DB_NAME_PREFIX . $options["name"] );
-define("DB_HOST", __WP_DB_FQDN);
+define("DB_HOST", $options["db-host"]);
+define("DB_NAME", $options["db-name"]);
+define("DB_USER", $options["db-user"]);
+define("DB_PASSWORD", $options["db-password"]);
 
 global $table_prefix; $table_prefix = "wp_";
 
@@ -137,7 +148,7 @@ function ensure_other_basic_wordpress_things ( $options ) {
   # Use a page as home page, instead of posts.
   update_option( 'show_on_front', 'page' );
   update_option( 'page_on_front', 2 ); // This is the sample page
-  
+
   wp_install_defaults( get_admin_user_id() );
   wp_install_maybe_enable_pretty_permalinks();
 

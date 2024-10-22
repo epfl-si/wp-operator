@@ -27,10 +27,14 @@ class Config:
         
         parser.add_argument('--wp-dir', help='The path to the WordPress sources to load and call.',
                             default="../volumes/wp/6/")   # TODO: this only makes sense in dev.
+        parser.add_argument('--wp-host', help='The hostname of the WordPresses to create.',
+                            default="wpn.fsd.team")       # TODO: read that from the CR instead.
         parser.add_argument('--php', help='The path to the PHP command-line (CLI) executable.',
                             default="php")
         parser.add_argument('--wp-php-ensure', help='The path to the PHP script that ensures the postconditions.',
                             default=cls.file_in_script_dir("ensure-wordpress-and-theme.php"))
+        parser.add_argument('--db-host', help='Hostname of the database to connect to with PHP.',
+                            default="mariadb-min")
         return parser
 
     @classmethod
@@ -44,6 +48,8 @@ class Config:
         cls.php = cmdline.php
         cls.wp_php_ensure = cmdline.wp_php_ensure
         cls.wp_dir = os.path.join(cmdline.wp_dir, '')
+        cls.wp_host = cmdline.wp_host
+        cls.db_host = cmdline.db_host
 
     @classmethod
     def script_dir(cls):
@@ -125,6 +131,15 @@ def generate_nginx_index(wordpress_sites):
       # fastcgi_param directives will have bo effect.
       fastcgi_param SCRIPT_FILENAME /wp/nginx-entrypoint/nginx-entrypoint.php;
  
+      fastcgi_param WP_DEBUG           true;
+      fastcgi_param WP_ROOT_URI        %(path)s/;
+      fastcgi_param WP_SITE_NAME       %(name)s;
+      fastcgi_param WP_ABSPATH         /wp/6/;
+      fastcgi_param WP_DB_HOST         %(db_host)s;
+      fastcgi_param WP_DB_NAME         %(db_name)s;
+      fastcgi_param WP_DB_USER         %(db_user)s;
+      fastcgi_param WP_DB_PASSWORD     %(db_password)s;
+
       fastcgi_param QUERY_STRING       $query_string;
       fastcgi_param REQUEST_METHOD     $request_method;
       fastcgi_param REQUEST_SCHEME     $scheme;
@@ -149,14 +164,14 @@ def generate_nginx_index(wordpress_sites):
       # PHP only, required if PHP was built with --enable-force-cgi-redirect
       fastcgi_param REDIRECT_STATUS 200;
       fastcgi_param HTTP_PROXY      '';
-
-      fastcgi_param toto tata;
-      fastcgi_param SITE_PATH %(path)s;
-      fastcgi_param SITE_NAME %(name)s;
     }
     # END: configuring %(name)s here.
 
-''' % dict(path=path, name=name)
+''' % dict(path=path, name=name,
+           db_host='mariadb-min',
+           db_name=f'wp-db-{name}',
+           db_user=f'wp-db-user-{name}',
+           db_password='secret')
 
     nginx_conf = nginx_conf + '''
     # nginx sites end here.
@@ -294,18 +309,23 @@ def regenerate_nginx_secret(logger, namespace):
 
     api.replace_namespaced_secret(name=Config.secret_name, namespace=namespace, body=secret)
 
-def execute_php_via_stdin(name, path, title, tagline):
-    logging.info(f" ↳ [execute_php_via_stdin] Configuring (ensure-wordpress-and-theme.php) with {name=}, {path=}, {title=}, {tagline=}")
+def install_wordpress_via_php(name, path, title, tagline):
+    logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {name=}, {path=}, {title=}, {tagline=}")
     # https://stackoverflow.com/a/89243
     result = subprocess.run([Config.php, Config.wp_php_ensure,
                              f"--name={name}", f"--path={path}",
                              f"--wp-dir={Config.wp_dir}",
+                             f"--wp-host={Config.wp_host}",
+                             f"--db-host={Config.db_host}",
+                             f"--db-name=wp-db-{name}",
+                             f"--db-user=wp-db-user-{name}",
+                             f"--db-password=secret",
                              f"--title={title}", f"--tagline={tagline}"], capture_output=True, text=True)
     print(result.stdout)
     if "WordPress successfully installed" not in result.stdout:
         raise subprocess.CalledProcessError(0, "PHP script failed")
     else:
-        logging.info(f" ↳ [execute_php_via_stdin] End of configuring")
+        logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
 
 def create_database(custom_api, namespace, name):
     logging.info(f" ↳ [{namespace}/{name}] Create Database wp-db-{name}")
@@ -478,7 +498,7 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     create_grant(custom_api, namespace, name)
 
     regenerate_nginx_secret(logger, namespace)
-    execute_php_via_stdin(name, path, title, tagline)
+    install_wordpress_via_php(name, path, title, tagline)
     logging.info(f"End of create WordPressSite {name=} in {namespace=}")
 
 
