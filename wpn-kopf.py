@@ -124,6 +124,9 @@ def generate_nginx_index(wordpress_sites):
     location = %(path)s {
       return 301 %(path)s/;
     }
+    location = %(path)s/wp-admin {
+      return 301 %(path)s/wp-admin/;
+    }
     location %(path)s/ {
 ''' % template_vars
         # PHP queries are those with no dot in them, 
