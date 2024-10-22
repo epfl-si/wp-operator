@@ -103,13 +103,61 @@ def generate_nginx_index(wordpress_sites):
 '''
     for site in wordpress_sites:
         path = site['spec']['path']
+        name = site['metadata']['name']
         nginx_conf = nginx_conf + '''
 
+    # START: configuring %(name)s here.
     location = %(path)s {
       return 301 %(path)s/;
     }
-    # FIXME: configure site{site['metadata']['name']}  here.
-''' % dict(path=path)
+    location %(path)s/ {
+      # PHP queries are those with no dot in them, 
+      # or those that end with .php:
+      location ~ ^[^.]*$ {
+        fastcgi_pass unix:/run/php-fpm.sock;
+      }
+      location ~ \.php$ {
+        fastcgi_pass unix:/run/php-fpm.sock;
+      }
+      # All the PHP traffic goes through a single entry point. This
+      # avoids stat()s on NFS when we know (through regexes below)
+      # that the query is for WordPress. If, on the other hand, the
+      # query turns out to be for a static file, then all
+      # fastcgi_param directives will have bo effect.
+      fastcgi_param SCRIPT_FILENAME /wp/nginx-entrypoint/nginx-entrypoint.php;
+ 
+      fastcgi_param QUERY_STRING       $query_string;
+      fastcgi_param REQUEST_METHOD     $request_method;
+      fastcgi_param REQUEST_SCHEME     $scheme;
+      fastcgi_param CONTENT_TYPE       $content_type;
+      fastcgi_param CONTENT_LENGTH     $content_length;
+ 
+      fastcgi_param REQUEST_URI        $request_uri;
+      fastcgi_param DOCUMENT_URI       $document_uri;
+      fastcgi_param SERVER_PROTOCOL    $server_protocol;
+      fastcgi_param HTTPS              on;
+ 
+      fastcgi_param SERVER_SOFTWARE    nginx/$nginx_version;
+ 
+      fastcgi_param REMOTE_ADDR        $remote_addr;
+      fastcgi_param REMOTE_PORT        $remote_port;
+      fastcgi_param SERVER_ADDR        $server_addr;
+      fastcgi_param SERVER_PORT        $server_port;
+      fastcgi_param SERVER_NAME        $server_name;
+ 
+      fastcgi_param WP_ENV             test;
+ 
+      # PHP only, required if PHP was built with --enable-force-cgi-redirect
+      fastcgi_param REDIRECT_STATUS 200;
+      fastcgi_param HTTP_PROXY      '';
+
+      fastcgi_param toto tata;
+      fastcgi_param SITE_PATH %(path)s;
+      fastcgi_param SITE_NAME %(name)s;
+    }
+    # END: configuring %(name)s here.
+
+''' % dict(path=path, name=name)
 
     nginx_conf = nginx_conf + '''
     # nginx sites end here.
