@@ -116,7 +116,7 @@ def generate_nginx_index(wordpress_sites):
       location ~ ^[^.]*$ {
         fastcgi_pass unix:/run/php-fpm.sock;
       }
-      location ~ \.php$ {
+      location ~ \\.php$ {
         fastcgi_pass unix:/run/php-fpm.sock;
       }
       # All the PHP traffic goes through a single entry point. This
