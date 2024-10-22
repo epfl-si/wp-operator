@@ -136,6 +136,17 @@ def generate_nginx_index(wordpress_sites):
         fastcgi_pass unix:/run/php-fpm.sock;
       }
 ''' % template_vars
+
+        # Under nginx' priority rules, locations that match plain
+        # files must come after PHP, so as to give priority to the
+        # former. (There are PHP files under wp-admin/ etc. which we
+        # don't want to mask out.)
+        nginx_conf = nginx_conf + '''
+      location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {
+        rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
+        root %(wp_home_dir)s/;
+      }
+''' % template_vars
         # All the PHP traffic goes through a single entry point. This
         # avoids stat()s on NFS when we know (through regexes below)
         # that the query is for WordPress. If, on the other hand, the
