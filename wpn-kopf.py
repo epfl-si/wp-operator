@@ -115,7 +115,8 @@ def generate_nginx_index(wordpress_sites):
             db_host='mariadb-min',
             db_name=f'wp-db-{name}',
             db_user=f'wp-db-user-{name}',
-            db_password='secret')
+            db_password='secret',
+            wp_home_dir='/wp/6')
 
         nginx_conf = nginx_conf + '''
 
@@ -146,7 +147,7 @@ def generate_nginx_index(wordpress_sites):
       fastcgi_param WP_DEBUG           true;
       fastcgi_param WP_ROOT_URI        %(path)s/;
       fastcgi_param WP_SITE_NAME       %(name)s;
-      fastcgi_param WP_ABSPATH         /wp/6/;
+      fastcgi_param WP_ABSPATH         %(wp_home_dir)s/;
       fastcgi_param WP_DB_HOST         %(db_host)s;
       fastcgi_param WP_DB_NAME         %(db_name)s;
       fastcgi_param WP_DB_USER         %(db_user)s;
