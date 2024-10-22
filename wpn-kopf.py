@@ -60,7 +60,7 @@ class Config:
     @classmethod
     def splice_our_argv(cls):
         if "--" in sys.argv:
-            # E.g.   kopf run ./wpn-kopf.py  -- --php=/usr/local/bin/php --wp-dir=yadda/yadda
+            # E.g.   python3 ./wpn-kopf.py run -n wordpress-toto -- --php=/usr/local/bin/php --wp-dir=yadda/yadda
             end_of_kopf = sys.argv.index("--")
             ret = sys.argv[end_of_kopf + 1:]
             sys.argv[end_of_kopf:] = []
@@ -71,7 +71,6 @@ class Config:
 # Function that runs when the operator starts
 @kopf.on.startup()
 def startup_fn(**kwargs):
-    Config.load_from_command_line()
     print("Operator started and initialized")
     # TODO: check the presence of namespaces or cluster-wide flag here.
 
@@ -501,3 +500,7 @@ def delete_fn(spec, name, namespace, logger, **kwargs):
     delete_custom_object_mariadb(custom_api, namespace, name, "wordpress-", "grants")
 
     regenerate_nginx_secret(logger, namespace)
+
+if __name__ == '__main__':
+    Config.load_from_command_line()
+    sys.exit(kopf.cli.main())
