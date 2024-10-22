@@ -17,7 +17,6 @@ import json
 class Config:
     configmap_name = "nginx-php-site-tree"
     secret_name = "nginx-php-mariadb-credentials"
-    namespace_name = "wordpress-test"
     saved_argv = [arg for arg in sys.argv]
 
     @classmethod
@@ -77,14 +76,15 @@ def startup_fn(**kwargs):
     print("Operator started and initialized")
     # TODO: check the presence of namespaces or cluster-wide flag here.
 
-def list_wordpress_sites():
-    logging.info(f"   ↳ [{Config.namespace_name}] list_wordpress_sites")
+def list_wordpress_sites(namespace):
+    logging.info(f"   ↳ [{namespace}] list_wordpress_sites")
     api = client.CustomObjectsApi()
     
     wordpress_sites = api.list_cluster_custom_object(
         group="wordpress.epfl.ch",
         version="v1",
-        plural="wordpresssites"
+        plural="wordpresssites",
+        namespace=namespace
     )
     logging.debug("f{len(wordpress_sites) WordPress sites")
     
@@ -94,11 +94,11 @@ def list_wordpress_sites():
     ]
     logging.debug("f{len(active_sites) active WordPress sites")
     
-    logging.info(f"   ↳ [{Config.namespace_name}] END OF list_wordpress_sites")
+    logging.info(f"   ↳ [{namespace}] END OF list_wordpress_sites")
     return active_sites
 
 def generate_php_get_wordpress(wordpress_sites):
-    logging.debug(f"   ↳ [{Config.namespace_name}/cm] get_wordpress.php")
+    logging.debug(f"   ↳ [generate_php_get_wordpress] get_wordpress.php")
     php_code = """<?php
     
 namespace __entrypoint;
@@ -128,7 +128,7 @@ function get_wordpress ($wp_env, $host, $uri) {
         debug = site['spec']['wordpress']['debug']
         
         if (name != 'www'):
-            logging.debug(f"     ↳ [{Config.namespace_name}/cm] {name=}, {path=}")
+            logging.debug(f"     ↳ [{generate_php_get_wordpress}] {name=}, {path=}")
             php_code += f"""
         '{path}' => [
             'site_uri' => '{path}/',
@@ -159,7 +159,7 @@ function get_wordpress ($wp_env, $host, $uri) {
     return php_code
 
 def generate_php_get_credentials(wordpress_sites):
-    logging.debug(f"   ↳ [{Config.namespace_name}/secret] get_db_credentials.php")
+    logging.debug(f"   ↳ [generate_php_get_credentials] get_db_credentials.php")
     php_code ="""<?php
     
 namespace __entrypoint;
@@ -196,45 +196,45 @@ function get_db_credentials ($wordpress) {
 
     return php_code
 
-def get_nginx_configmap():
+def get_nginx_configmap(namespace):
     api = client.CoreV1Api()
     try:
-        return api.read_namespaced_config_map(name=Config.configmap_name, namespace=Config.namespace_name)
+        return api.read_namespaced_config_map(name=Config.configmap_name, namespace=namespace)
     except ApiException as e:
         if e.status != 404:
             raise e
 
     return api.create_namespaced_config_map(
-        namespace=Config.namespace_name,
+        namespace=namespace,
         body=client.V1ConfigMap(
             api_version="v1",
             kind="ConfigMap",
-            metadata=client.V1ObjectMeta(name=Config.configmap_name, namespace=Config.namespace_name)))
+            metadata=client.V1ObjectMeta(name=Config.configmap_name, namespace=namespace)))
 
-def get_nginx_secret():
+def get_nginx_secret(namespace):
     api = client.CoreV1Api()
     try:
-        return api.read_namespaced_secret(name=Config.secret_name, namespace=Config.namespace_name)
+        return api.read_namespaced_secret(name=Config.secret_name, namespace=namespace)
     except ApiException as e:
         if e.status != 404:
             raise e
     return api.create_namespaced_secret(
-        namespace=Config.namespace_name,
+        namespace=namespace,
         body=client.V1Secret(
             api_version="v1",
             kind="Secret",
-            metadata=client.V1ObjectMeta(name=Config.secret_name, namespace=Config.namespace_name)))
+            metadata=client.V1ObjectMeta(name=Config.secret_name, namespace=namespace)))
 
-def regenerate_nginx_configmap(logger):
-    logging.info(f" ↳ [{Config.namespace_name}/cm+secret] Recreating the config map + secret ({Config.configmap_name})")
+def regenerate_nginx_configmap(logger, namespace):
+    logging.info(f" ↳ [{namespace}/cm+secret] Recreating the config map + secret ({Config.configmap_name})")
     api = client.CoreV1Api()
     
-    wordpress_sites = list_wordpress_sites()
+    wordpress_sites = list_wordpress_sites(namespace)
     
     php_code_get_wordpress = generate_php_get_wordpress(wordpress_sites)
     php_code_get_credentials = generate_php_get_credentials(wordpress_sites)
-    configmap = get_nginx_configmap()
-    secret = get_nginx_secret()
+    configmap = get_nginx_configmap(namespace)
+    secret = get_nginx_secret(namespace)
 
     b = base64.b64encode(bytes(php_code_get_credentials, 'utf-8'))
     base64_str = b.decode('utf-8')
@@ -247,11 +247,11 @@ def regenerate_nginx_configmap(logger):
     secret.data['get_db_credentials.php'] = base64_str
 
 
-    api.replace_namespaced_config_map(name=Config.configmap_name, namespace=Config.namespace_name, body=configmap)
-    api.replace_namespaced_secret(name=Config.secret_name, namespace=Config.namespace_name, body=secret)
+    api.replace_namespaced_config_map(name=Config.configmap_name, namespace=namespace, body=configmap)
+    api.replace_namespaced_secret(name=Config.secret_name, namespace=namespace, body=secret)
 
 def execute_php_via_stdin(name, path, title, tagline):
-    logging.info(f" ↳ [{Config.namespace_name}/{name}] Configuring (ensure-wordpress-and-theme.php) with {name=}, {path=}, {title=}, {tagline=}")
+    logging.info(f" ↳ [execute_php_via_stdin] Configuring (ensure-wordpress-and-theme.php) with {name=}, {path=}, {title=}, {tagline=}")
     # https://stackoverflow.com/a/89243
     result = subprocess.run([Config.php, Config.wp_php_ensure,
                              f"--name={name}", f"--path={path}",
@@ -261,7 +261,7 @@ def execute_php_via_stdin(name, path, title, tagline):
     if "WordPress successfully installed" not in result.stdout:
         raise subprocess.CalledProcessError(0, "PHP script failed")
     else:
-        logging.info(f" ↳ [{Config.namespace_name}/{name}] End of configuring")
+        logging.info(f" ↳ [execute_php_via_stdin] End of configuring")
 
 def create_database(custom_api, namespace, name):
     logging.info(f" ↳ [{namespace}/{name}] Create Database wp-db-{name}")
@@ -433,7 +433,7 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     create_user(custom_api, namespace, name)
     create_grant(custom_api, namespace, name)
 
-    regenerate_nginx_configmap(logger)
+    regenerate_nginx_configmap(logger, namespace)
     execute_php_via_stdin(name, path, title, tagline)
     logging.info(f"End of create WordPressSite {name=} in {namespace=}")
 
@@ -455,4 +455,4 @@ def delete_fn(spec, name, namespace, logger, **kwargs):
     # Deleting grant
     delete_custom_object_mariadb(custom_api, namespace, name, "wordpress-", "grants")
 
-    regenerate_nginx_configmap(logger)
+    regenerate_nginx_configmap(logger, namespace)
