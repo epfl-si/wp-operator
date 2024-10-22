@@ -94,7 +94,7 @@ def list_wordpress_sites(namespace):
     
     active_sites = [
         site for site in wordpress_sites.get('items', [])
-        # if site.get('status', {}).get('phase') == 'active' # FIXME
+        if 'deletionTimestamp' not in site['metadata']
     ]
     logging.debug("f{len(active_sites) active WordPress sites")
     
