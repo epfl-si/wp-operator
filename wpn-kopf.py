@@ -149,6 +149,11 @@ def generate_nginx_index(wordpress_sites):
         rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
         root %(wp_home_dir)s/;
       }
+
+      location ~ (wp-content/uploads)/ {
+        rewrite .*/(wp-content/uploads/(.*)) /$2 break; 
+        root /data/%(name)s/uploads/;
+      } 
 ''' % template_vars
         # All the PHP traffic goes through a single entry point. This
         # avoids stat()s on NFS when we know (through regexes below)
