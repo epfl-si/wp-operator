@@ -1,4 +1,6 @@
-# Kubernetes WordPress Operator - EPFL
+# EPFL Kubernetes WordPress Operator
+
+![EKWO Logo](https://github.com/epfl-si/wp-operator/blob/main/images/WPO-no-bg.png?raw=true)
 
 Hello there, if you are reading this it means that you want to know more
 about this repository, so let's get started!
