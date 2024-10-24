@@ -82,6 +82,6 @@ features, backlog, ...
 
 If you want to contribute to this repository, please read the [CONTRIBUTING.md](CONTRIBUTING.md) file.
 
-[ISAS-FSD]: https://search.epfl.ch/?filter=unit&q=ISAS-FSD
+[ISAS-FSD]: https://go.epfl.ch/isas-fsd
 [Azecko]: https://github.com/Azecko/
 [KubeVPN]: https://www.kubevpn.cn/
