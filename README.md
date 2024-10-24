@@ -78,9 +78,7 @@ features, backlog, ...
 
 ## Contributing
 
-Contributing is always appreciated, but please respect these few steps:
-- Write explicit commits, don't just do like `feature`, please do something like `[feature] WordPress CRD can now take 55 languages instead of 50`
-- Test everything (as possible) before commiting.
+If you want to contribute to this repository, please read the [CONTRIBUTING.md](CONTRIBUTING.md) file.
 
 [ISAS-FSD]: https://search.epfl.ch/?filter=unit&q=ISAS-FSD
 [Azecko]: https://github.com/Azecko/
