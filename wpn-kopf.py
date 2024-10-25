@@ -13,8 +13,10 @@ import base64
 import os
 import subprocess
 import sys
-import json
 import yaml
+import re
+from datetime import datetime, timezone
+import time
 
 class Config:
     secret_name = "nginx-conf-site-tree"
@@ -542,11 +544,115 @@ def delete_custom_object_mariadb(custom_api, namespace, name, prefix, plural):
             raise e
         logging.info(f" ↳ [{namespace}/{name}] MariaDB object {mariadb_name} already deleted")
 
+def get_os3_credentials(namespace, name, profile_name):
+    logging.info(f"   ↳ [{namespace}/{name}] Get Restic and S3 secrets")
+
+    file_path = "/keybase/team/epfl_wp_prod/aws-cli-credentials"
+
+    with open(file_path, 'r') as file:
+        content = file.read()
+
+    profile_pattern = re.compile(rf'\[{profile_name}\](.*?)(?=\[|$)', re.DOTALL)
+    profile_content = profile_pattern.search(content)
+    
+    profile_content = profile_content.group(1)
+
+    return {
+        "AWS_SECRET_ACCESS_KEY": re.search(r'aws_secret_access_key\s*=\s*(\S+)', profile_content).group(1),
+        "AWS_ACCESS_KEY_ID": re.search(r'aws_access_key_id\s*=\s*(\S+)', profile_content).group(1),
+        "RESTIC_PASSWORD": re.search(r'restic_password\s*=\s*(\S+)', profile_content).group(1),
+        "BUCKET_NAME": re.search(r'bucket_name\s*=\s*(\S+)', profile_content).group(1),
+        "AWS_SHARED_CREDENTIALS_FILE": file_path
+    }
+
+def restore_wordpress_from_os3(custom_api, namespace, name, path, prefix):
+    logging.info(f" ↳ [{namespace}/{name}] Restoring WordPress from OS3")
+
+    target = f"/tmp/backup/{name}"
+    profile_name = "backup-wwp"
+    backup_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-7] + 'Z'
+
+    # Retrieve S3 credentials
+    credentials = get_os3_credentials(namespace, name, profile_name)
+
+    try:
+        # Execute the Restic command to restore the backup
+        restic_restore = subprocess.run([f"restic -r s3:https://s3.epfl.ch/{credentials['BUCKET_NAME']}/backup/wordpresses/www{path.replace('/','__').replace('-','_')}/sql restore latest --target {target}"], env=credentials, shell=True, capture_output=True, text=True)
+        logging.info(f"   ↳ [{namespace}/{name}] SQL backup restored from S3")
+
+        # Open file to write the modified SQL
+        backup_file_path = f"/tmp/backup/{name}/backup.{backup_time}.sql"
+        
+        with open(backup_file_path, "w") as backup_file:
+            logging.info(f"   ↳ [{namespace}/{name}] Replacing www.epfl.ch with wpn.fsd.team in SQL backup")
+            sed_command = ["sed", "s/www\.epfl\.ch/wpn.fsd.team/g", f"{target}/db-backup.sql"]
+            
+            subprocess.run(sed_command, stdout=backup_file, check=True)
+
+        copy_backup = subprocess.run([f"aws --endpoint-url=https://s3.epfl.ch --profile={profile_name} s3 cp {backup_file_path} s3://{credentials['BUCKET_NAME']}/backup/k8s/{name}/"], env=credentials, shell=True, capture_output=True, text=True)
+        logging.info(f"   ↳ [{namespace}/{name}] SQL backup copied to S3")
+
+        # Initiate the restore process in MariaDB
+        restore_spec = {
+            "apiVersion": "k8s.mariadb.com/v1alpha1",
+            "kind": "Restore",
+            "metadata": {
+                "name": f"restore-{name}-{round(time.time())}",
+                "namespace": namespace
+            },
+            "spec": {
+                "mariaDbRef": {
+                    "name": "mariadb-min"
+                },
+                "s3": {
+                    "bucket": credentials["BUCKET_NAME"],
+                    "prefix": f"backup/k8s/{name}",
+                    "endpoint": "s3.epfl.ch",
+                    "accessKeyIdSecretKeyRef": {
+                        "name": "s3-backup-credentials",
+                        "key": "keyId"
+                    },
+                    "secretAccessKeySecretKeyRef": {
+                        "name": "s3-backup-credentials",
+                        "key": "accessSecret"
+                    },
+                    "tls": {
+                        "enabled": True
+                    }
+                },
+                "targetRecoveryTime": backup_time,
+                "args": [
+                    "--verbose",
+                    f"--database={prefix}{name}"
+                ]
+            }
+        }
+
+        logging.info(f"   ↳ [{namespace}/{name}] Creating restore object in Kubernetes")
+        custom_api.create_namespaced_custom_object(
+            group="k8s.mariadb.com",
+            version="v1alpha1",
+            namespace=namespace,
+            plural="restores",
+            body=restore_spec
+        )
+        logging.info(f"   ↳ [{namespace}/{name}] Restore initiated on MariaDB")
+
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Subprocess error in backup restoration: {e}")
+    except FileNotFoundError as e:
+        logging.error(f"File error in backup restoration: {e}")
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
+
+
 @kopf.on.create('wordpresssites')
 def create_fn(spec, name, namespace, logger, **kwargs):
     logging.info(f"Create WordPressSite {name=} in {namespace=}")
     path = spec.get('path')
     wordpress = spec.get("wordpress")
+    epfl = spec.get("epfl")
+    imported = epfl.get("importFromOS3")
     title = wordpress["title"]
     tagline = wordpress["tagline"]
     config.load_kube_config()
@@ -562,7 +668,11 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     create_grant(custom_api, namespace, name)
 
     regenerate_nginx_secret(logger, namespace)
-    install_wordpress_via_php(name, path, title, tagline)
+    if (not imported):
+        install_wordpress_via_php(name, path, title, tagline)
+    else:
+        restore_wordpress_from_os3(custom_api, namespace, name, path, "wp-db-")
+
     logging.info(f"End of create WordPressSite {name=} in {namespace=}")
 
 
