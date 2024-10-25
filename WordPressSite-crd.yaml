@@ -106,8 +106,16 @@ spec:
                     pattern: ^\d{5}$
                   importFromOS3:
                     description: Import database from existing OpenShift 3 site
-                    type: boolean
-                    default: false
+                    type: object
+                    properties:
+                      environment:
+                        description: Site environment (labs, inside, www, subdomains-lite)
+                        type: string
+                        pattern: ^(labs|inside|www|subdomains-lite)$
+                      ansibleHost:
+                        description: Current host used by Ansible
+                        type: string
+                        pattern: ^[a-z_]+$
             required:
               - hostname
               - path

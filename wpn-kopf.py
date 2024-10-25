@@ -1,6 +1,6 @@
 # Kopf documentation : https://kopf.readthedocs.io/
 #
-# Run with `kopf run -n wordpress-test wpn-kopf.py [--verbose]`
+# Run with `python3 wpn-kopf.py run -- --db-host mariadb-min.wordpress-test.svc --wp-php-ensure manage-plugins.php --wp-dir=/home/you/dev/wp-dev/volumes/wp/6/`
 #
 import argparse
 import kopf
@@ -393,6 +393,24 @@ def install_wordpress_via_php(name, path, title, tagline):
     else:
         logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
 
+def manage_plugins_php(name, plugins):
+    logging.info(f" ↳ [manage_plugins_php] Configuring (manage-plugins.php) with {name=} and {plugins=}")
+    # https://stackoverflow.com/a/89243
+    result = subprocess.run([Config.php, Config.wp_php_ensure,
+                             f"--name={name}",
+                             f"--wp-dir={Config.wp_dir}",
+                             f"--wp-host={Config.wp_host}",
+                             f"--db-host={Config.db_host}",
+                             f"--db-name=wp-db-{name}",
+                             f"--db-user=wp-db-user-{name}",
+                             f"--db-password=secret",
+                             f"--plugins={plugins}"], capture_output=True, text=True)
+    print(result.stdout)
+    if "WordPress plugins successfully installed" not in result.stdout:
+        raise subprocess.CalledProcessError(0, "PHP script failed")
+    else:
+        logging.info(f" ↳ [manage_plugins_php] End of configuring")
+
 def create_database(custom_api, namespace, name):
     logging.info(f" ↳ [{namespace}/{name}] Create Database wp-db-{name}")
     body = {
@@ -565,7 +583,7 @@ def get_os3_credentials(namespace, name, profile_name):
         "AWS_SHARED_CREDENTIALS_FILE": file_path
     }
 
-def restore_wordpress_from_os3(custom_api, namespace, name, path, prefix):
+def restore_wordpress_from_os3(custom_api, namespace, name, path, prefix, environment, ansible_host):
     logging.info(f" ↳ [{namespace}/{name}] Restoring WordPress from OS3")
 
     target = f"/tmp/backup/{name}"
@@ -638,6 +656,12 @@ def restore_wordpress_from_os3(custom_api, namespace, name, path, prefix):
         )
         logging.info(f"   ↳ [{namespace}/{name}] Restore initiated on MariaDB")
 
+        logging.info(f"   ↳ [{namespace}/{name}] Restoring media from OS3")
+
+        pvc_name = "wordpress-test-wp-uploads-pvc-f401a87f-d2e9-4b20-85cc-61aa7cfc9d30"
+        copy_media = subprocess.run([f"ssh -t root@itswbhst0020.xaas.epfl.ch 'cp -r /mnt/data-prod-ro/wordpress/{environment}/www.epfl.ch/htdocs{path}/wp-content/uploads/ /mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{name}/; chown -R 33:33 /mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{name}/uploads'"], shell=True, capture_output=True, text=True)
+
+        logging.info(f"   ↳ [{namespace}/{name}] Restored media from OS3")
     except subprocess.CalledProcessError as e:
         logging.error(f"Subprocess error in backup restoration: {e}")
     except FileNotFoundError as e:
@@ -652,7 +676,9 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     path = spec.get('path')
     wordpress = spec.get("wordpress")
     epfl = spec.get("epfl")
-    imported = epfl.get("importFromOS3")
+    import_from_os3 = epfl.get("importFromOS3")
+    environment = import_from_os3["environment"]
+    ansible_host = import_from_os3["ansibleHost"]
     title = wordpress["title"]
     tagline = wordpress["tagline"]
     config.load_kube_config()
@@ -668,10 +694,11 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     create_grant(custom_api, namespace, name)
 
     regenerate_nginx_secret(logger, namespace)
-    if (not imported):
+    if (not import_from_os3):
         install_wordpress_via_php(name, path, title, tagline)
     else:
-        restore_wordpress_from_os3(custom_api, namespace, name, path, "wp-db-")
+        restore_wordpress_from_os3(custom_api, namespace, name, path, "wp-db-", environment, ansible_host)
+        manage_plugins_php(name, "test,test,test")
 
     logging.info(f"End of create WordPressSite {name=} in {namespace=}")
 
