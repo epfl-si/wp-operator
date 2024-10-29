@@ -84,6 +84,7 @@ define("DB_HOST", $options["db-host"]);
 define("DB_NAME", $options["db-name"]);
 define("DB_USER", $options["db-user"]);
 define("DB_PASSWORD", $options["db-password"]);
+define("PLUGINS", $options["plugins"]);
 
 global $table_prefix; $table_prefix = "wp_";
 
@@ -93,7 +94,7 @@ require_once( ABSPATH . 'wp-settings.php' );
 
 function ensure_plugins ( $options ) {
   # This is the default plugin list that should be activated at installation
-  $plugins = array(
+  $defaultPlugins = array(
     "polylang/polylang.php",
     "EPFL-Content-Filter/EPFL-Content-Filter.php",
     "EPFL-settings/EPFL-settings.php",
@@ -116,6 +117,10 @@ function ensure_plugins ( $options ) {
     "wp-media-folder/wp-media-folder.php"
   );
   update_option( 'active_plugins', $plugins );
+
+  $specificPlugin = PLUGINS.str_split(',');
+  $defaultPlugins.array_push($specificPlugin);
+  update_option( 'active_plugins', $defaultPlugins );
 }
 
 ensure_plugins( $options );
