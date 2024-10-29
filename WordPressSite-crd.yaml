@@ -104,6 +104,9 @@ spec:
                     description: WordpressSite's EPFL unit ID
                     type: integer
                     pattern: ^\d{5}$
+                  unit_name:
+                    description: WordpressSite's EPFL unit name
+                    type: string
                   importFromOS3:
                     description: Import database from existing OpenShift 3 site
                     type: object
