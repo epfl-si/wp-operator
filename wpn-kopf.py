@@ -677,8 +677,6 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     wordpress = spec.get("wordpress")
     epfl = spec.get("epfl")
     import_from_os3 = epfl.get("importFromOS3")
-    environment = import_from_os3["environment"]
-    ansible_host = import_from_os3["ansibleHost"]
     title = wordpress["title"]
     tagline = wordpress["tagline"]
     config.load_kube_config()
@@ -697,6 +695,8 @@ def create_fn(spec, name, namespace, logger, **kwargs):
     if (not import_from_os3):
         install_wordpress_via_php(name, path, title, tagline)
     else:
+        environment = import_from_os3["environment"]
+        ansible_host = import_from_os3["ansibleHost"]
         restore_wordpress_from_os3(custom_api, namespace, name, path, "wp-db-", environment, ansible_host)
         manage_plugins_php(name, "test,test,test")
 
