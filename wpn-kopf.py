@@ -7,12 +7,14 @@ import kopf
 import kopf.cli
 import logging
 from kubernetes import client, config
+from kubernetes.dynamic import DynamicClient
 from kubernetes.client.exceptions import ApiException
 import base64
 import os
 import subprocess
 import sys
 import json
+import yaml
 
 class Config:
     secret_name = "nginx-conf-site-tree"
@@ -74,11 +76,43 @@ class Config:
         else:
             return None
 
+# Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.     
+def ensure_wp_crd_exists():
+    config.load_kube_config()
+    dyn_client = DynamicClient(client.ApiClient())
+    api_instance = client.ApiextensionsV1Api()
+    crd_name = "wordpresssites.wordpress.epfl.ch"
+
+    try:
+        crd_list = api_instance.list_custom_resource_definition()
+        exists = any(crd.metadata.name == crd_name for crd in crd_list.items)
+
+        if exists:
+            logging.info(f"↳ CRD '{crd_name}' already exists, doing nothing...")
+            return True
+        else:
+            logging.info(f"↳ CRD '{crd_name}' does not exists, creating it...")
+            with open("WordPressSite-crd.yaml") as file:
+                crd_file = yaml.safe_load(file)
+            crd_resource = dyn_client.resources.get(api_version='apiextensions.k8s.io/v1', kind='CustomResourceDefinition')
+
+            try:
+                crd_resource.create(body=crd_file)
+                logging.info(f"↳ CRD '{crd_name}' created")
+                return True
+            except client.exceptions.ApiException as e:
+                logging.error("Error trying to create CRD :", e)
+    except ApiException as e:
+        logging.error(f"Error verifying CRD file: {e}")
+    return False
+
 # Function that runs when the operator starts
 @kopf.on.startup()
 def startup_fn(**kwargs):
     print("Operator started and initialized")
     # TODO: check the presence of namespaces or cluster-wide flag here.
+
+    ensure_wp_crd_exists()
 
 def list_wordpress_sites(namespace):
     logging.info(f"   ↳ [{namespace}] list_wordpress_sites")
