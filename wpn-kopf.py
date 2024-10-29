@@ -525,6 +525,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
       import_from_os3 = epfl.get("importFromOS3")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
+      plugins = wordpress["plugins"]
 
       secret = "secret" # Password, for the moment hard coded.
 
@@ -536,11 +537,12 @@ fastcgi_param WP_DB_PASSWORD     secret;
 
       if (not import_from_os3):
           self.install_wordpress_via_php(path, title, tagline)
+          self.manage_plugins_php(','.join(plugins))
       else:
           environment = import_from_os3["environment"]
           ansible_host = import_from_os3["ansibleHost"]
           self.restore_wordpress_from_os3(path, environment, ansible_host)
-          self.manage_plugins_php("test,test,test")
+          self.manage_plugins_php("test,test,test")   # TODO delete this line when EPFL menu is correct
 
       self.patch.status['wordpresssite'] = {
           'state': 'created',
@@ -594,7 +596,7 @@ class WordPressCRDOperator:
           logging.error(f"Error verifying CRD file: {e}")
       return False
 
-    
+
 
 if __name__ == '__main__':
     Config.load_from_command_line()
