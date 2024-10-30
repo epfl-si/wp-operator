@@ -81,20 +81,17 @@ class Config:
 
 @kopf.on.delete('wordpresssites')
 def on_delete_wordpresssite(spec, name, namespace, logger, **kwargs):
-    j = JeSaisPasJeVerraiPlusTard(name, namespace)
-    j.delete_fn(spec, logger)
+    WordPressSiteOperator(name, namespace).delete_fn(spec, logger)
 
 @kopf.on.startup()
 def on_kopf_startup (**kwargs):
-    JeSaisPasJeVerraiPlusTard.startup_fn()
+    WordPressCRDOperator.ensure_wp_crd_exists()
 
 @kopf.on.create('wordpresssites')
 def on_create_wordpresssite(spec, name, namespace, logger, **kwargs):
-    j = JeSaisPasJeVerraiPlusTard(name, namespace)
-    j.create_fn(spec, logger)
+    WordPressSiteOperator(name, namespace).create_fn(spec, logger)
 
-
-class JeSaisPasJeVerraiPlusTard:
+class WordPressSiteOperator:
 
   def __init__(self, name, namespace):
       self.name = name
@@ -103,45 +100,6 @@ class JeSaisPasJeVerraiPlusTard:
       config.load_kube_config()
       self.custom_api = client.CustomObjectsApi()
       self.api_instance = client.CoreV1Api()
-
-  # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
-  @classmethod
-  def ensure_wp_crd_exists(cls):
-      dyn_client = DynamicClient(client.ApiClient())
-      api_extensions_instance = client.ApiextensionsV1Api()
-      crd_name = "wordpresssites.wordpress.epfl.ch"
-
-      try:
-          crd_list = api_extensions_instance.list_custom_resource_definition()
-          exists = any(crd.metadata.name == crd_name for crd in crd_list.items)
-
-          if exists:
-              logging.info(f"↳ CRD '{crd_name}' already exists, doing nothing...")
-              return True
-          else:
-              logging.info(f"↳ CRD '{crd_name}' does not exists, creating it...")
-              with open("WordPressSite-crd.yaml") as file:
-                  crd_file = yaml.safe_load(file)
-              crd_resource = dyn_client.resources.get(api_version='apiextensions.k8s.io/v1', kind='CustomResourceDefinition')
-
-              try:
-                  crd_resource.create(body=crd_file)
-                  logging.info(f"↳ CRD '{crd_name}' created")
-                  return True
-              except client.exceptions.ApiException as e:
-                  logging.error("Error trying to create CRD :", e)
-      except ApiException as e:
-          logging.error(f"Error verifying CRD file: {e}")
-      return False
-
-  # Function that runs when the operator starts
-  @classmethod
-  def startup_fn(cls):
-      print("Operator started and initialized")
-      # TODO: check the presence of namespaces or cluster-wide flag here.
-
-      config.load_kube_config()
-      cls.ensure_wp_crd_exists()
 
   def install_wordpress_via_php(self, path, title, tagline):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
@@ -474,6 +432,41 @@ class JeSaisPasJeVerraiPlusTard:
       self.delete_custom_object_mariadb("wp-db-user-", "users")
       # Deleting grant
       self.delete_custom_object_mariadb("wordpress-", "grants")
+
+class WordPressCRDOperator:
+  # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
+  @classmethod
+  def ensure_wp_crd_exists(cls):
+      config.load_kube_config()
+      dyn_client = DynamicClient(client.ApiClient())
+      api_extensions_instance = client.ApiextensionsV1Api()
+      crd_name = "wordpresssites.wordpress.epfl.ch"
+
+      try:
+          crd_list = api_extensions_instance.list_custom_resource_definition()
+          exists = any(crd.metadata.name == crd_name for crd in crd_list.items)
+
+          if exists:
+              logging.info(f"↳ CRD '{crd_name}' already exists, doing nothing...")
+              return True
+          else:
+              logging.info(f"↳ CRD '{crd_name}' does not exists, creating it...")
+              with open("WordPressSite-crd.yaml") as file:
+                  crd_file = yaml.safe_load(file)
+              crd_resource = dyn_client.resources.get(api_version='apiextensions.k8s.io/v1', kind='CustomResourceDefinition')
+
+              try:
+                  crd_resource.create(body=crd_file)
+                  logging.info(f"↳ CRD '{crd_name}' created")
+                  return True
+              except client.exceptions.ApiException as e:
+                  logging.error("Error trying to create CRD :", e)
+          print("Operator started and initialized")
+      except ApiException as e:
+          logging.error(f"Error verifying CRD file: {e}")
+      return False
+
+    
 
 if __name__ == '__main__':
     Config.load_from_command_line()
