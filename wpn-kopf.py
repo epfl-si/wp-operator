@@ -110,7 +110,10 @@ def ensure_wp_crd_exists():
 
 # Function that runs when the operator starts
 @kopf.on.startup()
-def startup_fn(**kwargs):
+def on_kopf_startup (**kwargs):
+    startup_fn()
+
+def startup_fn():
     print("Operator started and initialized")
     # TODO: check the presence of namespaces or cluster-wide flag here.
 
@@ -412,7 +415,10 @@ def restore_wordpress_from_os3(custom_api, namespace, name, path, prefix, enviro
 
 
 @kopf.on.create('wordpresssites')
-def create_fn(spec, name, namespace, logger, **kwargs):
+def on_create_wordpresssite(spec, name, namespace, logger, **kwargs):
+    create_fn(spec, name, namespace, logger)
+
+def create_fn(spec, name, namespace, logger):
     logging.info(f"Create WordPressSite {name=} in {namespace=}")
     path = spec.get('path')
     wordpress = spec.get("wordpress")
@@ -444,8 +450,10 @@ def create_fn(spec, name, namespace, logger, **kwargs):
 
 
 @kopf.on.delete('wordpresssites')
-def delete_fn(spec, name, namespace, logger, **kwargs):
-    print(kwargs['meta']['namespace'])
+def on_delete_wordpresssite(spec, name, namespace, logger, **kwargs):
+    delete_fn(spec, name, namespace, logger)
+
+def delete_fn(spec, name, namespace, logger):
     logging.info(f"Delete WordPressSite {name=} in {namespace=}")
     config.load_kube_config()
     networking_v1_api = client.NetworkingV1Api()
