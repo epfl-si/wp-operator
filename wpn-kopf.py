@@ -95,7 +95,8 @@ def on_create_wordpresssite(spec, name, namespace, logger, **kwargs):
 class JeSaisPasJeVerraiPlusTard:
 
   # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
-  def ensure_wp_crd_exists(self):
+  @classmethod
+  def ensure_wp_crd_exists(cls):
       config.load_kube_config()
       dyn_client = DynamicClient(client.ApiClient())
       api_instance = client.ApiextensionsV1Api()
@@ -125,12 +126,12 @@ class JeSaisPasJeVerraiPlusTard:
       return False
 
   # Function that runs when the operator starts
-
-  def startup_fn(self):
+  @classmethod
+  def startup_fn(cls):
       print("Operator started and initialized")
       # TODO: check the presence of namespaces or cluster-wide flag here.
 
-      self.ensure_wp_crd_exists()
+      cls.ensure_wp_crd_exists()
 
   def install_wordpress_via_php(self, name, path, title, tagline):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {name=}, {path=}, {title=}, {tagline=}")
