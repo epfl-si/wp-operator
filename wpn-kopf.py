@@ -98,6 +98,7 @@ class KubernetesAPI:
       self.core = client.CoreV1Api()
       self.extensions = client.ApiextensionsV1Api()
       self.dynamic = DynamicClient(client.ApiClient())
+      self.networking = client.NetworkingV1Api()
 
 class WordPressSiteOperator:
 
@@ -298,6 +299,75 @@ class WordPressSiteOperator:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} already deleted")
 
+  def create_ingress(self, path):
+    body = client.V1Ingress(
+        api_version="networking.k8s.io/v1",
+        kind="Ingress",
+        metadata=client.V1ObjectMeta(
+            name=self.name,
+            namespace=self.namespace,
+            annotations={
+            "nginx.ingress.kubernetes.io/configuration-snippet": f"""
+location = {path}/wp-admin {{
+    return 301 https://wpn.fsd.team{path}/wp-admin/;
+}}
+
+location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {{
+    rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
+    root /wp/6/;
+}}
+
+location ~ (wp-content/uploads)/ {{
+    rewrite .*/(wp-content/uploads/(.*)) /$2 break;
+    root /data/{self.name}/uploads/;
+}}
+
+fastcgi_param WP_DEBUG           true;
+fastcgi_param WP_ROOT_URI        {path}/;
+fastcgi_param WP_SITE_NAME       {self.name};
+fastcgi_param WP_ABSPATH         /wp/6/;
+fastcgi_param WP_DB_HOST         mariadb-min;
+fastcgi_param WP_DB_NAME         {self.prefix["db"]}{self.name};
+fastcgi_param WP_DB_USER         {self.prefix["user"]}{self.name};
+fastcgi_param WP_DB_PASSWORD     secret;
+
+include "/etc/nginx/template/wordpress_fastcgi.conf";
+"""
+            }
+        ),
+        spec=client.V1IngressSpec(
+            ingress_class_name="wordpress",
+            rules=[client.V1IngressRule(
+                host="wpn.fsd.team",
+                http=client.V1HTTPIngressRuleValue(
+                    paths=[client.V1HTTPIngressPath(
+                        path=path,
+                        path_type="Prefix",
+                        backend=client.V1IngressBackend(
+                            service=client.V1IngressServiceBackend(
+                                name="wpn-nginx-service",
+                                port=client.V1ServiceBackendPort(
+                                    number=80,
+                                )
+                            )
+                        )
+                    )]
+                )
+            )]
+        )
+    )
+
+    self.api.networking.create_namespaced_ingress(
+        namespace=self.namespace,
+        body=body
+    )
+
+  def delete_ingress(self):
+    self.api.networking.delete_namespaced_ingress(
+        namespace=self.namespace,
+        name=self.name
+    )
+
   def get_os3_credentials(self, profile_name):
       logging.info(f"   ↳ [{self.namespace}/{self.name}] Get Restic and S3 secrets")
 
@@ -421,6 +491,7 @@ class WordPressSiteOperator:
       self.create_secret(secret)
       self.create_user()
       self.create_grant()
+      self.create_ingress(path)
 
       if (not import_from_os3):
           self.install_wordpress_via_php(path, title, tagline)
@@ -443,6 +514,7 @@ class WordPressSiteOperator:
       self.delete_custom_object_mariadb(self.prefix['user'], "users")
       # Deleting grant
       self.delete_custom_object_mariadb(self.prefix['grant'], "grants")
+      self.delete_ingress()
 
 class WordPressCRDOperator:
   # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
