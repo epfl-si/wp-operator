@@ -93,8 +93,8 @@ def on_create_wordpresssite(spec, name, namespace, **kwargs):
 
 
 class KubernetesAPI:
-
   def __init__(self):
+      config.load_kube_config()
       self.custom = client.CustomObjectsApi()
       self.core = client.CoreV1Api()
       self.extensions = client.ApiextensionsV1Api()
@@ -521,7 +521,6 @@ class WordPressCRDOperator:
   # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
   @classmethod
   def ensure_wp_crd_exists(cls):
-      config.load_kube_config()
       dyn_client = KubernetesAPI().dynamic
       api_extensions_instance = KubernetesAPI().extensions
       crd_name = "wordpresssites.wordpress.epfl.ch"
