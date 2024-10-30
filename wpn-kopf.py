@@ -93,6 +93,15 @@ def on_create_wordpresssite(spec, name, namespace, **kwargs):
 
 
 class KubernetesAPI:
+  __singleton = None
+
+  @classmethod
+  def get(cls):
+      if cls.__singleton is None:
+          cls.__singleton = cls()
+
+      return cls.__singleton
+
   def __init__(self):
       config.load_kube_config()
       self.custom = client.CustomObjectsApi()
@@ -106,7 +115,7 @@ class WordPressSiteOperator:
   def __init__(self, name, namespace):
       self.name = name
       self.namespace = namespace
-      self.api = KubernetesAPI()
+      self.api = KubernetesAPI.get()
       self.prefix = {
         "db": "wp-db-",
         "user": "wp-db-user-",
@@ -521,8 +530,8 @@ class WordPressCRDOperator:
   # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
   @classmethod
   def ensure_wp_crd_exists(cls):
-      dyn_client = KubernetesAPI().dynamic
-      api_extensions_instance = KubernetesAPI().extensions
+      dyn_client = KubernetesAPI.get().dynamic
+      api_extensions_instance = KubernetesAPI.get().extensions
       crd_name = "wordpresssites.wordpress.epfl.ch"
 
       try:
