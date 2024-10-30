@@ -105,6 +105,12 @@ class WordPressSiteOperator:
       self.name = name
       self.namespace = namespace
       self.api = KubernetesAPI()
+      self.prefix = {
+        "db": "wp-db-",
+        "user": "wp-db-user-",
+        "grant": "wp-db-grant-",
+        "password": "wp-db-password-"
+      }
 
   def install_wordpress_via_php(self, path, title, tagline):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
@@ -114,8 +120,8 @@ class WordPressSiteOperator:
                                f"--wp-dir={Config.wp_dir}",
                                f"--wp-host={Config.wp_host}",
                                f"--db-host={Config.db_host}",
-                               f"--db-name=wp-db-{self.name}",
-                               f"--db-user=wp-db-user-{self.name}",
+                               f"--db-name={self.prefix['db']}{self.name}",
+                               f"--db-user={self.prefix['user']}{self.name}",
                                f"--db-password=secret",
                                f"--title={title}", f"--tagline={tagline}"], capture_output=True, text=True)
       print(result.stdout)
@@ -132,8 +138,8 @@ class WordPressSiteOperator:
                                f"--wp-dir={Config.wp_dir}",
                                f"--wp-host={Config.wp_host}",
                                f"--db-host={Config.db_host}",
-                               f"--db-name=wp-db-{self.name}",
-                               f"--db-user=wp-db-user-{self.name}",
+                               f"--db-name={self.prefix['db']}{self.name}",
+                               f"--db-user={self.prefix['user']}{self.name}",
                                f"--db-password=secret",
                                f"--plugins={plugins}"], capture_output=True, text=True)
       print(result.stdout)
@@ -143,12 +149,12 @@ class WordPressSiteOperator:
           logging.info(f" ↳ [manage_plugins_php] End of configuring")
 
   def create_database(self):
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Database wp-db-{self.name}")
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Database {self.prefix['db']}{self.name}")
       body = {
           "apiVersion": "k8s.mariadb.com/v1alpha1",
           "kind": "Database",
           "metadata": {
-              "name": f"wp-db-{self.name}",
+              "name": f"{self.prefix['db']}{self.name}",
               "namespace": self.namespace
           },
           "spec": {
@@ -171,10 +177,10 @@ class WordPressSiteOperator:
       except ApiException as e:
           if e.status != 409:
               raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Database wp-db-{self.name} already exists")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Database {self.prefix['db']}{self.name} already exists")
 
-  def create_secret(self, prefix, secret):
-      secret_name = prefix + self.name
+  def create_secret(self, secret):
+      secret_name = self.prefix["password"] + self.name
       logging.info(f" ↳ [{self.namespace}/{self.name}] Create Secret name={secret_name}")
       body = client.V1Secret(
           type="Opaque",
@@ -189,8 +195,8 @@ class WordPressSiteOperator:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {secret_name} already exists")
 
-  def delete_secret(self, prefix):
-      secret_name = prefix + self.name
+  def delete_secret(self):
+      secret_name = self.prefix["password"] + self.name
       try:
           logging.info(f" ↳ [{self.namespace}/{self.name}] Delete Secret {secret_name}")
 
@@ -201,8 +207,8 @@ class WordPressSiteOperator:
           logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {secret_name} already deleted")
 
   def create_user(self):
-      user_name = f"wp-db-user-{self.name}"
-      password_name = f"wp-db-password-{self.name}"
+      user_name = f"{self.prefix['user']}{self.name}"
+      password_name = f"{self.prefix['password']}{self.name}"
       logging.info(f" ↳ [{self.namespace}/{self.name}] Create User name={user_name}")
       body = {
           "apiVersion": "k8s.mariadb.com/v1alpha1",
@@ -239,8 +245,8 @@ class WordPressSiteOperator:
 
 
   def create_grant(self):
-      grant_name = f"wordpress-{self.name}"
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Grant {self.name=}")
+      grant_name = f"{self.prefix['grant']}{self.name}"
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Grant: {grant_name}")
       body = {
           "apiVersion": "k8s.mariadb.com/v1alpha1",
           "kind": "Grant",
@@ -255,9 +261,9 @@ class WordPressSiteOperator:
               "privileges": [
                   "ALL PRIVILEGES"
               ],
-              "database": f"wp-db-{self.name}",
+              "database": f"{self.prefix['db']}{self.name}",
               "table" : "*",
-              "username": f"wp-db-user-{self.name}",
+              "username": f"{self.prefix['user']}{self.name}",
               "grantOption": False,
               "host": "%"
           }
@@ -313,7 +319,7 @@ class WordPressSiteOperator:
           "AWS_SHARED_CREDENTIALS_FILE": file_path
       }
 
-  def restore_wordpress_from_os3(self, path, prefix, environment, ansible_host):
+  def restore_wordpress_from_os3(self, path, environment, ansible_host):
       logging.info(f" ↳ [{self.namespace}/{self.name}] Restoring WordPress from OS3")
 
       target = f"/tmp/backup/{self.name}"
@@ -371,7 +377,7 @@ class WordPressSiteOperator:
                   "targetRecoveryTime": backup_time,
                   "args": [
                       "--verbose",
-                      f"--database={prefix}{self.name}"
+                      f"--database={self.prefix['db']}{self.name}"
                   ]
               }
           }
@@ -412,7 +418,7 @@ class WordPressSiteOperator:
       secret = "secret" # Password, for the moment hard coded.
 
       self.create_database()
-      self.create_secret('wp-db-password-', secret)
+      self.create_secret(secret)
       self.create_user()
       self.create_grant()
 
@@ -421,7 +427,7 @@ class WordPressSiteOperator:
       else:
           environment = import_from_os3["environment"]
           ansible_host = import_from_os3["ansibleHost"]
-          self.restore_wordpress_from_os3(path, "wp-db-", environment, ansible_host)
+          self.restore_wordpress_from_os3(path, environment, ansible_host)
           self.manage_plugins_php("test,test,test")
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
@@ -431,12 +437,12 @@ class WordPressSiteOperator:
       logging.info(f"Delete WordPressSite {self.name=} in {self.namespace=}")
 
       # Deleting database
-      self.delete_custom_object_mariadb("wp-db-", "databases")
-      self.delete_secret('wp-db-password-')
+      self.delete_custom_object_mariadb(self.prefix['db'], "databases")
+      self.delete_secret()
       # Deleting user
-      self.delete_custom_object_mariadb("wp-db-user-", "users")
+      self.delete_custom_object_mariadb(self.prefix['user'], "users")
       # Deleting grant
-      self.delete_custom_object_mariadb("wordpress-", "grants")
+      self.delete_custom_object_mariadb(self.prefix['grant'], "grants")
 
 class WordPressCRDOperator:
   # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
