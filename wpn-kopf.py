@@ -139,7 +139,7 @@ class JeSaisPasJeVerraiPlusTard:
 
       cls.ensure_wp_crd_exists()
 
-  def install_wordpress_via_php(self, name, path, title, tagline):
+  def install_wordpress_via_php(self, path, title, tagline):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
       # https://stackoverflow.com/a/89243
       result = subprocess.run([Config.php, Config.wp_php_ensure,
@@ -157,7 +157,7 @@ class JeSaisPasJeVerraiPlusTard:
       else:
           logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
 
-  def manage_plugins_php(self, name, plugins):
+  def manage_plugins_php(self, plugins):
       logging.info(f" ↳ [manage_plugins_php] Configuring (manage-plugins.php) with {self.name=} and {plugins=}")
       # https://stackoverflow.com/a/89243
       result = subprocess.run([Config.php, Config.wp_php_ensure,
@@ -175,7 +175,7 @@ class JeSaisPasJeVerraiPlusTard:
       else:
           logging.info(f" ↳ [manage_plugins_php] End of configuring")
 
-  def create_database(self, custom_api, namespace, name):
+  def create_database(self, custom_api):
       logging.info(f" ↳ [{self.namespace}/{self.name}] Create Database wp-db-{self.name}")
       body = {
           "apiVersion": "k8s.mariadb.com/v1alpha1",
@@ -193,7 +193,6 @@ class JeSaisPasJeVerraiPlusTard:
           }
       }
 
-
       try:
           custom_api.create_namespaced_custom_object(
               group="k8s.mariadb.com",
@@ -207,7 +206,7 @@ class JeSaisPasJeVerraiPlusTard:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Database wp-db-{self.name} already exists")
 
-  def create_secret(self, api_instance, namespace, name, prefix, secret):
+  def create_secret(self, api_instance, prefix, secret):
       secret_name = prefix + self.name
       logging.info(f" ↳ [{self.namespace}/{self.name}] Create Secret name={secret_name}")
       body = client.V1Secret(
@@ -223,7 +222,7 @@ class JeSaisPasJeVerraiPlusTard:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {secret_name} already exists")
 
-  def delete_secret(self, api_instance, namespace, name, prefix):
+  def delete_secret(self, api_instance, prefix):
       secret_name = prefix + self.name
       try:
           logging.info(f" ↳ [{self.namespace}/{self.name}] Delete Secret {secret_name}")
@@ -234,7 +233,7 @@ class JeSaisPasJeVerraiPlusTard:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {secret_name} already deleted")
 
-  def create_user(self, custom_api, namespace, name):
+  def create_user(self, custom_api):
       user_name = f"wp-db-user-{self.name}"
       password_name = f"wp-db-password-{self.name}"
       logging.info(f" ↳ [{self.namespace}/{self.name}] Create User name={user_name}")
@@ -272,7 +271,7 @@ class JeSaisPasJeVerraiPlusTard:
           logging.info(f" ↳ [{self.namespace}/{self.name}] User {user_name} already exists")
 
 
-  def create_grant(self, custom_api, namespace, name):
+  def create_grant(self, custom_api):
       grant_name = f"wordpress-{self.name}"
       logging.info(f" ↳ [{self.namespace}/{self.name}] Create Grant {self.name=}")
       body = {
@@ -310,7 +309,7 @@ class JeSaisPasJeVerraiPlusTard:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Grant {grant_name} already exists")
 
-  def delete_custom_object_mariadb(self, custom_api, namespace, name, prefix, plural):
+  def delete_custom_object_mariadb(self, custom_api, prefix, plural):
       mariadb_name = prefix + self.name
       logging.info(f" ↳ [{self.namespace}/{self.name}] Delete MariaDB object {mariadb_name}")
       try:
@@ -326,7 +325,7 @@ class JeSaisPasJeVerraiPlusTard:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} already deleted")
 
-  def get_os3_credentials(self, namespace, name, profile_name):
+  def get_os3_credentials(self, profile_name):
       logging.info(f"   ↳ [{self.namespace}/{self.name}] Get Restic and S3 secrets")
 
       file_path = "/keybase/team/epfl_wp_prod/aws-cli-credentials"
@@ -347,7 +346,7 @@ class JeSaisPasJeVerraiPlusTard:
           "AWS_SHARED_CREDENTIALS_FILE": file_path
       }
 
-  def restore_wordpress_from_os3(self, custom_api, namespace, name, path, prefix, environment, ansible_host):
+  def restore_wordpress_from_os3(self, custom_api, path, prefix, environment, ansible_host):
       logging.info(f" ↳ [{self.namespace}/{self.name}] Restoring WordPress from OS3")
 
       target = f"/tmp/backup/{self.name}"
@@ -355,7 +354,7 @@ class JeSaisPasJeVerraiPlusTard:
       backup_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-7] + 'Z'
 
       # Retrieve S3 credentials
-      credentials = self.get_os3_credentials(self.namespace, self.name, profile_name)
+      credentials = self.get_os3_credentials(profile_name)
 
       try:
           # Execute the Restic command to restore the backup
@@ -449,18 +448,18 @@ class JeSaisPasJeVerraiPlusTard:
 
       secret = "secret" # Password, for the moment hard coded.
 
-      self.create_database(custom_api, self.namespace, self.name)
-      self.create_secret(api_instance, self.namespace, self.name, 'wp-db-password-', secret)
-      self.create_user(custom_api, self.namespace, self.name)
-      self.create_grant(custom_api, self.namespace, self.name)
+      self.create_database(custom_api)
+      self.create_secret(api_instance, 'wp-db-password-', secret)
+      self.create_user(custom_api)
+      self.create_grant(custom_api)
 
       if (not import_from_os3):
-          self.install_wordpress_via_php(self.name, path, title, tagline)
+          self.install_wordpress_via_php(path, title, tagline)
       else:
           environment = import_from_os3["environment"]
           ansible_host = import_from_os3["ansibleHost"]
-          self.restore_wordpress_from_os3(custom_api, self.namespace, self.name, path, "wp-db-", environment, ansible_host)
-          self.manage_plugins_php(self.name, "test,test,test")
+          self.restore_wordpress_from_os3(custom_api, path, "wp-db-", environment, ansible_host)
+          self.manage_plugins_php("test,test,test")
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
@@ -473,12 +472,12 @@ class JeSaisPasJeVerraiPlusTard:
       api_instance = client.CoreV1Api()
 
       # Deleting database
-      self.delete_custom_object_mariadb(custom_api, self.namespace, self.name, "wp-db-", "databases")
-      self.delete_secret(api_instance, self.namespace, self.name, 'wp-db-password-')
+      self.delete_custom_object_mariadb(custom_api, "wp-db-", "databases")
+      self.delete_secret(api_instance, 'wp-db-password-')
       # Deleting user
-      self.delete_custom_object_mariadb(custom_api, self.namespace, self.name, "wp-db-user-", "users")
+      self.delete_custom_object_mariadb(custom_api, "wp-db-user-", "users")
       # Deleting grant
-      self.delete_custom_object_mariadb(custom_api, self.namespace, self.name, "wordpress-", "grants")
+      self.delete_custom_object_mariadb(custom_api, "wordpress-", "grants")
 
 if __name__ == '__main__':
     Config.load_from_command_line()
