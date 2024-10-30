@@ -99,17 +99,20 @@ class JeSaisPasJeVerraiPlusTard:
   def __init__(self, name, namespace):
       self.name = name
       self.namespace = namespace
+      
+      config.load_kube_config()
+      self.custom_api = client.CustomObjectsApi()
+      self.api_instance = client.CoreV1Api()
 
   # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
   @classmethod
   def ensure_wp_crd_exists(cls):
-      config.load_kube_config()
       dyn_client = DynamicClient(client.ApiClient())
-      api_instance = client.ApiextensionsV1Api()
+      api_extensions_instance = client.ApiextensionsV1Api()
       crd_name = "wordpresssites.wordpress.epfl.ch"
 
       try:
-          crd_list = api_instance.list_custom_resource_definition()
+          crd_list = api_extensions_instance.list_custom_resource_definition()
           exists = any(crd.metadata.name == crd_name for crd in crd_list.items)
 
           if exists:
@@ -175,7 +178,7 @@ class JeSaisPasJeVerraiPlusTard:
       else:
           logging.info(f" ↳ [manage_plugins_php] End of configuring")
 
-  def create_database(self, custom_api):
+  def create_database(self):
       logging.info(f" ↳ [{self.namespace}/{self.name}] Create Database wp-db-{self.name}")
       body = {
           "apiVersion": "k8s.mariadb.com/v1alpha1",
@@ -194,7 +197,7 @@ class JeSaisPasJeVerraiPlusTard:
       }
 
       try:
-          custom_api.create_namespaced_custom_object(
+          self.custom_api.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
               namespace=self.namespace,
@@ -206,7 +209,7 @@ class JeSaisPasJeVerraiPlusTard:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Database wp-db-{self.name} already exists")
 
-  def create_secret(self, api_instance, prefix, secret):
+  def create_secret(self, prefix, secret):
       secret_name = prefix + self.name
       logging.info(f" ↳ [{self.namespace}/{self.name}] Create Secret name={secret_name}")
       body = client.V1Secret(
@@ -216,24 +219,24 @@ class JeSaisPasJeVerraiPlusTard:
       )
 
       try:
-          api_instance.create_namespaced_secret(namespace=self.namespace, body=body)
+          self.api_instance.create_namespaced_secret(namespace=self.namespace, body=body)
       except ApiException as e:
           if e.status != 409:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {secret_name} already exists")
 
-  def delete_secret(self, api_instance, prefix):
+  def delete_secret(self, prefix):
       secret_name = prefix + self.name
       try:
           logging.info(f" ↳ [{self.namespace}/{self.name}] Delete Secret {secret_name}")
 
-          api_instance.delete_namespaced_secret(namespace=self.namespace, name=secret_name)
+          self.api_instance.delete_namespaced_secret(namespace=self.namespace, name=secret_name)
       except ApiException as e:
           if e.status != 404:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {secret_name} already deleted")
 
-  def create_user(self, custom_api):
+  def create_user(self):
       user_name = f"wp-db-user-{self.name}"
       password_name = f"wp-db-password-{self.name}"
       logging.info(f" ↳ [{self.namespace}/{self.name}] Create User name={user_name}")
@@ -258,7 +261,7 @@ class JeSaisPasJeVerraiPlusTard:
       }
 
       try:
-          custom_api.create_namespaced_custom_object(
+          self.custom_api.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
               namespace=self.namespace,
@@ -271,7 +274,7 @@ class JeSaisPasJeVerraiPlusTard:
           logging.info(f" ↳ [{self.namespace}/{self.name}] User {user_name} already exists")
 
 
-  def create_grant(self, custom_api):
+  def create_grant(self):
       grant_name = f"wordpress-{self.name}"
       logging.info(f" ↳ [{self.namespace}/{self.name}] Create Grant {self.name=}")
       body = {
@@ -297,7 +300,7 @@ class JeSaisPasJeVerraiPlusTard:
       }
 
       try:
-          custom_api.create_namespaced_custom_object(
+          self.custom_api.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
               namespace=self.namespace,
@@ -309,11 +312,11 @@ class JeSaisPasJeVerraiPlusTard:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Grant {grant_name} already exists")
 
-  def delete_custom_object_mariadb(self, custom_api, prefix, plural):
+  def delete_custom_object_mariadb(self, prefix, plural):
       mariadb_name = prefix + self.name
       logging.info(f" ↳ [{self.namespace}/{self.name}] Delete MariaDB object {mariadb_name}")
       try:
-          custom_api.delete_namespaced_custom_object(
+          self.custom_api.delete_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
               plural=plural,
@@ -346,7 +349,7 @@ class JeSaisPasJeVerraiPlusTard:
           "AWS_SHARED_CREDENTIALS_FILE": file_path
       }
 
-  def restore_wordpress_from_os3(self, custom_api, path, prefix, environment, ansible_host):
+  def restore_wordpress_from_os3(self, path, prefix, environment, ansible_host):
       logging.info(f" ↳ [{self.namespace}/{self.name}] Restoring WordPress from OS3")
 
       target = f"/tmp/backup/{self.name}"
@@ -410,7 +413,7 @@ class JeSaisPasJeVerraiPlusTard:
           }
 
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Creating restore object in Kubernetes")
-          custom_api.create_namespaced_custom_object(
+          self.custom_api.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
               namespace=self.namespace,
@@ -441,23 +444,20 @@ class JeSaisPasJeVerraiPlusTard:
       import_from_os3 = epfl.get("importFromOS3")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
-      config.load_kube_config()
-      custom_api = client.CustomObjectsApi()
-      api_instance = client.CoreV1Api()
 
       secret = "secret" # Password, for the moment hard coded.
 
-      self.create_database(custom_api)
-      self.create_secret(api_instance, 'wp-db-password-', secret)
-      self.create_user(custom_api)
-      self.create_grant(custom_api)
+      self.create_database()
+      self.create_secret('wp-db-password-', secret)
+      self.create_user()
+      self.create_grant()
 
       if (not import_from_os3):
           self.install_wordpress_via_php(path, title, tagline)
       else:
           environment = import_from_os3["environment"]
           ansible_host = import_from_os3["ansibleHost"]
-          self.restore_wordpress_from_os3(custom_api, path, "wp-db-", environment, ansible_host)
+          self.restore_wordpress_from_os3(path, "wp-db-", environment, ansible_host)
           self.manage_plugins_php("test,test,test")
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
@@ -465,17 +465,14 @@ class JeSaisPasJeVerraiPlusTard:
 
   def delete_fn(self, spec, logger):
       logging.info(f"Delete WordPressSite {self.name=} in {self.namespace=}")
-      config.load_kube_config()
-      custom_api = client.CustomObjectsApi()
-      api_instance = client.CoreV1Api()
 
       # Deleting database
-      self.delete_custom_object_mariadb(custom_api, "wp-db-", "databases")
-      self.delete_secret(api_instance, 'wp-db-password-')
+      self.delete_custom_object_mariadb("wp-db-", "databases")
+      self.delete_secret('wp-db-password-')
       # Deleting user
-      self.delete_custom_object_mariadb(custom_api, "wp-db-user-", "users")
+      self.delete_custom_object_mariadb("wp-db-user-", "users")
       # Deleting grant
-      self.delete_custom_object_mariadb(custom_api, "wordpress-", "grants")
+      self.delete_custom_object_mariadb("wordpress-", "grants")
 
 if __name__ == '__main__':
     Config.load_from_command_line()
