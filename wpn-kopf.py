@@ -140,15 +140,15 @@ class JeSaisPasJeVerraiPlusTard:
       cls.ensure_wp_crd_exists()
 
   def install_wordpress_via_php(self, name, path, title, tagline):
-      logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {name=}, {path=}, {title=}, {tagline=}")
+      logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
       # https://stackoverflow.com/a/89243
       result = subprocess.run([Config.php, Config.wp_php_ensure,
-                               f"--name={name}", f"--path={path}",
+                               f"--name={self.name}", f"--path={path}",
                                f"--wp-dir={Config.wp_dir}",
                                f"--wp-host={Config.wp_host}",
                                f"--db-host={Config.db_host}",
-                               f"--db-name=wp-db-{name}",
-                               f"--db-user=wp-db-user-{name}",
+                               f"--db-name=wp-db-{self.name}",
+                               f"--db-user=wp-db-user-{self.name}",
                                f"--db-password=secret",
                                f"--title={title}", f"--tagline={tagline}"], capture_output=True, text=True)
       print(result.stdout)
@@ -158,15 +158,15 @@ class JeSaisPasJeVerraiPlusTard:
           logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
 
   def manage_plugins_php(self, name, plugins):
-      logging.info(f" ↳ [manage_plugins_php] Configuring (manage-plugins.php) with {name=} and {plugins=}")
+      logging.info(f" ↳ [manage_plugins_php] Configuring (manage-plugins.php) with {self.name=} and {plugins=}")
       # https://stackoverflow.com/a/89243
       result = subprocess.run([Config.php, Config.wp_php_ensure,
-                               f"--name={name}",
+                               f"--name={self.name}",
                                f"--wp-dir={Config.wp_dir}",
                                f"--wp-host={Config.wp_host}",
                                f"--db-host={Config.db_host}",
-                               f"--db-name=wp-db-{name}",
-                               f"--db-user=wp-db-user-{name}",
+                               f"--db-name=wp-db-{self.name}",
+                               f"--db-user=wp-db-user-{self.name}",
                                f"--db-password=secret",
                                f"--plugins={plugins}"], capture_output=True, text=True)
       print(result.stdout)
@@ -176,13 +176,13 @@ class JeSaisPasJeVerraiPlusTard:
           logging.info(f" ↳ [manage_plugins_php] End of configuring")
 
   def create_database(self, custom_api, namespace, name):
-      logging.info(f" ↳ [{namespace}/{name}] Create Database wp-db-{name}")
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Database wp-db-{self.name}")
       body = {
           "apiVersion": "k8s.mariadb.com/v1alpha1",
           "kind": "Database",
           "metadata": {
-              "name": f"wp-db-{name}",
-              "namespace": namespace
+              "name": f"wp-db-{self.name}",
+              "namespace": self.namespace
           },
           "spec": {
               "mariaDbRef": {
@@ -198,52 +198,52 @@ class JeSaisPasJeVerraiPlusTard:
           custom_api.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
-              namespace=namespace,
+              namespace=self.namespace,
               plural="databases",
               body=body
           )
       except ApiException as e:
           if e.status != 409:
               raise e
-          logging.info(f" ↳ [{namespace}/{name}] Database wp-db-{name} already exists")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Database wp-db-{self.name} already exists")
 
   def create_secret(self, api_instance, namespace, name, prefix, secret):
-      logging.info(f" ↳ [{namespace}/{name}] Create Secret name={prefix + name}")
-      secret_name = prefix + name
+      secret_name = prefix + self.name
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Secret name={secret_name}")
       body = client.V1Secret(
           type="Opaque",
-          metadata=client.V1ObjectMeta(name=secret_name, namespace=namespace),
+          metadata=client.V1ObjectMeta(name=secret_name, namespace=self.namespace),
           string_data={"password": secret}
       )
 
       try:
-          api_instance.create_namespaced_secret(namespace=namespace, body=body)
+          api_instance.create_namespaced_secret(namespace=self.namespace, body=body)
       except ApiException as e:
           if e.status != 409:
               raise e
-          logging.info(f" ↳ [{namespace}/{name}] Secret {secret_name} already exists")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {secret_name} already exists")
 
   def delete_secret(self, api_instance, namespace, name, prefix):
-      secret_name = prefix + name
+      secret_name = prefix + self.name
       try:
-          logging.info(f" ↳ [{namespace}/{name}] Delete Secret {secret_name}")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Delete Secret {secret_name}")
 
-          api_instance.delete_namespaced_secret(namespace=namespace, name=secret_name)
+          api_instance.delete_namespaced_secret(namespace=self.namespace, name=secret_name)
       except ApiException as e:
           if e.status != 404:
               raise e
-          logging.info(f" ↳ [{namespace}/{name}] Secret {secret_name} already deleted")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {secret_name} already deleted")
 
   def create_user(self, custom_api, namespace, name):
-      user_name = f"wp-db-user-{name}"
-      password_name = f"wp-db-password-{name}"
-      logging.info(f" ↳ [{namespace}/{name}] Create User name={user_name}")
+      user_name = f"wp-db-user-{self.name}"
+      password_name = f"wp-db-password-{self.name}"
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Create User name={user_name}")
       body = {
           "apiVersion": "k8s.mariadb.com/v1alpha1",
           "kind": "User",
           "metadata": {
               "name": user_name,
-              "namespace": namespace
+              "namespace": self.namespace
           },
           "spec": {
               "mariaDbRef": {
@@ -262,25 +262,25 @@ class JeSaisPasJeVerraiPlusTard:
           custom_api.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
-              namespace=namespace,
+              namespace=self.namespace,
               plural="users",
               body=body
           )
       except ApiException as e:
           if e.status != 409:
               raise e
-          logging.info(f" ↳ [{namespace}/{name}] User {user_name} already exists")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] User {user_name} already exists")
 
 
   def create_grant(self, custom_api, namespace, name):
-      grant_name = f"wordpress-{name}"
-      logging.info(f" ↳ [{namespace}/{name}] Create Grant {name=}")
+      grant_name = f"wordpress-{self.name}"
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Grant {self.name=}")
       body = {
           "apiVersion": "k8s.mariadb.com/v1alpha1",
           "kind": "Grant",
           "metadata": {
               "name": grant_name,
-              "namespace": namespace
+              "namespace": self.namespace
           },
           "spec": {
               "mariaDbRef": {
@@ -289,9 +289,9 @@ class JeSaisPasJeVerraiPlusTard:
               "privileges": [
                   "ALL PRIVILEGES"
               ],
-              "database": f"wp-db-{name}",
+              "database": f"wp-db-{self.name}",
               "table" : "*",
-              "username": f"wp-db-user-{name}",
+              "username": f"wp-db-user-{self.name}",
               "grantOption": False,
               "host": "%"
           }
@@ -301,33 +301,33 @@ class JeSaisPasJeVerraiPlusTard:
           custom_api.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
-              namespace=namespace,
+              namespace=self.namespace,
               plural="grants",
               body=body
           )
       except ApiException as e:
           if e.status != 409:
               raise e
-          logging.info(f" ↳ [{namespace}/{name}] Grant {grant_name} already exists")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Grant {grant_name} already exists")
 
   def delete_custom_object_mariadb(self, custom_api, namespace, name, prefix, plural):
-      mariadb_name = prefix + name
-      logging.info(f" ↳ [{namespace}/{name}] Delete MariaDB object {mariadb_name}")
+      mariadb_name = prefix + self.name
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Delete MariaDB object {mariadb_name}")
       try:
           custom_api.delete_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
               plural=plural,
-              namespace=namespace,
+              namespace=self.namespace,
               name=mariadb_name
           )
       except ApiException as e:
           if e.status != 404:
               raise e
-          logging.info(f" ↳ [{namespace}/{name}] MariaDB object {mariadb_name} already deleted")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} already deleted")
 
   def get_os3_credentials(self, namespace, name, profile_name):
-      logging.info(f"   ↳ [{namespace}/{name}] Get Restic and S3 secrets")
+      logging.info(f"   ↳ [{self.namespace}/{self.name}] Get Restic and S3 secrets")
 
       file_path = "/keybase/team/epfl_wp_prod/aws-cli-credentials"
 
@@ -348,39 +348,39 @@ class JeSaisPasJeVerraiPlusTard:
       }
 
   def restore_wordpress_from_os3(self, custom_api, namespace, name, path, prefix, environment, ansible_host):
-      logging.info(f" ↳ [{namespace}/{name}] Restoring WordPress from OS3")
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Restoring WordPress from OS3")
 
-      target = f"/tmp/backup/{name}"
+      target = f"/tmp/backup/{self.name}"
       profile_name = "backup-wwp"
       backup_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-7] + 'Z'
 
       # Retrieve S3 credentials
-      credentials = self.get_os3_credentials(namespace, name, profile_name)
+      credentials = self.get_os3_credentials(self.namespace, self.name, profile_name)
 
       try:
           # Execute the Restic command to restore the backup
           restic_restore = subprocess.run([f"restic -r s3:https://s3.epfl.ch/{credentials['BUCKET_NAME']}/backup/wordpresses/www{path.replace('/','__').replace('-','_')}/sql restore latest --target {target}"], env=credentials, shell=True, capture_output=True, text=True)
-          logging.info(f"   ↳ [{namespace}/{name}] SQL backup restored from S3")
+          logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup restored from S3")
 
           # Open file to write the modified SQL
-          backup_file_path = f"/tmp/backup/{name}/backup.{backup_time}.sql"
+          backup_file_path = f"/tmp/backup/{self.name}/backup.{backup_time}.sql"
 
           with open(backup_file_path, "w") as backup_file:
-              logging.info(f"   ↳ [{namespace}/{name}] Replacing www.epfl.ch with wpn.fsd.team in SQL backup")
+              logging.info(f"   ↳ [{self.namespace}/{self.name}] Replacing www.epfl.ch with wpn.fsd.team in SQL backup")
               sed_command = ["sed", "s/www\.epfl\.ch/wpn.fsd.team/g", f"{target}/db-backup.sql"]
 
               subprocess.run(sed_command, stdout=backup_file, check=True)
 
-          copy_backup = subprocess.run([f"aws --endpoint-url=https://s3.epfl.ch --profile={profile_name} s3 cp {backup_file_path} s3://{credentials['BUCKET_NAME']}/backup/k8s/{name}/"], env=credentials, shell=True, capture_output=True, text=True)
-          logging.info(f"   ↳ [{namespace}/{name}] SQL backup copied to S3")
+          copy_backup = subprocess.run([f"aws --endpoint-url=https://s3.epfl.ch --profile={profile_name} s3 cp {backup_file_path} s3://{credentials['BUCKET_NAME']}/backup/k8s/{self.name}/"], env=credentials, shell=True, capture_output=True, text=True)
+          logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup copied to S3")
 
           # Initiate the restore process in MariaDB
           restore_spec = {
               "apiVersion": "k8s.mariadb.com/v1alpha1",
               "kind": "Restore",
               "metadata": {
-                  "name": f"restore-{name}-{round(time.time())}",
-                  "namespace": namespace
+                  "name": f"restore-{self.name}-{round(time.time())}",
+                  "namespace": self.namespace
               },
               "spec": {
                   "mariaDbRef": {
@@ -388,7 +388,7 @@ class JeSaisPasJeVerraiPlusTard:
                   },
                   "s3": {
                       "bucket": credentials["BUCKET_NAME"],
-                      "prefix": f"backup/k8s/{name}",
+                      "prefix": f"backup/k8s/{self.name}",
                       "endpoint": "s3.epfl.ch",
                       "accessKeyIdSecretKeyRef": {
                           "name": "s3-backup-credentials",
@@ -405,27 +405,27 @@ class JeSaisPasJeVerraiPlusTard:
                   "targetRecoveryTime": backup_time,
                   "args": [
                       "--verbose",
-                      f"--database={prefix}{name}"
+                      f"--database={prefix}{self.name}"
                   ]
               }
           }
 
-          logging.info(f"   ↳ [{namespace}/{name}] Creating restore object in Kubernetes")
+          logging.info(f"   ↳ [{self.namespace}/{self.name}] Creating restore object in Kubernetes")
           custom_api.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
-              namespace=namespace,
+              namespace=self.namespace,
               plural="restores",
               body=restore_spec
           )
-          logging.info(f"   ↳ [{namespace}/{name}] Restore initiated on MariaDB")
+          logging.info(f"   ↳ [{self.namespace}/{self.name}] Restore initiated on MariaDB")
 
-          logging.info(f"   ↳ [{namespace}/{name}] Restoring media from OS3")
+          logging.info(f"   ↳ [{self.namespace}/{self.name}] Restoring media from OS3")
 
           pvc_name = "wordpress-test-wp-uploads-pvc-f401a87f-d2e9-4b20-85cc-61aa7cfc9d30"
-          copy_media = subprocess.run([f"ssh -t root@itswbhst0020.xaas.epfl.ch 'cp -r /mnt/data-prod-ro/wordpress/{environment}/www.epfl.ch/htdocs{path}/wp-content/uploads/ /mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{name}/; chown -R 33:33 /mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{name}/uploads'"], shell=True, capture_output=True, text=True)
+          copy_media = subprocess.run([f"ssh -t root@itswbhst0020.xaas.epfl.ch 'cp -r /mnt/data-prod-ro/wordpress/{environment}/www.epfl.ch/htdocs{path}/wp-content/uploads/ /mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{self.name}/; chown -R 33:33 /mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{self.name}/uploads'"], shell=True, capture_output=True, text=True)
 
-          logging.info(f"   ↳ [{namespace}/{name}] Restored media from OS3")
+          logging.info(f"   ↳ [{self.namespace}/{self.name}] Restored media from OS3")
       except subprocess.CalledProcessError as e:
           logging.error(f"Subprocess error in backup restoration: {e}")
       except FileNotFoundError as e:
