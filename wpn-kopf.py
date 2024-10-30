@@ -140,6 +140,7 @@ class JeSaisPasJeVerraiPlusTard:
       print("Operator started and initialized")
       # TODO: check the presence of namespaces or cluster-wide flag here.
 
+      config.load_kube_config()
       cls.ensure_wp_crd_exists()
 
   def install_wordpress_via_php(self, path, title, tagline):
