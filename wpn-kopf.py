@@ -80,16 +80,16 @@ class Config:
 
 
 @kopf.on.delete('wordpresssites')
-def on_delete_wordpresssite(spec, name, namespace, logger, **kwargs):
-    WordPressSiteOperator(name, namespace).delete_site(spec, logger)
+def on_delete_wordpresssite(spec, name, namespace, **kwargs):
+    WordPressSiteOperator(name, namespace).delete_site(spec)
 
 @kopf.on.startup()
 def on_kopf_startup (**kwargs):
     WordPressCRDOperator.ensure_wp_crd_exists()
 
 @kopf.on.create('wordpresssites')
-def on_create_wordpresssite(spec, name, namespace, logger, **kwargs):
-    WordPressSiteOperator(name, namespace).create_site(spec, logger)
+def on_create_wordpresssite(spec, name, namespace, **kwargs):
+    WordPressSiteOperator(name, namespace).create_site(spec)
 
 
 class KubernetesAPI:
@@ -477,7 +477,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
           logging.error(f"Unexpected error: {e}")
 
 
-  def create_site(self, spec, logger):
+  def create_site(self, spec):
       logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
       path = spec.get('path')
       wordpress = spec.get("wordpress")
@@ -504,7 +504,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
-  def delete_site(self, spec, logger):
+  def delete_site(self, spec):
       logging.info(f"Delete WordPressSite {self.name=} in {self.namespace=}")
 
       # Deleting database
