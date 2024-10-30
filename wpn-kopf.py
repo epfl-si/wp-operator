@@ -442,7 +442,6 @@ class JeSaisPasJeVerraiPlusTard:
       title = wordpress["title"]
       tagline = wordpress["tagline"]
       config.load_kube_config()
-      networking_v1_api = client.NetworkingV1Api()
       custom_api = client.CustomObjectsApi()
       api_instance = client.CoreV1Api()
 
@@ -467,7 +466,6 @@ class JeSaisPasJeVerraiPlusTard:
   def delete_fn(self, spec, logger):
       logging.info(f"Delete WordPressSite {self.name=} in {self.namespace=}")
       config.load_kube_config()
-      networking_v1_api = client.NetworkingV1Api()
       custom_api = client.CustomObjectsApi()
       api_instance = client.CoreV1Api()
 
