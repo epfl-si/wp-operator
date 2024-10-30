@@ -31,6 +31,7 @@ $longopts  = array(
     "db-name:",
     "db-user:",
     "db-password:",
+	"plugins:",
 );
 $options = getopt($shortops, $longopts);
 if ( key_exists("h", $options) ) {
@@ -260,16 +261,11 @@ function ensure_plugins ( $options ) {
 			)",
 			"_wpmf_import_order_notice_flag" => 'yes',
 			"can_compress_scripts" => '0'
-		],
-		"epfl-restauration/epfl-restauration.php" => [
-			"epfl_restauration_api_username" =>'epfl.getmenu@nutrimenu.ch',
-			"epfl_restauration_api_url" => 'https://nutrimenu.ch/nmapi/getMenu',
-			"epfl_restauration_api_password" => 'XXX'
 		]
 	];
   # This is the default plugin list that should be activated at installation
   $defaultPlugins = array(
-    "polylang/polylang.php",
+    "Polylang",
     "EPFL-Content-Filter/EPFL-Content-Filter.php",
     "EPFL-settings/EPFL-settings.php",
     "accred/EPFL-Accred.php",
@@ -291,16 +287,16 @@ function ensure_plugins ( $options ) {
     "wp-media-folder/wp-media-folder.php"
   );
 
-  $specificPlugin = PLUGINS.str_split(',');
-  $defaultPlugins.array_push($specificPlugin);
-  update_option( 'active_plugins', $defaultPlugins );
+  $specificPlugin = explode(',', PLUGINS);
+  $pluginlist = array_merge($defaultPlugins, $specificPlugin);
 
-	foreach ($defaultPlugins as $plugin) {
-		$keys = array_keys($plugins_vars[$plugin]);
-		foreach ($keys as $key) {
-			update_option( $key, $plugins_vars[$plugin][$key] );
-		}
+  $pluginPathArray = [];
+	foreach ($pluginlist as $pluginName) {
+		$plugin = Plugin::create($pluginName);
+		$pluginPathArray[] = $plugin.getPluginPath();
+		$plugin.updateOptions();
 	}
+	update_option( 'active_plugins', $pluginPathArray );
 
 }
 
