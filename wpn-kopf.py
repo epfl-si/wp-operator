@@ -81,7 +81,8 @@ class Config:
 
 @kopf.on.delete('wordpresssites')
 def on_delete_wordpresssite(spec, name, namespace, logger, **kwargs):
-    JeSaisPasJeVerraiPlusTard().delete_fn(spec, name, namespace, logger)
+    j = JeSaisPasJeVerraiPlusTard(name, namespace)
+    j.delete_fn(spec, logger)
 
 @kopf.on.startup()
 def on_kopf_startup (**kwargs):
@@ -89,10 +90,15 @@ def on_kopf_startup (**kwargs):
 
 @kopf.on.create('wordpresssites')
 def on_create_wordpresssite(spec, name, namespace, logger, **kwargs):
-    JeSaisPasJeVerraiPlusTard().create_fn(spec, name, namespace, logger)
+    j = JeSaisPasJeVerraiPlusTard(name, namespace)
+    j.create_fn(spec, logger)
 
 
 class JeSaisPasJeVerraiPlusTard:
+
+  def __init__(self, name, namespace):
+      self.name = name
+      self.namespace = namespace
 
   # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
   @classmethod
@@ -428,8 +434,8 @@ class JeSaisPasJeVerraiPlusTard:
           logging.error(f"Unexpected error: {e}")
 
 
-  def create_fn(self, spec, name, namespace, logger):
-      logging.info(f"Create WordPressSite {name=} in {namespace=}")
+  def create_fn(self, spec, logger):
+      logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
       path = spec.get('path')
       wordpress = spec.get("wordpress")
       epfl = spec.get("epfl")
@@ -443,36 +449,36 @@ class JeSaisPasJeVerraiPlusTard:
 
       secret = "secret" # Password, for the moment hard coded.
 
-      self.create_database(custom_api, namespace, name)
-      self.create_secret(api_instance, namespace, name, 'wp-db-password-', secret)
-      self.create_user(custom_api, namespace, name)
-      self.create_grant(custom_api, namespace, name)
+      self.create_database(custom_api, self.namespace, self.name)
+      self.create_secret(api_instance, self.namespace, self.name, 'wp-db-password-', secret)
+      self.create_user(custom_api, self.namespace, self.name)
+      self.create_grant(custom_api, self.namespace, self.name)
 
       if (not import_from_os3):
-          self.install_wordpress_via_php(name, path, title, tagline)
+          self.install_wordpress_via_php(self.name, path, title, tagline)
       else:
           environment = import_from_os3["environment"]
           ansible_host = import_from_os3["ansibleHost"]
-          self.restore_wordpress_from_os3(custom_api, namespace, name, path, "wp-db-", environment, ansible_host)
-          self.manage_plugins_php(name, "test,test,test")
+          self.restore_wordpress_from_os3(custom_api, self.namespace, self.name, path, "wp-db-", environment, ansible_host)
+          self.manage_plugins_php(self.name, "test,test,test")
 
-      logging.info(f"End of create WordPressSite {name=} in {namespace=}")
+      logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
 
-  def delete_fn(self, spec, name, namespace, logger):
-      logging.info(f"Delete WordPressSite {name=} in {namespace=}")
+  def delete_fn(self, spec, logger):
+      logging.info(f"Delete WordPressSite {self.name=} in {self.namespace=}")
       config.load_kube_config()
       networking_v1_api = client.NetworkingV1Api()
       custom_api = client.CustomObjectsApi()
       api_instance = client.CoreV1Api()
 
       # Deleting database
-      self.delete_custom_object_mariadb(custom_api, namespace, name, "wp-db-", "databases")
-      self.delete_secret(api_instance, namespace, name, 'wp-db-password-')
+      self.delete_custom_object_mariadb(custom_api, self.namespace, self.name, "wp-db-", "databases")
+      self.delete_secret(api_instance, self.namespace, self.name, 'wp-db-password-')
       # Deleting user
-      self.delete_custom_object_mariadb(custom_api, namespace, name, "wp-db-user-", "users")
+      self.delete_custom_object_mariadb(custom_api, self.namespace, self.name, "wp-db-user-", "users")
       # Deleting grant
-      self.delete_custom_object_mariadb(custom_api, namespace, name, "wordpress-", "grants")
+      self.delete_custom_object_mariadb(custom_api, self.namespace, self.name, "wordpress-", "grants")
 
 if __name__ == '__main__':
     Config.load_from_command_line()
