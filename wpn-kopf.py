@@ -85,7 +85,7 @@ def on_delete_wordpresssite(spec, name, namespace, logger, **kwargs):
 
 @kopf.on.startup()
 def on_kopf_startup (**kwargs):
-    JeSaisPasJeVerraiPlusTard().startup_fn()
+    JeSaisPasJeVerraiPlusTard.startup_fn()
 
 @kopf.on.create('wordpresssites')
 def on_create_wordpresssite(spec, name, namespace, logger, **kwargs):
