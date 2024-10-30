@@ -81,7 +81,7 @@ class Config:
 
 @kopf.on.delete('wordpresssites')
 def on_delete_wordpresssite(spec, name, namespace, logger, **kwargs):
-    WordPressSiteOperator(name, namespace).delete_fn(spec, logger)
+    WordPressSiteOperator(name, namespace).delete_site(spec, logger)
 
 @kopf.on.startup()
 def on_kopf_startup (**kwargs):
@@ -89,7 +89,8 @@ def on_kopf_startup (**kwargs):
 
 @kopf.on.create('wordpresssites')
 def on_create_wordpresssite(spec, name, namespace, logger, **kwargs):
-    WordPressSiteOperator(name, namespace).create_fn(spec, logger)
+    WordPressSiteOperator(name, namespace).create_site(spec, logger)
+
 
 class KubernetesAPI:
 
@@ -476,7 +477,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
           logging.error(f"Unexpected error: {e}")
 
 
-  def create_fn(self, spec, logger):
+  def create_site(self, spec, logger):
       logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
       path = spec.get('path')
       wordpress = spec.get("wordpress")
@@ -503,8 +504,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
-
-  def delete_fn(self, spec, logger):
+  def delete_site(self, spec, logger):
       logging.info(f"Delete WordPressSite {self.name=} in {self.namespace=}")
 
       # Deleting database
@@ -515,6 +515,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
       # Deleting grant
       self.delete_custom_object_mariadb(self.prefix['grant'], "grants")
       self.delete_ingress()
+
 
 class WordPressCRDOperator:
   # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
