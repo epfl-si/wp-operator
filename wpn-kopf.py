@@ -526,6 +526,8 @@ fastcgi_param WP_DB_PASSWORD     secret;
       title = wordpress["title"]
       tagline = wordpress["tagline"]
       plugins = wordpress["plugins"]
+      unit_id = epfl["unit_id"]
+      unit_name = epfl["unit_id"]
 
       secret = "secret" # Password, for the moment hard coded.
 
