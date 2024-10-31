@@ -28,8 +28,7 @@ class WPMediaFolder extends Plugin
 	private $wpmf_option_singlefile ='0';
 	private $wpmf_option_sync_media ='0';
 	private $wpmf_option_sync_media_external ='0';
-	private $wpmf_list_sync_media ="array (
-			  )";
+	private $wpmf_list_sync_media ="array ()";
 	private $wpmf_time_sync ='60';
 	private $wpmf_lastRun_sync ='1540467937';
 	private $wpmf_slider_animation ='slide';
@@ -44,85 +43,85 @@ class WPMediaFolder extends Plugin
 	private $wpmf_watermark_image ='';
 	private $wpmf_watermark_image_id ='0';
 	private $wpmf_gallery_settings ="array (
-				hyphen => '1',
-				period => '0',
-				plus => '0',
-				ampersand => '0',
-				square_brackets => '0',
-				curly_brackets => '0',
-				underscore => '1',
-				tilde => '0',
-				hash => '0',
-				number => '0',
-				round_brackets => '0',
-				alt => '0',
-				description => '0',
-				caption => '0',
-				capita => 'cap_all',
+				hyphen => 1,
+				period => 0,
+				plus => 0,
+				ampersand => 0,
+				square_brackets => 0,
+				curly_brackets => 0,
+				underscore => 1,
+				tilde => 0,
+				hash => 0,
+				number => 0,
+				round_brackets => 0,
+				alt => 0,
+				description => 0,
+				caption => 0,
+				capita => cap_all,
 			)";
 	private $wpmf_settings ="array (
-				'hide_remote_video' => '0',
-				'gallery_settings' =>
+				hide_remote_video => 0,
+				gallery_settings =>
 					array (
-						'theme' =>
+						theme =>
 							array (
-								'default_theme' =>
+								default_theme =>
 									array (
-										'columns' => '3',
-										'size' => 'medium',
-										'targetsize' => 'large',
-										'link' => 'file',
-										'orderby' => 'post__in',
-										'order' => 'ASC',
+										columns => 3,
+										size => medium,
+										targetsize => large,
+										link => file,
+										orderby => post__in,
+										order => ASC,
 									),
-								'portfolio_theme' =>
+								portfolio_theme =>
 									array (
-										'columns' => '3',
-										'size' => 'medium',
-										'targetsize' => 'large',
-										'link' => 'file',
-										'orderby' => 'post__in',
-										'order' => 'ASC',
+										columns => 3,
+										size => medium,
+										targetsize => large,
+										link => file,
+										orderby => post__in,
+										order => ASC,
 									),
-								'masonry_theme' =>
+								masonry_theme =>
 									array (
-										'columns' => '3',
-										'size' => 'medium',
-										'targetsize' => 'large',
-										'link' => 'file',
-										'orderby' => 'post__in',
-										'order' => 'ASC',
+										columns => 3,
+										size => medium,
+										targetsize => large,
+										link => file,
+										orderby => post__in,
+										order => ASC,
 									),
-								'slider_theme' =>
+								slider_theme =>
 									array (
-										'columns' => '3',
-										'size' => 'medium',
-										'targetsize' => 'large',
-										'link' => 'file',
-										'orderby' => 'post__in',
-										'animation' => 'slide',
-										'duration' => '4000',
-										'order' => 'ASC',
-										'auto_animation' => '1',
+										columns => 3,
+										size => medium,
+										targetsize => large,
+										link => file,
+										orderby => post__in,
+										animation => slide,
+										duration => 4000,
+										order => ASC,
+										auto_animation => 1,
 									),
 							),
 					),
-				'watermark_exclude_folders' =>
+				watermark_exclude_folders =>
 					array (
-						0 => '0',
+						0 => 0,
 					),
-				'folder_design' => 'material_design',
-				'load_gif' => '1',
-				'hide_tree' => '1',
-				'watermark_margin' =>
+				folder_design => material_design,
+				load_gif => 1,
+				hide_tree => 1,
+				watermark_margin =>
 					array (
-						'top' => '0',
-						'right' => '0',
-						'bottom' => '0',
-						'left' => '0',
+						top => 0,
+						right => 0,
+						bottom => 0,
+						left => 0,
 					),
-				'watermark_image_scaling' => '100',
-				'format_mediatitle' => '1',
+				watermark_image_scaling => 100,
+				format_mediatitle => 1,
 			)";
 	private $_wpmf_import_order_notice_flag ='yes';
 	private $can_compress_scripts ='0';
