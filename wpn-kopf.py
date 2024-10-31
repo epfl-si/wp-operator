@@ -485,6 +485,8 @@ fastcgi_param WP_DB_PASSWORD     secret;
       title = wordpress["title"]
       tagline = wordpress["tagline"]
       plugins = wordpress["plugins"]
+      unit_id = epfl["unit_id"]
+      unit_name = epfl["unit_id"]
 
       secret = "secret" # Password, for the moment hard coded.
 
@@ -503,7 +505,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
           self.restore_wordpress_from_os3(path, environment, ansible_host)
           self.manage_plugins_php("test,test,test")   # TODO delete this line when EPFL menu is correct
 
-logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
+      logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
 
   def delete_fn(self, spec, logger):
