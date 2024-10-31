@@ -544,7 +544,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
           environment = import_from_os3["environment"]
           ansible_host = import_from_os3["ansibleHost"]
           self.restore_wordpress_from_os3(path, environment, ansible_host)
-          self.manage_plugins_php("test,test,test")   # TODO delete this line when EPFL menu is correct
+          self.manage_plugins_php("test,test,test")  # TODO delete this line when EPFL menu is correct
 
       self.patch.status['wordpresssite'] = {
           'state': 'created',
