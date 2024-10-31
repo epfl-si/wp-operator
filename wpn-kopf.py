@@ -92,11 +92,18 @@ def on_create_wordpresssite(spec, name, namespace, **kwargs):
     WordPressSiteOperator(name, namespace).create_site(spec)
 
 
+class classproperty:
+    def __init__(self, func):
+        self.fget = func
+    def __get__(self, instance, owner):
+        return self.fget(owner)
+
+
 class KubernetesAPI:
   __singleton = None
 
   @classmethod
-  def get(cls):
+  def __get(cls):
       if cls.__singleton is None:
           cls.__singleton = cls()
 
@@ -104,18 +111,39 @@ class KubernetesAPI:
 
   def __init__(self):
       config.load_kube_config()
-      self.custom = client.CustomObjectsApi()
-      self.core = client.CoreV1Api()
-      self.extensions = client.ApiextensionsV1Api()
-      self.dynamic = DynamicClient(client.ApiClient())
-      self.networking = client.NetworkingV1Api()
+
+      self._custom = client.CustomObjectsApi()
+      self._core = client.CoreV1Api()
+      self._extensions = client.ApiextensionsV1Api()
+      self._dynamic = DynamicClient(client.ApiClient())
+      self._networking = client.NetworkingV1Api()
+
+  @classproperty
+  def custom(cls):
+    return cls.__get()._custom
+
+  @classproperty
+  def core(cls):
+    return cls.__get()._core
+
+  @classproperty
+  def extensions(cls):
+    return cls.__get()._extensions
+
+  @classproperty
+  def dynamic(cls):
+    return cls.__get()._dynamic
+
+  @classproperty
+  def networking(cls):
+    return cls.__get()._networking
+
 
 class WordPressSiteOperator:
 
   def __init__(self, name, namespace):
       self.name = name
       self.namespace = namespace
-      self.api = KubernetesAPI.get()
       self.prefix = {
         "db": "wp-db-",
         "user": "wp-db-user-",
@@ -178,7 +206,7 @@ class WordPressSiteOperator:
       }
 
       try:
-          self.api.custom.create_namespaced_custom_object(
+          KubernetesAPI.custom.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
               namespace=self.namespace,
@@ -200,7 +228,7 @@ class WordPressSiteOperator:
       )
 
       try:
-          self.api.core.create_namespaced_secret(namespace=self.namespace, body=body)
+          KubernetesAPI.core.create_namespaced_secret(namespace=self.namespace, body=body)
       except ApiException as e:
           if e.status != 409:
               raise e
@@ -211,7 +239,7 @@ class WordPressSiteOperator:
       try:
           logging.info(f" ↳ [{self.namespace}/{self.name}] Delete Secret {secret_name}")
 
-          self.api.core.delete_namespaced_secret(namespace=self.namespace, name=secret_name)
+          KubernetesAPI.core.delete_namespaced_secret(namespace=self.namespace, name=secret_name)
       except ApiException as e:
           if e.status != 404:
               raise e
@@ -242,7 +270,7 @@ class WordPressSiteOperator:
       }
 
       try:
-          self.api.custom.create_namespaced_custom_object(
+          KubernetesAPI.custom.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
               namespace=self.namespace,
@@ -281,7 +309,7 @@ class WordPressSiteOperator:
       }
 
       try:
-          self.api.custom.create_namespaced_custom_object(
+          KubernetesAPI.custom.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
               namespace=self.namespace,
@@ -297,7 +325,7 @@ class WordPressSiteOperator:
       mariadb_name = prefix + self.name
       logging.info(f" ↳ [{self.namespace}/{self.name}] Delete MariaDB object {mariadb_name}")
       try:
-          self.api.custom.delete_namespaced_custom_object(
+          KubernetesAPI.custom.delete_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
               plural=plural,
@@ -367,13 +395,13 @@ fastcgi_param WP_DB_PASSWORD     secret;
         )
     )
 
-    self.api.networking.create_namespaced_ingress(
+    KubernetesAPI.networking.create_namespaced_ingress(
         namespace=self.namespace,
         body=body
     )
 
   def delete_ingress(self):
-    self.api.networking.delete_namespaced_ingress(
+    KubernetesAPI.networking.delete_namespaced_ingress(
         namespace=self.namespace,
         name=self.name
     )
@@ -463,7 +491,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
           }
 
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Creating restore object in Kubernetes")
-          self.api.custom.create_namespaced_custom_object(
+          KubernetesAPI.custom.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
               namespace=self.namespace,
@@ -530,8 +558,8 @@ class WordPressCRDOperator:
   # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
   @classmethod
   def ensure_wp_crd_exists(cls):
-      dyn_client = KubernetesAPI.get().dynamic
-      api_extensions_instance = KubernetesAPI.get().extensions
+      dyn_client = KubernetesAPI.dynamic
+      api_extensions_instance = KubernetesAPI.extensions
       crd_name = "wordpresssites.wordpress.epfl.ch"
 
       try:
