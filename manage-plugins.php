@@ -106,7 +106,6 @@ function ensure_plugins ( $options ) {
     "EPFL-404",
     "epfl-cache-control",
     "epfl-coming-soon",
-    // "epfl-intranet",
     // "epfl-menus",
     "epfl-remote-content-shortcode",
     "ewww-image-optimizer",
@@ -125,9 +124,13 @@ function ensure_plugins ( $options ) {
 
   $pluginPathArray = [];
   foreach ($pluginList as $pluginName) {
-	$plugin = Plugin::create($pluginName);
-	$pluginPathArray[] = $plugin->getPluginPath();
-	$plugin->updateOptions();
+	  try {
+		  $plugin = Plugin::create($pluginName);
+		  $pluginPathArray[] = $plugin->getPluginPath();
+		  $plugin->updateOptions();
+	  } catch (Exception $e) {
+		  echo $e->getMessage(), "\n";
+	  }
   }
   update_option( 'active_plugins', $pluginPathArray );
 
