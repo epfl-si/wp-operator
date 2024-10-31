@@ -17,6 +17,8 @@
  * to work from outside the cluster, you have to use something like KubeVPN.
 **/
 
+require_once("./plugins/Plugin.php");
+
 error_log("  ...  Hello from wp-ops/ensure-wordpress-and-theme.php  ... ");
 
 error_reporting(E_ALL);
@@ -104,7 +106,7 @@ function ensure_plugins ( $options ) {
     "EPFL-404",
     "epfl-cache-control",
     "epfl-coming-soon",
-    "epfl-intranet",
+    // "epfl-intranet",
     // "epfl-menus",
     "epfl-remote-content-shortcode",
     "ewww-image-optimizer",
@@ -124,8 +126,8 @@ function ensure_plugins ( $options ) {
   $pluginPathArray = [];
   foreach ($pluginList as $pluginName) {
 	$plugin = Plugin::create($pluginName);
-	$pluginPathArray[] = $plugin.getPluginPath();
-	$plugin.updateOptions();
+	$pluginPathArray[] = $plugin->getPluginPath();
+	$plugin->updateOptions();
   }
   update_option( 'active_plugins', $pluginPathArray );
 

@@ -1,12 +1,21 @@
 <?php
+
+$files = glob('./plugins/*.php');
+
+foreach ($files as $file) {
+	if ($file != 'Plugin.php'){
+		require_once($file);
+	}
+}
+
 abstract class Plugin {
 	protected $pluginPath;
 
-	public static function create($type) {
-		switch ($type) {
+	public static function create($pluginName) {
+		switch ($pluginName) {
 			case 'Polylang':
 				return new Polylang();
-			case 'EPFL Content Filter':
+			case 'EPFL-Content-Filter':
 				return new EPFLContentFilter();
 			case 'EPFL-settings' :
 				return new EPFLSettings();
@@ -42,12 +51,12 @@ abstract class Plugin {
 				return new VSMD();
 			case 'wp-gutenberg-epfl' :
 				return new WPGutenbergEpfl();
-			case 'wp-media-folder ':
+			case 'wp-media-folder':
 				return new WPMediaFolder();
 			case 'EPFLRestauration':
 				return new EPFLRestauration();
 			default:
-				throw new Exception( 'Unknown plugin type');
+				throw new Exception( 'Unknown plugin ');
 		}
 	}
 
