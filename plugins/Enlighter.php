@@ -1,0 +1,12 @@
+<?php
+
+class Enlighter extends Plugin
+{
+	protected $pluginPath = "enlighter/Enlighter.php";
+	private $enlighterOptions = 'a:69:{s:19:"translation-enabled";b:1;s:16:"enlighterjs-init";s:6:"inline";s:21:"enlighterjs-assets-js";b:1;s:25:"enlighterjs-assets-themes";b:1;s:34:"enlighterjs-assets-themes-external";b:0;s:26:"enlighterjs-selector-block";s:18:"pre.EnlighterJSRAW";s:27:"enlighterjs-selector-inline";s:19:"code.EnlighterJSRAW";s:18:"enlighterjs-indent";i:4;s:28:"enlighterjs-ampersandcleanup";b:1;s:21:"enlighterjs-linehover";b:1;s:26:"enlighterjs-rawcodedbclick";b:0;s:24:"enlighterjs-textoverflow";s:5:"break";s:23:"enlighterjs-linenumbers";b:1;s:17:"enlighterjs-theme";s:9:"enlighter";s:21:"enlighterjs-retaincss";b:0;s:18:"toolbar-visibility";s:4:"show";s:18:"toolbar-button-raw";b:1;s:19:"toolbar-button-copy";b:1;s:21:"toolbar-button-window";b:1;s:15:"tinymce-backend";b:0;s:16:"tinymce-frontend";b:0;s:15:"tinymce-formats";b:1;s:17:"tinymce-autowidth";b:0;s:22:"tinymce-tabindentation";b:0;s:25:"tinymce-keyboardshortcuts";b:0;s:12:"tinymce-font";s:13:"sourcecodepro";s:16:"tinymce-fontsize";s:5:"0.7em";s:18:"tinymce-lineheight";s:5:"1.4em";s:13:"tinymce-color";s:7:"#000000";s:15:"tinymce-bgcolor";s:7:"#f9f9f9";s:17:"gutenberg-backend";b:1;s:16:"quicktag-backend";b:0;s:17:"quicktag-frontend";b:0;s:13:"quicktag-mode";s:4:"html";s:14:"shortcode-mode";s:8:"disabled";s:16:"shortcode-inline";b:1;s:22:"shortcode-type-generic";b:0;s:23:"shortcode-type-language";b:0;s:20:"shortcode-type-group";b:0;s:24:"shortcode-filter-content";b:1;s:24:"shortcode-filter-excerpt";b:1;s:23:"shortcode-filter-widget";b:0;s:24:"shortcode-filter-comment";b:0;s:31:"shortcode-filter-commentexcerpt";b:0;s:11:"gfm-enabled";b:0;s:10:"gfm-inline";b:1;s:12:"gfm-language";s:3:"raw";s:18:"gfm-filter-content";b:1;s:18:"gfm-filter-excerpt";b:1;s:17:"gfm-filter-widget";b:0;s:18:"gfm-filter-comment";b:0;s:25:"gfm-filter-commentexcerpt";b:0;s:14:"compat-enabled";b:0;s:13:"compat-crayon";b:0;s:12:"compat-type1";b:0;s:12:"compat-type2";b:0;s:21:"compat-filter-content";b:1;s:21:"compat-filter-excerpt";b:1;s:20:"compat-filter-widget";b:0;s:21:"compat-filter-comment";b:0;s:28:"compat-filter-commentexcerpt";b:0;s:12:"cache-custom";b:0;s:10:"cache-path";s:0:"";s:9:"cache-url";s:0:"";s:27:"dynamic-resource-invocation";b:1;s:19:"ext-infinite-scroll";b:0;s:16:"ext-ajaxcomplete";b:0;s:17:"bbpress-shortcode";b:0;s:16:"bbpress-markdown";b:0;}';
+
+	public function updateOptions()
+	{
+		update_option( 'enlighter-options', $this->enlighterOptions );
+	}
+}
