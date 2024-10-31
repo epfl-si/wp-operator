@@ -308,6 +308,8 @@ class WordPressSiteOperator:
             namespace=self.namespace,
             annotations={
             "nginx.ingress.kubernetes.io/configuration-snippet": f"""
+include "/etc/nginx/template/wordpress_fastcgi.conf";
+
 location = {path}/wp-admin {{
     return 301 https://wpn.fsd.team{path}/wp-admin/;
 }}
@@ -330,8 +332,6 @@ fastcgi_param WP_DB_HOST         mariadb-min;
 fastcgi_param WP_DB_NAME         {self.prefix["db"]}{self.name};
 fastcgi_param WP_DB_USER         {self.prefix["user"]}{self.name};
 fastcgi_param WP_DB_PASSWORD     secret;
-
-include "/etc/nginx/template/wordpress_fastcgi.conf";
 """
             }
         ),
