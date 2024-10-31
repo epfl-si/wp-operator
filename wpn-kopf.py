@@ -116,7 +116,7 @@ class WordPressSiteOperator:
   def install_wordpress_via_php(self, path, title, tagline):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
       # https://stackoverflow.com/a/89243
-      result = subprocess.run([Config.php, Config.wp_php_ensure,
+      result = subprocess.run([Config.php, "ensure-wordpress-and-theme.php",
                                f"--name={self.name}", f"--path={path}",
                                f"--wp-dir={Config.wp_dir}",
                                f"--wp-host={Config.wp_host}",
@@ -134,7 +134,7 @@ class WordPressSiteOperator:
   def manage_plugins_php(self, plugins):
       logging.info(f" ↳ [manage_plugins_php] Configuring (manage-plugins.php) with {self.name=} and {plugins=}")
       # https://stackoverflow.com/a/89243
-      result = subprocess.run([Config.php, Config.wp_php_ensure,
+      result = subprocess.run([Config.php, "manage-plugins.php",
                                f"--name={self.name}",
                                f"--wp-dir={Config.wp_dir}",
                                f"--wp-host={Config.wp_host}",
