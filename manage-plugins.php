@@ -50,6 +50,8 @@ Options:
   --db-password Mandatory  Password for the database to connect to
   --wp-dir      Mandatory  The path to the WordPress installation to load.
   --plugins     Mandatory  List of non-default plugins.
+  --unit_id     Mandatory  Plugin unit ID
+  --unit_name   Mandatory  Plugin unit name
 EOD;
   echo $help . "\n";
   exit();
@@ -88,6 +90,8 @@ define("DB_NAME", $options["db-name"]);
 define("DB_USER", $options["db-user"]);
 define("DB_PASSWORD", $options["db-password"]);
 define("PLUGINS", $options["plugins"]);
+define("UNIT_ID", $options["unit_id"]);
+define("UNIT_NAME", $options["unit_name"]);
 
 global $table_prefix; $table_prefix = "wp_";
 
@@ -125,7 +129,7 @@ function ensure_plugins ( $options ) {
   $pluginPathArray = [];
   foreach ($pluginList as $pluginName) {
 	  try {
-		  $plugin = Plugin::create($pluginName);
+		  $plugin = Plugin::create($pluginName, UNIT_ID, UNIT_NAME);
 		  $pluginPathArray[] = $plugin->getPluginPath();
 		  $plugin->updateOptions();
 	  } catch (Exception $e) {
