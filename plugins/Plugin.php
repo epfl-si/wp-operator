@@ -11,12 +11,12 @@ foreach ($files as $file) {
 abstract class Plugin {
 	protected $pluginPath;
 
-	public static function create($pluginName) {
+	public static function create($pluginName, $unit_id, $unit_name) {
 		$pluginDict = array(
 			'Polylang' => new Polylang(),
 			'EPFL-Content-Filter' => new EPFLContentFilter(),
 			'EPFL-settings'  => new EPFLSettings(),
-			'EPFL-Accred'  => new EPFLAccred(),
+			'EPFL-Accred'  => new EPFLAccred($unit_id, $unit_name),
 			'Enlighter'  => new Enlighter(),
 			'EPFL-404'  => new EPFL404(),
 			'epfl-cache-control'  => new EPFLCacheControl(),
