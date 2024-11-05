@@ -151,6 +151,11 @@ spec:
         description: "Initial plugins for the site"
         jsonPath: ".spec.wordpress.plugins"
         priority: 1
+      - name: Tagline
+        type: string
+        description: "Initial tagline"
+        jsonPath: ".spec.wordpress.tagline"
+        priority: 1
     served: true
     storage: true
     subresources:
