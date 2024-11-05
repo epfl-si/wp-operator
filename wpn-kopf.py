@@ -110,7 +110,7 @@ class KubernetesAPI:
       return cls.__singleton
 
   def __init__(self):
-      config.load_kube_config()
+      config.load_config()
 
       self._custom = client.CustomObjectsApi()
       self._core = client.CoreV1Api()
