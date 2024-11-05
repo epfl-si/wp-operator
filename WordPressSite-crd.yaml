@@ -116,6 +116,8 @@ spec:
                         description: Current host used by Ansible
                         type: string
                         pattern: ^[a-z_]+$
+                required:
+                  - unit_id
             required:
               - hostname
               - path
