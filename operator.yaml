@@ -1,0 +1,128 @@
+---
+# ServiceAccount/wp-operator
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wp-operator
+  namespace: wordpress-test
+automountServiceAccountToken: false
+
+---
+# RoleBinding/wp-operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wp-operator
+  namespace: wordpress-test
+subjects:
+- kind: ServiceAccount
+  name: wp-operator
+  namespace: wordpress-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: wp-operator
+
+---
+# Role/wp-operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wp-operator
+  namespace: wordpress-test
+rules:
+  - apiGroups: ['wordpress.epfl.ch']
+    resources:
+    - wordpresssites
+    - wordpresssites/status
+    verbs: ['*']
+  - apiGroups: ['networking.k8s.io']
+    resources:
+    - ingresses
+    verbs: ['*']
+  - apiGroups: ['']
+    resources:
+    - events
+    verbs: ['create', 'patch']
+  - apiGroups: ['k8s.mariadb.com']
+    resources:
+    - backups
+    - connections
+    - databases
+    - grants
+    - mariadbs
+    - restores
+    - sqljobs
+    - users
+    verbs: ['*']
+  - apiGroups: ['']
+    resources:
+    - secrets
+    verbs: ['*']
+
+---
+# ClusterRoleBinding/wp-operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: wp-operator
+  namespace: wordpress-test
+subjects:
+- kind: ServiceAccount
+  name: wp-operator
+  namespace: wordpress-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: wp-operator
+
+---
+# ClusterRole/wp-operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: wp-operator
+  namespace: wordpress-test
+rules:
+  - apiGroups: ['apiextensions.k8s.io']
+    resources:
+    - customresourcedefinitions
+    # TODO: WPN-171
+    # resourceNames:
+    #   - wordpresssites.wordpress.epfl.ch
+    verbs: ['create', 'get', 'list', 'patch']
+
+---
+# Deployment/wp-operator
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wp-operator
+  namespace: wordpress-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wp-operator
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: wp-operator
+    spec:
+      serviceAccountName: wp-operator
+      automountServiceAccountToken: true
+      containers:
+        - name: wp-operator
+          image: quay-its.epfl.ch/svc0041/wp-operator:2024-003
+          args:
+          - --namespace=wordpress-test
+          - --
+          - --db-host
+          - mariadb-min.wordpress-test.svc
+          - --wp-dir=/wp/6
+
+      imagePullSecrets:
+        - name: svc0041-rke2-puller-pull-secret
+      restartPolicy: Always
