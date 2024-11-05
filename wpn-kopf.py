@@ -40,7 +40,7 @@ class Config:
         parser.add_argument('--db-host', help='Hostname of the database to connect to with PHP.',
                             default="mariadb-min")
         parser.add_argument('--secret-dir', help='Secret file\'s directory.',
-                            default="./dev/secretFiles")
+                            default="/home/rmaggi/dev/wp-dev-nginx/wp-operator/dev/secretFiles")
         return parser
 
     @classmethod
@@ -52,7 +52,7 @@ class Config:
 
         cmdline = cls.parser().parse_args(argv)
         cls.php = cmdline.php
-        cls.wp_php_ensure = cmdline.wp_php_ensure
+        cls.wp_php_ensure = cmdline.wp_php_ensure # TODO delete
         cls.wp_dir = os.path.join(cmdline.wp_dir, '')
         cls.wp_host = cmdline.wp_host
         cls.db_host = cmdline.db_host
@@ -173,7 +173,7 @@ class WordPressSiteOperator:
       else:
           logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
 
-  def manage_plugins_php(self, plugins, unit_id, unit_name):
+  def manage_plugins_php(self, plugins, unit_id):
       logging.info(f" ↳ [manage_plugins_php] Configuring (manage-plugins.php) with {self.name=} and {plugins=}")
       # https://stackoverflow.com/a/89243
       result = subprocess.run([Config.php, "manage-plugins.php",
@@ -186,7 +186,6 @@ class WordPressSiteOperator:
                                f"--db-password=secret",
                                f"--plugins={plugins}",
                                f"--unit-id={unit_id}",
-                               f"--unit-name={unit_name}",
                                f"--secret-dir={Config.secret_dir}"], capture_output=True, text=True)
       print(result.stdout)
       if "WordPress plugins successfully installed" not in result.stdout:
@@ -408,10 +407,15 @@ fastcgi_param WP_DB_PASSWORD     secret;
     )
 
   def delete_ingress(self):
-    KubernetesAPI.networking.delete_namespaced_ingress(
-        namespace=self.namespace,
-        name=self.name
-    )
+      try:
+        self.api.networking.delete_namespaced_ingress(
+            namespace=self.namespace,
+            name=self.name
+        )
+      except ApiException as e:
+          if e.status != 404:
+              raise e
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} already deleted")
 
   def get_os3_credentials(self, profile_name):
       logging.info(f"   ↳ [{self.namespace}/{self.name}] Get Restic and S3 secrets")
@@ -512,6 +516,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
           pvc_name = "wordpress-test-wp-uploads-pvc-f401a87f-d2e9-4b20-85cc-61aa7cfc9d30"
           copy_media = subprocess.run([f"ssh -t root@itswbhst0020.xaas.epfl.ch 'cp -r /mnt/data-prod-ro/wordpress/{environment}/www.epfl.ch/htdocs{path}/wp-content/uploads/ /mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{self.name}/; chown -R 33:33 /mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{self.name}/uploads'"], shell=True, capture_output=True, text=True)
 
+          logging.info(f"   ↳ {copy_media.stdout}")
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Restored media from OS3")
       except subprocess.CalledProcessError as e:
           logging.error(f"Subprocess error in backup restoration: {e}")
@@ -533,7 +538,6 @@ fastcgi_param WP_DB_PASSWORD     secret;
       tagline = wordpress["tagline"]
       plugins = wordpress["plugins"]
       unit_id = epfl["unit_id"]
-      unit_name = epfl["unit_name"]
 
       secret = "secret" # Password, for the moment hard coded.
 
@@ -545,12 +549,12 @@ fastcgi_param WP_DB_PASSWORD     secret;
 
       if (not import_from_os3):
           self.install_wordpress_via_php(path, title, tagline)
-          self.manage_plugins_php(','.join(plugins), unit_id, unit_name)
+          self.manage_plugins_php(','.join(plugins), unit_id)
       else:
           environment = import_from_os3["environment"]
           ansible_host = import_from_os3["ansibleHost"]
           self.restore_wordpress_from_os3(path, environment, ansible_host)
-          self.manage_plugins_php("test,test,test", unit_id, unit_name)  # TODO delete this line when EPFL menu is correct
+          self.manage_plugins_php(','.join(plugins), unit_id)  # TODO delete this line when EPFL menu is correct
 
       self.patch.status['wordpresssite'] = {
           'state': 'created',

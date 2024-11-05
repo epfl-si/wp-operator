@@ -12,12 +12,12 @@ abstract class Plugin {
 	protected $pluginPath;
 	protected $secrets_dir;
 
-	public static function create($pluginName, $unit_id, $unit_name, $secrets_dir) {
+	public static function create($pluginName, $unit_id, $secrets_dir) {
 		$pluginDict = array(
 			'Polylang' => new Polylang(),
 			'EPFL-Content-Filter' => new EPFLContentFilter(),
 			'EPFL-settings'  => new EPFLSettings(),
-			'EPFL-Accred'  => new EPFLAccred($unit_id, $unit_name),
+			'EPFL-Accred'  => new EPFLAccred($unit_id),
 			'Enlighter'  => new Enlighter(),
 			'EPFL-404'  => new EPFL404(),
 			'epfl-cache-control'  => new EPFLCacheControl(),

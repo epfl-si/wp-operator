@@ -31,14 +31,14 @@ class Payonline extends Plugin
 
 	public function updateOptions()
 	{
-		update_option( 'wpforms-epfl-payonline-saferpay-apiusername-test', $this.$this->wpforms_epfl_payonline_saferpay_apiusername_test());
-		update_option( 'wpforms-epfl-payonline-saferpay-apipassword-test', $this.$this->wpforms_epfl_payonline_saferpay_apipassword_test());
-		update_option( 'wpforms-epfl-payonline-saferpay-customerid-test', $this.$this->wpforms_epfl_payonline_saferpay_customerid_test());
-		update_option( 'wpforms-epfl-payonline-saferpay-terminalid-test', $this.$this->wpforms_epfl_payonline_saferpay_terminalid_test());
+		update_option( 'wpforms-epfl-payonline-saferpay-apiusername-test', $this->wpforms_epfl_payonline_saferpay_apiusername_test());
+		update_option( 'wpforms-epfl-payonline-saferpay-apipassword-test', $this->wpforms_epfl_payonline_saferpay_apipassword_test());
+		update_option( 'wpforms-epfl-payonline-saferpay-customerid-test', $this->wpforms_epfl_payonline_saferpay_customerid_test());
+		update_option( 'wpforms-epfl-payonline-saferpay-terminalid-test', $this->wpforms_epfl_payonline_saferpay_terminalid_test());
 
-		update_option( 'wpforms-epfl-payonline-saferpay-apiusername-prod', $this.$this->wpforms_epfl_payonline_saferpay_apiusername_prod());
-		update_option( 'wpforms-epfl-payonline-saferpay-apipassword-prod', $this.$this->wpforms_epfl_payonline_saferpay_apipassword_prod());
-		update_option( 'wpforms-epfl-payonline-saferpay-customerid-prod', $this.$this->wpforms_epfl_payonline_saferpay_customerid_prod());
-		update_option( 'wpforms-epfl-payonline-saferpay-terminalid-prod', $this.$this->wpforms_epfl_payonline_saferpay_terminalid_prod());
+		update_option( 'wpforms-epfl-payonline-saferpay-apiusername-prod', $this->wpforms_epfl_payonline_saferpay_apiusername_prod());
+		update_option( 'wpforms-epfl-payonline-saferpay-apipassword-prod', $this->wpforms_epfl_payonline_saferpay_apipassword_prod());
+		update_option( 'wpforms-epfl-payonline-saferpay-customerid-prod', $this->wpforms_epfl_payonline_saferpay_customerid_prod());
+		update_option( 'wpforms-epfl-payonline-saferpay-terminalid-prod', $this->wpforms_epfl_payonline_saferpay_terminalid_prod());
 	}
 }
