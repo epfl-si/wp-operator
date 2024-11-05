@@ -39,6 +39,8 @@ class Config:
                             default=cls.file_in_script_dir("ensure-wordpress-and-theme.php"))
         parser.add_argument('--db-host', help='Hostname of the database to connect to with PHP.',
                             default="mariadb-min")
+        parser.add_argument('--secret-dir', help='Secret file\'s directory.',
+                            default="./dev/secretFiles")
         return parser
 
     @classmethod
@@ -54,6 +56,7 @@ class Config:
         cls.wp_dir = os.path.join(cmdline.wp_dir, '')
         cls.wp_host = cmdline.wp_host
         cls.db_host = cmdline.db_host
+        cls.secret_dir = cmdline.secret_dir
 
     @classmethod
     def script_dir(cls):
@@ -182,8 +185,9 @@ class WordPressSiteOperator:
                                f"--db-user={self.prefix['user']}{self.name}",
                                f"--db-password=secret",
                                f"--plugins={plugins}",
-                               f"--unit_id={unit_id}",
-                               f"--unit_name={unit_name}"], capture_output=True, text=True)
+                               f"--unit-id={unit_id}",
+                               f"--unit-name={unit_name}",
+                               f"--secret-dir={Config.secret_dir}"], capture_output=True, text=True)
       print(result.stdout)
       if "WordPress plugins successfully installed" not in result.stdout:
           raise subprocess.CalledProcessError(0, "PHP script failed")
