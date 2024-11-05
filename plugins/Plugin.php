@@ -10,8 +10,9 @@ foreach ($files as $file) {
 
 abstract class Plugin {
 	protected $pluginPath;
+	protected $secrets_dir;
 
-	public static function create($pluginName, $unit_id, $unit_name) {
+	public static function create($pluginName, $unit_id, $unit_name, $secrets_dir) {
 		$pluginDict = array(
 			'Polylang' => new Polylang(),
 			'EPFL-Content-Filter' => new EPFLContentFilter(),
@@ -44,7 +45,9 @@ abstract class Plugin {
 			'PartnerUniversities' => new PartnerUniversities()
 		);
 		if (array_key_exists($pluginName, $pluginDict)) {
-			return $pluginDict[$pluginName];
+			$plugin = $pluginDict[$pluginName];
+			$plugin->secrets_dir = $secrets_dir;
+			return $plugin;
 		} else {
 			throw new Exception("Plugin not found: $pluginName");
 		}
@@ -62,5 +65,12 @@ abstract class Plugin {
 	public function getPluginPath(): string
 	{
 		return $this->pluginPath;
+	}
+
+	public function getSecretValue($secretName): string {
+		$myfile = fopen("$this->secrets_dir/$secretName", "r") or die("Unable to open file!");
+		$secret_value = fread($myfile,filesize("$this->secrets_dir/$secretName"));
+		fclose($myfile);
+		return $secret_value;
 	}
 }
