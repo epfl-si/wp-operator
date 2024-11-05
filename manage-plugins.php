@@ -34,9 +34,9 @@ $longopts  = array(
     "db-user:",
     "db-password:",
 	"plugins:",
-	"unit-id",
-	"unit-name",
-	"secret-dir",
+	"unit-id:",
+	"unit-name:",
+	"secret-dir:",
 );
 $options = getopt($shortops, $longopts);
 if ( key_exists("h", $options) ) {
@@ -54,7 +54,6 @@ Options:
   --wp-dir      Mandatory  The path to the WordPress installation to load.
   --plugins     Mandatory  List of non-default plugins.
   --unit-id     Mandatory  Plugin unit ID
-  --unit-name   Mandatory  Plugin unit name
   --secret-dir  Mandatory  Secret file's folder
 EOD;
   echo $help . "\n";
@@ -68,7 +67,7 @@ function bad_option ($message) {
 }
 
 foreach(["name", "wp-dir", "wp-host",
-         "db-host", "db-name", "db-user", "db-password", "secret-dir"] as $opt) {
+         "db-host", "db-name", "db-user", "db-password"] as $opt) {
   if ( empty($options[$opt]) ) {
     bad_option("\"--$opt\" is required.");
   }
@@ -95,7 +94,6 @@ define("DB_USER", $options["db-user"]);
 define("DB_PASSWORD", $options["db-password"]);
 define("PLUGINS", $options["plugins"]);
 define("UNIT_ID", $options["unit-id"]);
-define("UNIT_NAME", $options["unit-name"]);
 define("SECRETS_DIR", $options["secret-dir"]);
 
 global $table_prefix; $table_prefix = "wp_";
@@ -115,7 +113,7 @@ function ensure_plugins ( $options ) {
     "EPFL-404",
     "epfl-cache-control",
     "epfl-coming-soon",
-    // "epfl-menus",
+    "epfl-menus",
     "epfl-remote-content-shortcode",
     "ewww-image-optimizer",
     "find-my-blocks",
@@ -134,7 +132,7 @@ function ensure_plugins ( $options ) {
   $pluginPathArray = [];
   foreach ($pluginList as $pluginName) {
 	  try {
-		  $plugin = Plugin::create($pluginName, UNIT_ID, UNIT_NAME, SECRETS_DIR);
+		  $plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR);
 		  $pluginPathArray[] = $plugin->getPluginPath();
 		  $plugin->updateOptions();
 	  } catch (Exception $e) {
