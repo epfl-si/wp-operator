@@ -64,22 +64,6 @@ our deployment is done by Ansible, so dive into [wp-ops] to find the latest
 version.
 
 
-## What's next?
-
-This operator has still a(lot) of work to do, here's some known issues,
-features, backlog, ...
-
-- [ ] Quotes in site name / tagline, e.g. `Nicolas's site`, are not escaped properly.
-- [ ] We need to have a way to make the operator manage Ingresses / Deployment to balance the loads / the numbers of site per pods
-- [ ] As for the Ingresses and Deployments, same have to happen with MariaDB (the database server)
-- [ ] We have to manage the languages (which could be changed by the users, so this imply some knowledges of the modification made at user level, see next point)
-- [ ] We need to have some sort of cron task that read the actual configuration, i.e. language, that are active on a site and write thoses in the kubernetes object (status / annotation)
-- [ ] The operator has to create the Databases backup/restore
-- [ ] The life cycle of a WordPressSite has to be fully managed by the operator: introduce a thombstone/archive status that can be revived, duplicate a site
-- [ ] The CRD should have more filter field (the one that are shown on the `kubectl get wp` output), such as `path`, etc
-- [ ] wp-veritas (a clickable interface to manage WordPress sites)
-
-
 ## Contributing
 
 If you want to contribute to this repository, please read the [CONTRIBUTING.md](CONTRIBUTING.md) file.
