@@ -39,12 +39,20 @@ class WPForms extends Plugin
 		'stripe-card-mode' => 'payment',
 	);
 	# Set the WPForms license
-	private $wpforms_license = 'a:6:{i:0;s:0:"";s:3:"key";s:32:"{{ lookup("env_secrets", "wp_plugin_wpforms", "WPFORMS_LICENSE") }}";s:4:"type";s:5:"elite";s:10:"is_expired";b:0;s:11:"is_disabled";b:0;s:10:"is_invalid";b:0;}';
-
+	private function get_wpforms_license_option() {
+		$wpforms_license = $this->getSecretValue('wpform_license');
+		return array (
+			'key' => $wpforms_license,
+			'type' => 'elite',
+			'is_expired' => false,
+			'is_disabled' => false,
+			'is_invalid' => false,
+		);
+	}
 	public function updateOptions()
 	{
 		update_option( 'wpforms_challenge', $this->wpforms_challenge);
 		update_option( 'wpforms_settings', $this->wpforms_settings);
-		update_option( 'wpforms_license', $this->wpforms_license);
+		update_option( 'wpforms_license', $this->get_wpforms_license_option());
 	}
 }
