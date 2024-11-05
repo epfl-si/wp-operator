@@ -34,6 +34,9 @@ $longopts  = array(
     "db-user:",
     "db-password:",
 	"plugins:",
+	"unit-id",
+	"unit-name",
+	"secret-dir",
 );
 $options = getopt($shortops, $longopts);
 if ( key_exists("h", $options) ) {
@@ -50,8 +53,9 @@ Options:
   --db-password Mandatory  Password for the database to connect to
   --wp-dir      Mandatory  The path to the WordPress installation to load.
   --plugins     Mandatory  List of non-default plugins.
-  --unit_id     Mandatory  Plugin unit ID
-  --unit_name   Mandatory  Plugin unit name
+  --unit-id     Mandatory  Plugin unit ID
+  --unit-name   Mandatory  Plugin unit name
+  --secret-dir  Mandatory  Secret file's folder
 EOD;
   echo $help . "\n";
   exit();
@@ -64,7 +68,7 @@ function bad_option ($message) {
 }
 
 foreach(["name", "wp-dir", "wp-host",
-         "db-host", "db-name", "db-user", "db-password"] as $opt) {
+         "db-host", "db-name", "db-user", "db-password", "secret-dir"] as $opt) {
   if ( empty($options[$opt]) ) {
     bad_option("\"--$opt\" is required.");
   }
@@ -90,8 +94,9 @@ define("DB_NAME", $options["db-name"]);
 define("DB_USER", $options["db-user"]);
 define("DB_PASSWORD", $options["db-password"]);
 define("PLUGINS", $options["plugins"]);
-define("UNIT_ID", $options["unit_id"]);
-define("UNIT_NAME", $options["unit_name"]);
+define("UNIT_ID", $options["unit-id"]);
+define("UNIT_NAME", $options["unit-name"]);
+define("SECRETS_DIR", $options["secret-dir"]);
 
 global $table_prefix; $table_prefix = "wp_";
 
