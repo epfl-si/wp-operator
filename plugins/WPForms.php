@@ -3,9 +3,41 @@
 class WPForms extends Plugin
 {
 	protected $pluginPath = "wpforms/wpforms.php";
-	private $wpforms_challenge = 'a:11:{s:6:"status";s:7:"skipped";s:4:"step";i:0;s:7:"user_id";i:1;s:7:"form_id";i:0;s:10:"embed_page";i:0;s:16:"started_date_gmt";s:19:"2020-07-08 07:47:17";s:17:"finished_date_gmt";s:19:"2020-07-08 07:47:17";s:13:"seconds_spent";i:0;s:12:"seconds_left";i:300;s:13:"feedback_sent";b:0;s:19:"feedback_contact_me";b:0;}';
+	private $wpforms_challenge = array (
+		'status' => 'skipped',
+		'step' => 0,
+		'user_id' => 1,
+		'form_id' => 0,
+		'embed_page' => 0,
+		'started_date_gmt' => '2020-07-08 07:47:17',
+		'finished_date_gmt' => '2020-07-08 07:47:17',
+		'seconds_spent' => 0,
+		'seconds_left' => 300,
+		'feedback_sent' => false,
+		'feedback_contact_me' => false,
+	);
 	# Use the global CSS and enable GDPR options (GDPR Enhancements, Disable User Cookies, Disable User Details)
-	private $wpforms_settings = 'a:19:{s:8:"currency";s:3:"CHF";s:18:"hide-announcements";b:1;s:14:"hide-admin-bar";b:1;s:14:"uninstall-data";b:0;s:23:"email-summaries-disable";b:0;s:11:"disable-css";s:1:"1";s:13:"global-assets";b:0;s:4:"gdpr";b:1;s:17:"gdpr-disable-uuid";b:1;s:20:"gdpr-disable-details";b:1;s:11:"email-async";b:0;s:14:"email-template";s:7:"default";s:18:"email-header-image";s:76:"https://www.epfl.ch/wp-content/themes/wp-theme-2018/assets/svg/epfl-logo.svg";s:22:"email-background-color";s:7:"#e9eaec";s:17:"email-carbon-copy";b:0;s:13:"modern-markup";s:1:"0";s:20:"modern-markup-is-set";b:1;s:29:"stripe-webhooks-communication";s:4:"curl";s:16:"stripe-card-mode";s:7:"payment";}';
+	private $wpforms_settings = array (
+		'currency' => 'CHF',
+		'hide-announcements' => true,
+		'hide-admin-bar' => true,
+		'uninstall-data' => false,
+		'email-summaries-disable' => false,
+		'disable-css' => '1',
+		'global-assets' => false,
+		'gdpr' => true,
+		'gdpr-disable-uuid' => true,
+		'gdpr-disable-details' => true,
+		'email-async' => false,
+		'email-template' => 'default',
+		'email-header-image' => 'https://www.epfl.ch/wp-content/themes/wp-theme-2018/assets/svg/epfl-logo.svg',
+		'email-background-color' => '#e9eaec',
+		'email-carbon-copy' => false,
+		'modern-markup' => '0',
+		'modern-markup-is-set' => true,
+		'stripe-webhooks-communication' => 'curl',
+		'stripe-card-mode' => 'payment',
+	);
 	# Set the WPForms license
 	private $wpforms_license = 'a:6:{i:0;s:0:"";s:3:"key";s:32:"{{ lookup("env_secrets", "wp_plugin_wpforms", "WPFORMS_LICENSE") }}";s:4:"type";s:5:"elite";s:10:"is_expired";b:0;s:11:"is_disabled";b:0;s:10:"is_invalid";b:0;}';
 
