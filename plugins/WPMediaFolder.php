@@ -36,8 +36,30 @@ class WPMediaFolder extends Plugin
 	private $wpmf_option_countfiles ='1';
 	private $wpmf_option_lightboximage ='0';
 	private $wpmf_option_hoverimg ='1';
-	private $wpmf_options_format_title ='a:15:{s:6:"hyphen";s:1:"1";s:6:"period";s:1:"0";s:4:"plus";s:1:"0";s:9:"ampersand";s:1:"0";s:15:"square_brackets";s:1:"0";s:14:"curly_brackets";s:1:"0";s:10:"underscore";s:1:"1";s:5:"tilde";s:1:"0";s:4:"hash";s:1:"0";s:6:"number";s:1:"0";s:14:"round_brackets";s:1:"0";s:3:"alt";s:1:"0";s:11:"description";s:1:"0";s:7:"caption";s:1:"0";s:6:"capita";s:7:"cap_all";}';
-	private $wpmf_image_watermark_apply ='a:5:{s:8:"all_size";s:1:"1";s:9:"thumbnail";s:1:"0";s:6:"medium";s:1:"0";s:5:"large";s:1:"0";s:4:"full";s:1:"0";}';
+	private $wpmf_options_format_title = array (
+		'hyphen' => '1',
+		'period' => '0',
+		'plus' => '0',
+		'ampersand' => '0',
+		'square_brackets' => '0',
+		'curly_brackets' => '0',
+		'underscore' => '1',
+		'tilde' => '0',
+		'hash' => '0',
+		'number' => '0',
+		'round_brackets' => '0',
+		'alt' => '0',
+		'description' => '0',
+		'caption' => '0',
+		'capita' => 'cap_all',
+	);
+	private $wpmf_image_watermark_apply = array (
+		'all_size' => '1',
+		'thumbnail' => '0',
+		'medium' => '0',
+		'large' => '0',
+		'full' => '0',
+	);
 	private $wpmf_option_image_watermark ='0';
 	private $wpmf_watermark_position ='top_left';
 	private $wpmf_watermark_image ='';
