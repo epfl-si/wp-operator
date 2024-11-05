@@ -502,7 +502,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
           }
 
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Creating restore object in Kubernetes")
-          KubernetesAPI.custom.create_namespaced_custom_object(
+          restore = KubernetesAPI.custom.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
               namespace=self.namespace,
@@ -525,6 +525,24 @@ fastcgi_param WP_DB_PASSWORD     secret;
       except Exception as e:
           logging.error(f"Unexpected error: {e}")
 
+      restore_name = restore["metadata"]["name"]
+      # Wait until the restore completes (either in error or successfully)
+      while(True):
+          restored = self.api.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
+            version="v1alpha1",
+            namespace=self.namespace,
+            plural="restores",
+            name=restore_name)
+          for condition in restored.get("status", {}).get("conditions", []):
+              if condition.get("type") == "Complete":
+                  message = condition.get("message")
+                  if message == "Success":
+                      return
+                  elif message == "Running":
+                      pass  # Fall through to the time.sleep() below
+                  else:
+                      raise kopf.PermanentError(f"restore {restore_name} failed, message: f{message}")
+          time.sleep(10)
 
   def create_site(self, spec):
       logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
