@@ -1,6 +1,9 @@
 SHELL := /bin/bash
 
 NAMESPACE = wordpress-test
+WP_OPERATOR_IMAGE_NAME = epflsi/wp-operator
+WP_OPERATOR_IMAGE_TAG ?= latest
+REGISTRY = quay-its.epfl.ch/svc0041/wp-operator
 
 .PHONY: help
 ## Print this help
@@ -9,4 +12,23 @@ help:
 
 operator:
 	python3 wpn-kopf.py run -n $(NAMESPACE) -- --db-host mariadb-min.$(NAMESPACE).svc
+
+.PHONY: image
+image: build tag push
+
+.PHONY: build
+build:
+	docker build -t $(WP_OPERATOR_IMAGE_NAME) .
+
+.PHONY: tag
+tag:
+	@echo Tagging image \"$(WP_OPERATOR_IMAGE_NAME)\" to \"$(REGISTRY):$(WP_OPERATOR_IMAGE_TAG)\".
+	@if [ $(WP_OPERATOR_IMAGE_TAG) = 'latest' ]; then \
+		echo Use \'WP_OPERATOR_IMAGE_TAG=2024-001 make tag\' to change the tag to something else.; \
+	fi
+	docker tag $(WP_OPERATOR_IMAGE_NAME) $(REGISTRY):$(WP_OPERATOR_IMAGE_TAG)
+
+.PHONY: push
+push:
+	docker push $(REGISTRY):$(WP_OPERATOR_IMAGE_TAG)
 
