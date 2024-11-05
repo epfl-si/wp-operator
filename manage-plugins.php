@@ -134,7 +134,7 @@ function ensure_plugins ( $options ) {
   $pluginPathArray = [];
   foreach ($pluginList as $pluginName) {
 	  try {
-		  $plugin = Plugin::create($pluginName, UNIT_ID, UNIT_NAME);
+		  $plugin = Plugin::create($pluginName, UNIT_ID, UNIT_NAME, SECRETS_DIR);
 		  $pluginPathArray[] = $plugin->getPluginPath();
 		  $plugin->updateOptions();
 	  } catch (Exception $e) {
