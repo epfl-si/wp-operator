@@ -80,16 +80,16 @@ class Config:
 
 
 @kopf.on.delete('wordpresssites')
-def on_delete_wordpresssite(spec, name, namespace, **kwargs):
-    WordPressSiteOperator(name, namespace).delete_site(spec)
+def on_delete_wordpresssite(spec, name, namespace, patch, **kwargs):
+    WordPressSiteOperator(name, namespace, patch).delete_site(spec)
 
 @kopf.on.startup()
 def on_kopf_startup (**kwargs):
     WordPressCRDOperator.ensure_wp_crd_exists()
 
 @kopf.on.create('wordpresssites')
-def on_create_wordpresssite(spec, name, namespace, **kwargs):
-    WordPressSiteOperator(name, namespace).create_site(spec)
+def on_create_wordpresssite(spec, name, namespace, patch, **kwargs):
+    WordPressSiteOperator(name, namespace, patch).create_site(spec)
 
 
 class classproperty:
@@ -141,7 +141,7 @@ class KubernetesAPI:
 
 class WordPressSiteOperator:
 
-  def __init__(self, name, namespace):
+  def __init__(self, name, namespace, patch):
       self.name = name
       self.namespace = namespace
       self.prefix = {
@@ -150,6 +150,7 @@ class WordPressSiteOperator:
         "grant": "wp-db-grant-",
         "password": "wp-db-password-"
       }
+      self.patch = patch
 
   def install_wordpress_via_php(self, path, title, tagline):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
@@ -517,6 +518,8 @@ fastcgi_param WP_DB_PASSWORD     secret;
   def create_site(self, spec):
       logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
       path = spec.get('path')
+      hostname = spec.get('hostname')
+      site_url = hostname + path
       wordpress = spec.get("wordpress")
       epfl = spec.get("epfl")
       import_from_os3 = epfl.get("importFromOS3")
@@ -539,6 +542,11 @@ fastcgi_param WP_DB_PASSWORD     secret;
           self.restore_wordpress_from_os3(path, environment, ansible_host)
           self.manage_plugins_php("test,test,test")
 
+      self.patch.status['wordpresssite'] = {
+          'state': 'created',
+          'url': site_url,
+          'lastUpdate': datetime.utcnow().isoformat()
+      }
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
   def delete_site(self, spec):
