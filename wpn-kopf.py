@@ -173,7 +173,7 @@ class WordPressSiteOperator:
       else:
           logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
 
-  def manage_plugins_php(self, plugins, unit_id):
+  def manage_plugins_php(self, plugins, unit_id, languages):
       logging.info(f" ↳ [manage_plugins_php] Configuring (manage-plugins.php) with {self.name=} and {plugins=}")
       # https://stackoverflow.com/a/89243
       result = subprocess.run([Config.php, "manage-plugins.php",
@@ -186,6 +186,7 @@ class WordPressSiteOperator:
                                f"--db-password=secret",
                                f"--plugins={plugins}",
                                f"--unit-id={unit_id}",
+                               f"--languages={languages}",
                                f"--secret-dir={Config.secret_dir}"], capture_output=True, text=True)
       print(result.stdout)
       if "WordPress plugins successfully installed" not in result.stdout:
@@ -556,6 +557,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
       tagline = wordpress["tagline"]
       plugins = wordpress["plugins"]
       unit_id = epfl["unit_id"]
+      languages = wordpress["languages"]
 
       secret = "secret" # Password, for the moment hard coded.
 
@@ -567,12 +569,12 @@ fastcgi_param WP_DB_PASSWORD     secret;
 
       if (not import_from_os3):
           self.install_wordpress_via_php(path, title, tagline)
-          self.manage_plugins_php(','.join(plugins), unit_id)
+          self.manage_plugins_php(','.join(plugins), unit_id, ','.join(languages))
       else:
           environment = import_from_os3["environment"]
           ansible_host = import_from_os3["ansibleHost"]
           self.restore_wordpress_from_os3(path, environment, ansible_host)
-          self.manage_plugins_php(','.join(plugins), unit_id)  # TODO delete this line when EPFL menu is correct
+          self.manage_plugins_php(','.join(plugins), unit_id, ','.join(languages))  # TODO delete this line when EPFL menu is correct
 
       self.patch.status['wordpresssite'] = {
           'state': 'created',
