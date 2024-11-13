@@ -12,9 +12,9 @@ abstract class Plugin {
 	protected $pluginPath;
 	protected $secrets_dir;
 
-	public static function create($pluginName, $unit_id, $secrets_dir) {
+	public static function create($pluginName, $unit_id, $secrets_dir, $languagesList, $wpDirPath) {
 		$pluginDict = array(
-			'Polylang' => new Polylang(),
+			'Polylang' => new PolylangPlugin($languagesList, $wpDirPath),
 			'EPFL-Content-Filter' => new EPFLContentFilter(),
 			'EPFL-settings'  => new EPFLSettings(),
 			'EPFL-Accred'  => new EPFLAccred($unit_id),
