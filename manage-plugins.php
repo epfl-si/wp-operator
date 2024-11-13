@@ -35,6 +35,7 @@ $longopts  = array(
     "db-password:",
 	"plugins:",
 	"unit-id:",
+	"languages:",
 	"unit-name:",
 	"secret-dir:",
 );
@@ -54,6 +55,7 @@ Options:
   --wp-dir      Mandatory  The path to the WordPress installation to load.
   --plugins     Mandatory  List of non-default plugins.
   --unit-id     Mandatory  Plugin unit ID
+  --languages	Mandatory  List of languages
   --secret-dir  Mandatory  Secret file's folder
 EOD;
   echo $help . "\n";
@@ -94,6 +96,7 @@ define("DB_USER", $options["db-user"]);
 define("DB_PASSWORD", $options["db-password"]);
 define("PLUGINS", $options["plugins"]);
 define("UNIT_ID", $options["unit-id"]);
+define("LANGUAGES", $options["languages"]);
 define("SECRETS_DIR", $options["secret-dir"]);
 
 global $table_prefix; $table_prefix = "wp_";
@@ -101,6 +104,7 @@ global $table_prefix; $table_prefix = "wp_";
 define("WP_ADMIN", true);
 define("WP_INSTALLING", true);
 require_once( ABSPATH . 'wp-settings.php' );
+require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
 function ensure_plugins ( $options ) {
   # This is the default plugin list that should be activated at installation
@@ -129,10 +133,12 @@ function ensure_plugins ( $options ) {
   $specificPlugin = explode(',', PLUGINS);
   $pluginList = array_merge($defaultPlugins, $specificPlugin);
 
+  $languagesList = explode(',', LANGUAGES);
+
   $pluginPathArray = [];
   foreach ($pluginList as $pluginName) {
 	  try {
-		  $plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR);
+		  $plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR, $languagesList, ABSPATH);
 		  $pluginPathArray[] = $plugin->getPluginPath();
 		  $plugin->updateOptions();
 	  } catch (Exception $e) {
