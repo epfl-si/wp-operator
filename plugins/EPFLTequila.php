@@ -1,6 +1,6 @@
 <?php
 
-class EPFLTequila extends Plugin
+class EPFLTequilaPlugin extends Plugin
 {
 	protected $pluginPath = "tequila/EPFL-Tequila.php";
 	private $plugin_epfl_tequila_has_dual_auth = 0;

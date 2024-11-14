@@ -1,6 +1,6 @@
 <?php
 
-class WPGutenbergEpfl extends Plugin
+class WPGutenbergEpflPlugin extends Plugin
 {
 	protected $pluginPath = "wp-gutenberg-epfl/plugin.php";
 }

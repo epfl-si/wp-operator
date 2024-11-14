@@ -1,6 +1,6 @@
 <?php
 
-class WPForms extends Plugin
+class WPFormsPlugin extends Plugin
 {
 	protected $pluginPath = "wpforms/wpforms.php";
 	private $wpforms_challenge = array (

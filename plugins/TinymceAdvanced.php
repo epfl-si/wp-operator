@@ -1,6 +1,6 @@
 <?php
 
-class TinymceAdvanced extends Plugin
+class TinymceAdvancedPlugin extends Plugin
 {
 	protected $pluginPath = "tinymce-advanced/tinymce-advanced.php";
 }

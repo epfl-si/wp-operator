@@ -1,6 +1,6 @@
 <?php
 
-class EPFLMenus extends Plugin
+class EPFLMenusPlugin extends Plugin
 {
 	protected $pluginPath = "epfl-menus/epfl-menus.php";
 }

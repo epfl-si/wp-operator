@@ -1,6 +1,6 @@
 <?php
 
-class DiplomaVerification extends Plugin
+class DiplomaVerificationPlugin extends Plugin
 {
 	protected $pluginPath = "epfl-diploma-verification/epfl-diploma-verification.php";
 }
