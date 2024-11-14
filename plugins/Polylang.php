@@ -50,7 +50,6 @@ class PolylangPlugin extends Plugin
 
 		if (!is_plugin_active($this->pluginPath)) {
 			activate_plugin($this->pluginPath);
-			echo " \nPolylang plugin activated \n";
 		}
 
 		require_once $this->wpDirPath . 'wp-content/plugins/polylang/polylang.php';
