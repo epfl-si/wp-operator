@@ -136,18 +136,18 @@ function ensure_plugins ( $options ) {
 
   $languagesList = explode(',', LANGUAGES);
 
-  $pluginPathArray = [];
   foreach ($pluginList as $pluginName) {
 	  try {
 		  $plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR, $languagesList, ABSPATH);
-		  $pluginPathArray[] = $plugin->getPluginPath();
+		  $test = activate_plugin($plugin->getPluginPath());
+		  if ($test instanceof WP_Error) {
+			  throw new ErrorException(var_dump($test->errors) . " - " . $plugin->getPluginPath());
+		  }
 		  $plugin->updateOptions();
 	  } catch (Exception $e) {
 		  echo $e->getMessage(), "\n";
 	  }
   }
-  update_option( 'active_plugins', $pluginPathArray );
-
 }
 
 ensure_plugins( $options );
