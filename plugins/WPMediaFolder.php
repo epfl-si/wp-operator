@@ -1,6 +1,6 @@
 <?php
 
-class WPMediaFolder extends Plugin
+class WPMediaFolderPlugin extends Plugin
 {
 	protected $pluginPath = "wp-media-folder/wp-media-folder.php";
 	private $wpmf_use_taxonomy ='1';

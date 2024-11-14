@@ -1,6 +1,6 @@
 <?php
 
-class EPFLRestauration extends Plugin
+class EPFLRestaurationPlugin extends Plugin
 {
 	protected $pluginPath = "epfl-restauration/epfl-restauration.php";
 	private $epfl_restauration_api_username = 'epfl.getmenu@nutrimenu.ch';

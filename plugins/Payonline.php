@@ -1,6 +1,6 @@
 <?php
 
-class Payonline extends Plugin
+class PayonlinePlugin extends Plugin
 {
 	protected $pluginPath = "wpforms-epfl-payonline/wpforms-epfl-payonline.php";
 	# Saferpay secrets
