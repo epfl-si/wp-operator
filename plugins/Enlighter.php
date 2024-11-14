@@ -1,6 +1,6 @@
 <?php
 
-class Enlighter extends Plugin
+class EnlighterPlugin extends Plugin
 {
 	protected $pluginPath = "enlighter/Enlighter.php";
 	private $enlighterOptions = array (

@@ -1,6 +1,6 @@
 <?php
 
-class EPFLAccred extends Plugin
+class EPFLAccredPlugin extends Plugin
 {
 	protected $pluginPath = "accred/EPFL-Accred.php";
 	private $plugin_epfl_accred_administrator_group = "WP-SuperAdmin";

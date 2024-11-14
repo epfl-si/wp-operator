@@ -1,6 +1,6 @@
 <?php
 
-class SVGSupport extends Plugin
+class SVGSupportPlugin extends Plugin
 {
 	protected $pluginPath = "svg-support/svg-support.php";
 }

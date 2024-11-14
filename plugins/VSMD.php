@@ -1,6 +1,6 @@
 <?php
 
-class VSMD extends Plugin
+class VSMDPlugin extends Plugin
 {
 	protected $pluginPath = "very-simple-meta-description/vsmd.php";
 }

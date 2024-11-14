@@ -1,6 +1,6 @@
 <?php
 
-class EPFLCacheControl extends Plugin
+class EPFLCacheControlPlugin extends Plugin
 {
 	protected $pluginPath = "epfl-cache-control/epfl-cache-control.php";
 	private $cache_control_front_page_max_age = 300;

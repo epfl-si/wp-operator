@@ -1,6 +1,6 @@
 <?php
 
-class EPFLComingSoon extends Plugin
+class EPFLComingSoonPlugin extends Plugin
 {
 	protected $pluginPath = "epfl-coming-soon/epfl-coming-soon.php";
 	private $epfl_csp_options = array (

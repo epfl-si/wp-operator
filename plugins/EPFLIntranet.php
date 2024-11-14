@@ -1,6 +1,6 @@
 <?php
 
-class EPFLIntranet extends Plugin
+class EPFLIntranetPlugin extends Plugin
 {
 	protected $pluginPath = "epfl-intranet/epfl-intranet.php";
 }

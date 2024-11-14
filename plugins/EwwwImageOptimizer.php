@@ -1,6 +1,6 @@
 <?php
 
-class EwwwImageOptimizer extends Plugin
+class EwwwImageOptimizerPlugin extends Plugin
 {
 	protected $pluginPath = "ewww-image-optimizer/ewww-image-optimizer.php";
 	private $exactdn_all_the_things = '';
