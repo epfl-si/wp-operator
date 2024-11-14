@@ -81,7 +81,8 @@ if ( empty($options["title"]) ) {
 
 
 define( 'ABSPATH', $options["wp-dir"]);
-define( 'WP_CONTENT_DIR', ABSPATH);  # Meh.
+define( 'WP_CONTENT_DIR', ABSPATH . 'wp-content' );
+define( 'WP_PLUGIN_DIR', WP_CONTENT_DIR . '/plugins' );
 define( 'WP_DEBUG', 1);
 define( 'WP_DEBUG_DISPLAY', 1);
 
