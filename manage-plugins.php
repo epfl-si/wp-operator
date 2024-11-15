@@ -143,6 +143,7 @@ function ensure_plugins ( $options ) {
 		  if ($test instanceof WP_Error) {
 			  throw new ErrorException(var_dump($test->errors) . " - " . $plugin->getPluginPath());
 		  }
+		  $plugin->addSpecialConfiguration();
 		  $plugin->updateOptions();
 	  } catch (Exception $e) {
 		  echo $e->getMessage(), "\n";
@@ -150,6 +151,19 @@ function ensure_plugins ( $options ) {
   }
 }
 
+function delete_pages_and_posts () {
+	$pages = get_posts([
+		'post_type' => ['page', 'post'],
+		'posts_per_page' => -1, // get all
+		'post_status' => array_keys(get_post_statuses()), // all post statuses (publish, draft, private etc...)
+	]);
+
+	foreach ($pages as $page) {
+		wp_delete_post($page->ID); // delete page (moves to trash)
+	}
+}
+
 ensure_plugins( $options );
+delete_pages_and_posts();
 
 echo "WordPress plugins successfully installed";
