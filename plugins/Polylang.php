@@ -55,11 +55,13 @@ class PolylangPlugin extends Plugin
 		require_once $this->wpDirPath . 'wp-content/plugins/polylang/polylang.php';
 		$polylangInstance = new PLL_Admin_Model($this->polylangOptions);
 		$languageMap = [
-			'en' => ['name' => 'English', 'locale' => 'en_US'],
-			'es' => ['name' => 'Spanish', 'locale' => 'es_ES'],
-			'fr' => ['name' => 'French', 'locale' => 'fr_FR'],
-			'de' => ['name' => 'German', 'locale' => 'de_DE'],
-			'it' => ['name' => 'Italian', 'locale' => 'it_IT'],
+			'en' => ['name' => 'English', 'locale' => 'en_US', 'rtl' => 0, 'term_group' => 0, 'flag' => 'us'],
+			'fr' => ['name' => 'Français', 'locale' => 'fr_FR', 'rtl' => 0, 'term_group' => 1, 'flag' => 'fr'],
+			'de' => ['name' => 'Deutsch', 'locale' => 'de_DE', 'rtl' => 0, 'term_group' => 2, 'flag' => 'de'],
+			'it' => ['name' => 'Italiano', 'locale' => 'it_IT', 'rtl' => 0, 'term_group' => 3, 'flag' => 'it'],
+			'es' => ['name' => 'Español', 'locale' => 'es_ES', 'rtl' => 0, 'term_group' => 4, 'flag' => 'es'],
+			'el' => ['name' => 'Ελληνικά', 'locale' => 'el', 'rtl' => 0, 'term_group' => 5, 'flag' => 'gr'],
+			'ro' => ['name' => 'Română', 'locale' => 'ro_RO', 'rtl' => 0, 'term_group' => 6, 'flag' => 'ro'],
 		];
 
 		foreach ($this->languagesList as $slug) {
@@ -67,9 +69,16 @@ class PolylangPlugin extends Plugin
 				$args = array(
 					'slug' => $slug,
 					'name' => $languageMap[$slug]['name'],
-					'locale' => $languageMap[$slug]['locale']
+					'locale' => $languageMap[$slug]['locale'],
+					'rtl' => $languageMap[$slug]['rtl'],
+					'term_group' => $languageMap[$slug]['term_group'],
+					'flag' => $languageMap[$slug]['flag'],
 				);
 				$polylangInstance->add_language($args);
+
+				if (function_exists('wp_download_language_pack')) {
+					wp_download_language_pack($languageMap[$slug]['locale']);
+				}
 			}
 		}
 	}
