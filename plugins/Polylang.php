@@ -42,18 +42,10 @@ class PolylangPlugin extends Plugin
 		);
 	}
 
-	public function updateOptions()
-	{
-		update_option( 'polylang_wpml_strings', $this->polylang_wpml_strings );
-		update_option( 'widget_polylang', $this->widget_polylang );
-		update_option( 'polylang', $this->polylangOptions );
-
-		if (!is_plugin_active($this->pluginPath)) {
-			activate_plugin($this->pluginPath);
-		}
-
+	public function addSpecialConfiguration() {
 		require_once $this->wpDirPath . 'wp-content/plugins/polylang/polylang.php';
 		$polylangInstance = new PLL_Admin_Model($this->polylangOptions);
+		$polylangInstance->set_languages_ready();
 		$languageMap = [
 			'en' => ['name' => 'English', 'locale' => 'en_US', 'rtl' => 0, 'term_group' => 0, 'flag' => 'us'],
 			'fr' => ['name' => 'Français', 'locale' => 'fr_FR', 'rtl' => 0, 'term_group' => 1, 'flag' => 'fr'],
@@ -81,5 +73,55 @@ class PolylangPlugin extends Plugin
 				}
 			}
 		}
+
+		update_option('polylang_wizard_done', true);
+		update_option('polylang_settings', array_merge(
+			(array) get_option('polylang_settings', []),
+			['wizard' => false]
+		));
+		/*$languages = include $this->wpDirPath . 'wp-content/plugins/polylang/settings/languages.php';
+		$polylangInstance = new PLL_Admin_Model($this->polylangOptions);
+
+		$slugMap = array(
+			'en' => 'us',
+			'el' => 'gr'
+		);
+
+		foreach ($this->languagesList as $index => $slug) {
+			$language = null;
+			$searchSlug = $slug;
+			if (array_key_exists($slug, $slugMap)) {
+				$searchSlug = $slugMap[$slug];
+			}
+
+			foreach ($languages as $key => $item) {
+				if (isset($item['flag']) && $item['flag'] === $searchSlug) {
+					$language = $item;
+					break;
+				}
+			}
+			print_r(" \n " . $slug . " - " . $language. " \n ");
+
+			$args = array(
+				'slug' => $slug,
+				'name' => $language['name'],
+				'locale' => $language['locale'],
+				'rtl' => 0,
+				'term_group' => $index,
+				'flag' => $language['flag'],
+			);
+			$polylangInstance->add_language($args);
+
+			if (function_exists('wp_download_language_pack')) {
+				wp_download_language_pack($language['locale']);
+			}
+		}*/
+	}
+
+	public function updateOptions()
+	{
+		update_option( 'polylang_wpml_strings', $this->polylang_wpml_strings );
+		update_option( 'widget_polylang', $this->widget_polylang );
+		update_option( 'polylang', $this->polylangOptions );
 	}
 }
