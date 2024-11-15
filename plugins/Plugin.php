@@ -53,6 +53,8 @@ abstract class Plugin {
 		}
 	}
 
+	public function addSpecialConfiguration() {}
+
 	public function updateOptions()
 	{
 		foreach (get_object_vars($this) as $property => $value) {
