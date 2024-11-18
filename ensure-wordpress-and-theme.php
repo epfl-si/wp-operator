@@ -17,6 +17,8 @@
  * to work from outside the cluster, you have to use something like KubeVPN.
 **/
 
+require_once("./plugins/Plugin.php");
+
 error_log("  ...  Hello from wp-ops/ensure-wordpress-and-theme.php  ... ");
 
 error_reporting(E_ALL);
@@ -36,6 +38,10 @@ $longopts  = array(
     "db-name:",
     "db-user:",
     "db-password:",
+	"plugins:",
+	"unit-id:",
+	"languages:",
+	"secret-dir:",
 );
 $options = getopt($shortops, $longopts);
 if ( key_exists("h", $options) ) {
@@ -60,6 +66,10 @@ Options:
   --discourage  Optional   Set search engine visibility. 1 means discourage search
                            engines from indexing this site, but it is up to search
                            engines to honor this request.
+  --plugins     Mandatory  List of non-default plugins.
+  --unit-id     Mandatory  Plugin unit ID
+  --languages	Mandatory  List of languages
+  --secret-dir  Mandatory  Secret file's folder
 EOD;
   echo $help . "\n";
   exit();
@@ -82,9 +92,9 @@ if ( empty($options["title"]) ) {
   $options["title"] = $options["name"];
 }
 
-
 define( 'ABSPATH', $options["wp-dir"]);
-define( 'WP_CONTENT_DIR', ABSPATH);  # Meh.
+define( 'WP_CONTENT_DIR', ABSPATH . 'wp-content' );
+define( 'WP_PLUGIN_DIR', WP_CONTENT_DIR . '/plugins' );
 define( 'WP_DEBUG', 1);
 define( 'WP_DEBUG_DISPLAY', 1);
 
@@ -104,12 +114,17 @@ define("DB_HOST", $options["db-host"]);
 define("DB_NAME", $options["db-name"]);
 define("DB_USER", $options["db-user"]);
 define("DB_PASSWORD", $options["db-password"]);
+define("PLUGINS", $options["plugins"]);
+define("UNIT_ID", $options["unit-id"]);
+define("LANGUAGES", $options["languages"]);
+define("SECRETS_DIR", $options["secret-dir"]);
 
 global $table_prefix; $table_prefix = "wp_";
 
 define("WP_ADMIN", true);
 define("WP_INSTALLING", true);
 require_once( ABSPATH . 'wp-settings.php' );
+require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
 function ensure_db_schema () {
   require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
@@ -178,15 +193,60 @@ function ensure_theme ( $options ) {
   print( switch_theme( $theme->get_stylesheet() ) );
 }
 
-function ensure_plugins ( $options ) {
-  # This is the default plugin list that should be activated at installation
-  $plugins = array(
-    "epfl-coming-soon/epfl-coming-soon.php",
-    "EPFL-settings/EPFL-settings.php",
-    "wp-gutenberg-epfl/plugin.php",
-    // "polylang/polylang.php",
-  );
-  update_option( 'active_plugins', $plugins );
+function ensure_plugins () {
+	# This is the default plugin list that should be activated at installation
+	$defaultPlugins = array(
+		"Polylang",
+		"EPFL-Content-Filter",
+		"EPFL-settings",
+		"EPFL-Accred",
+		"Enlighter",
+		"EPFL-404",
+		"epfl-cache-control",
+		"epfl-coming-soon",
+		//"epfl-menus",
+		"epfl-remote-content-shortcode",
+		"ewww-image-optimizer",
+		"find-my-blocks",
+		"flowpaper",
+		"svg-support",
+		"EPFL-Tequila",
+		"tinymce-advanced",
+		"vsmd",
+		"wp-gutenberg-epfl",
+		"wp-media-folder"
+	);
+
+	$specificPlugin = explode(',', PLUGINS);
+	$pluginList = array_merge($defaultPlugins, $specificPlugin);
+
+	$languagesList = explode(',', LANGUAGES);
+
+	foreach ($pluginList as $pluginName) {
+		try {
+			$plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR, $languagesList, ABSPATH);
+			$activatedPlugin = activate_plugin($plugin->getPluginPath());
+			if ($activatedPlugin instanceof WP_Error) {
+				throw new ErrorException(var_dump($activatedPlugin->errors) . " - " . $plugin->getPluginPath());
+			}
+			$plugin->addSpecialConfiguration();
+			$plugin->updateOptions();
+		} catch (Exception $e) {
+			echo $e->getMessage(), "\n";
+		}
+	}
+}
+
+function delete_default_pages_and_posts () {
+	$pages = get_posts([
+		'post_type' => ['page', 'post'],
+		'posts_per_page' => -1, // get all
+		'post_status' => array_keys(get_post_statuses()), // all post statuses (publish, draft, private etc...)
+	]);
+
+	foreach ($pages as $page) {
+		wp_delete_post($page->ID); // delete page (moves to trash)
+	}
 }
 
 ensure_db_schema();
@@ -195,6 +255,7 @@ ensure_admin_user("admin", "admin@exemple.com", "secret");
 ensure_site_title( $options );
 ensure_tagline( $options );
 ensure_theme( $options );
-ensure_plugins( $options );
+ensure_plugins();
+delete_default_pages_and_posts();
 
-echo "WordPress successfully installed";
+echo "WordPress and plugins successfully installed";

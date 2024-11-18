@@ -1,6 +1,6 @@
 # Kopf documentation : https://kopf.readthedocs.io/
 #
-# Run with `python3 wpn-kopf.py run -- --db-host mariadb-min.wordpress-test.svc --wp-php-ensure manage-plugins.php --wp-dir=/home/you/dev/wp-dev/volumes/wp/6/`
+# Run with `python3 wpn-kopf.py run -- --db-host mariadb-min.wordpress-test.svc`
 #
 import argparse
 import kopf
@@ -155,7 +155,7 @@ class WordPressSiteOperator:
       }
       self.patch = patch
 
-  def install_wordpress_via_php(self, path, title, tagline):
+  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
       # https://stackoverflow.com/a/89243
       result = subprocess.run([Config.php, "ensure-wordpress-and-theme.php",
@@ -166,33 +166,17 @@ class WordPressSiteOperator:
                                f"--db-name={self.prefix['db']}{self.name}",
                                f"--db-user={self.prefix['user']}{self.name}",
                                f"--db-password=secret",
-                               f"--title={title}", f"--tagline={tagline}"], capture_output=True, text=True)
-      print(result.stdout)
-      if "WordPress successfully installed" not in result.stdout:
-          raise subprocess.CalledProcessError(0, "PHP script failed")
-      else:
-          logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
-
-  def manage_plugins_php(self, plugins, unit_id, languages):
-      logging.info(f" ↳ [manage_plugins_php] Configuring (manage-plugins.php) with {self.name=} and {plugins=}")
-      # https://stackoverflow.com/a/89243
-      result = subprocess.run([Config.php, "manage-plugins.php",
-                               f"--name={self.name}",
-                               f"--wp-dir={Config.wp_dir}",
-                               f"--wp-host={Config.wp_host}",
-                               f"--db-host={Config.db_host}",
-                               f"--db-name={self.prefix['db']}{self.name}",
-                               f"--db-user={self.prefix['user']}{self.name}",
-                               f"--db-password=secret",
+                               f"--title={title}",
+                               f"--tagline={tagline}",
                                f"--plugins={plugins}",
                                f"--unit-id={unit_id}",
                                f"--languages={languages}",
                                f"--secret-dir={Config.secret_dir}"], capture_output=True, text=True)
       print(result.stdout)
-      if "WordPress plugins successfully installed" not in result.stdout:
+      if "WordPress and plugins successfully installed" not in result.stdout:
           raise subprocess.CalledProcessError(0, "PHP script failed")
       else:
-          logging.info(f" ↳ [manage_plugins_php] End of configuring")
+          logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
 
   def create_database(self):
       logging.info(f" ↳ [{self.namespace}/{self.name}] Create Database {self.prefix['db']}{self.name}")
@@ -573,13 +557,11 @@ fastcgi_param WP_DB_PASSWORD     secret;
       self.create_ingress(path)
 
       if (not import_from_os3):
-          self.install_wordpress_via_php(path, title, tagline)
-          self.manage_plugins_php(','.join(plugins), unit_id, ','.join(languages))
+          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages))
       else:
           environment = import_from_os3["environment"]
           ansible_host = import_from_os3["ansibleHost"]
           self.restore_wordpress_from_os3(path, environment, ansible_host)
-          self.manage_plugins_php(','.join(plugins), unit_id, ','.join(languages))  # TODO delete this line when EPFL menu is correct
 
       self.patch.status['wordpresssite'] = {
           'state': 'created',
