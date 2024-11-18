@@ -402,10 +402,15 @@ fastcgi_param WP_DB_PASSWORD     secret;
         )
     )
 
-    KubernetesAPI.networking.create_namespaced_ingress(
-        namespace=self.namespace,
-        body=body
-    )
+    try:
+        self.api.networking.create_namespaced_ingress(
+            namespace=self.namespace,
+            body=body
+        )
+    except ApiException as e:
+        if e.status != 409:
+            raise e
+        logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} already exists")
 
   def delete_ingress(self):
       try:
