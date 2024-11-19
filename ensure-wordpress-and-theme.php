@@ -245,7 +245,7 @@ function delete_default_pages_and_posts () {
 	]);
 
 	foreach ($pages as $page) {
-		wp_delete_post($page->ID); // delete page (moves to trash)
+		wp_delete_post($page->ID, true);
 	}
 }
 
@@ -255,7 +255,7 @@ ensure_admin_user("admin", "admin@exemple.com", "secret");
 ensure_site_title( $options );
 ensure_tagline( $options );
 ensure_theme( $options );
-ensure_plugins();
 delete_default_pages_and_posts();
+ensure_plugins();
 
 echo "WordPress and plugins successfully installed";
