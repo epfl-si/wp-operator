@@ -8,6 +8,13 @@ class PolylangPlugin extends Plugin
 	private $widget_polylang = array (
 		'_multiwidget' => 1,
 	);
+	private $polylang_settings = array (
+	  'wizard' => false,
+	);
+	private $polylang_wizard_done = true;
+	private $pll_dismissed_notices = array (
+		0 => 'wizard',
+	);
 	private $languagesList;
 	private $wpDirPath;
 	private $polylangOptions;
@@ -22,7 +29,7 @@ class PolylangPlugin extends Plugin
 			'hide_default' => 1,
 			'force_lang' => 1,
 			'redirect_lang' => 0,
-			'media_support' => 0,
+			'media_support' => false,
 			'uninstall' => 0,
 			'sync' =>
 				array (
@@ -73,12 +80,6 @@ class PolylangPlugin extends Plugin
 				}
 			}
 		}
-
-		update_option('polylang_wizard_done', true);
-		update_option('polylang_settings', array_merge(
-			(array) get_option('polylang_settings', []),
-			['wizard' => false]
-		));
 		/*$languages = include $this->wpDirPath . 'wp-content/plugins/polylang/settings/languages.php';
 		$polylangInstance = new PLL_Admin_Model($this->polylangOptions);
 
@@ -120,8 +121,11 @@ class PolylangPlugin extends Plugin
 
 	public function updateOptions()
 	{
-		update_option( 'polylang_wpml_strings', $this->polylang_wpml_strings );
 		update_option( 'widget_polylang', $this->widget_polylang );
+		update_option( 'polylang_settings', $this->polylang_settings);
+		update_option( 'polylang_wizard_done', $this->polylang_wizard_done);
+		update_option( 'polylang_wpml_strings', $this->polylang_wpml_strings );
 		update_option( 'polylang', $this->polylangOptions );
+		update_option( 'pll_dismissed_notices', $this->pll_dismissed_notices);
 	}
 }
