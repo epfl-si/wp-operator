@@ -114,7 +114,7 @@ define("DB_HOST", $options["db-host"]);
 define("DB_NAME", $options["db-name"]);
 define("DB_USER", $options["db-user"]);
 define("DB_PASSWORD", $options["db-password"]);
-define("PLUGINS", $options["plugins"]);
+define("PLUGINS", $options["plugins"] ?? null);
 define("UNIT_ID", $options["unit-id"]);
 define("LANGUAGES", $options["languages"]);
 define("SECRETS_DIR", $options["secret-dir"]);
@@ -217,23 +217,22 @@ function ensure_plugins () {
 		"wp-media-folder"
 	);
 
-	$specificPlugin = explode(',', PLUGINS);
+	$specificPlugin = [];
+	if (PLUGINS !== null) {
+		$specificPlugin = explode(',', PLUGINS);
+	}
 	$pluginList = array_merge($defaultPlugins, $specificPlugin);
 
 	$languagesList = explode(',', LANGUAGES);
 
 	foreach ($pluginList as $pluginName) {
-		try {
-			$plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR, $languagesList, ABSPATH);
-			$activatedPlugin = activate_plugin($plugin->getPluginPath());
-			if ($activatedPlugin instanceof WP_Error) {
-				throw new ErrorException(var_dump($activatedPlugin->errors) . " - " . $plugin->getPluginPath());
-			}
-			$plugin->addSpecialConfiguration();
-			$plugin->updateOptions();
-		} catch (Exception $e) {
-			echo $e->getMessage(), "\n";
+		$plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR, $languagesList, ABSPATH);
+		$activatedPlugin = activate_plugin($plugin->getPluginPath());
+		if ($activatedPlugin instanceof WP_Error) {
+			throw new ErrorException(var_dump($activatedPlugin->errors) . " - " . $plugin->getPluginPath());
 		}
+		$plugin->addSpecialConfiguration();
+		$plugin->updateOptions();
 	}
 }
 
