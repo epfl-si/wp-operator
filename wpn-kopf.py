@@ -180,11 +180,12 @@ class WordPressSiteOperator:
 
   def create_database(self):
       logging.info(f" ↳ [{self.namespace}/{self.name}] Create Database {self.prefix['db']}{self.name}")
+      db_name = f"{self.prefix['db']}{self.name}"
       body = {
           "apiVersion": "k8s.mariadb.com/v1alpha1",
           "kind": "Database",
           "metadata": {
-              "name": f"{self.prefix['db']}{self.name}",
+              "name": db_name,
               "namespace": self.namespace
           },
           "spec": {
@@ -208,6 +209,29 @@ class WordPressSiteOperator:
           if e.status != 409:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Database {self.prefix['db']}{self.name} already exists")
+
+      # Wait until the database completes (either in error or successfully)
+
+      iteration = 0;
+      while(True):
+          newDatabase = self.api.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
+                                                                     version="v1alpha1",
+                                                                     namespace=self.namespace,
+                                                                     plural="databases",
+                                                                     name=db_name)
+          for condition in newDatabase.get("status", {}).get("conditions", []):
+              if condition.get("type") == "Ready":
+                  message = condition.get("message")
+                  if message == "Created":
+                      return
+                  else:
+                      pass
+
+          if iteration < 6:
+              time.sleep(10)
+              iteration = iteration + 1
+          else:
+              raise kopf.PermanentError(f"create {db_name} failed, message: f{message}")
 
   def create_secret(self, secret):
       secret_name = self.prefix["password"] + self.name
