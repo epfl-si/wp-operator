@@ -210,28 +210,7 @@ class WordPressSiteOperator:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Database {self.prefix['db']}{self.name} already exists")
 
-      # Wait until the database completes (either in error or successfully)
-
-      iteration = 0;
-      while(True):
-          newDatabase = self.api.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
-                                                                     version="v1alpha1",
-                                                                     namespace=self.namespace,
-                                                                     plural="databases",
-                                                                     name=db_name)
-          for condition in newDatabase.get("status", {}).get("conditions", []):
-              if condition.get("type") == "Ready":
-                  message = condition.get("message")
-                  if message == "Created":
-                      return
-                  else:
-                      pass
-
-          if iteration < 6:
-              time.sleep(10)
-              iteration = iteration + 1
-          else:
-              raise kopf.PermanentError(f"create {db_name} failed, message: f{message}")
+      self.waitCustomObjectCreation("databases", db_name)
 
   def create_secret(self, secret):
       secret_name = self.prefix["password"] + self.name
@@ -297,6 +276,7 @@ class WordPressSiteOperator:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] User {user_name} already exists")
 
+      self.waitCustomObjectCreation("users", user_name)
 
   def create_grant(self):
       grant_name = f"{self.prefix['grant']}{self.name}"
@@ -335,6 +315,32 @@ class WordPressSiteOperator:
           if e.status != 409:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Grant {grant_name} already exists")
+
+      self.waitCustomObjectCreation("grants", grant_name)
+
+  def waitCustomObjectCreation(self, customObjectType, customObjectName):
+      # Wait until the customobject creation completes (either in error or successfully)
+
+      iteration = 0;
+      while(True):
+          newUser = self.api.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
+                                                                 version="v1alpha1",
+                                                                 namespace=self.namespace,
+                                                                 plural=customObjectType,
+                                                                 name=customObjectName)
+          for condition in newUser.get("status", {}).get("conditions", []):
+              if condition.get("type") == "Ready":
+                  message = condition.get("message")
+                  if message == "Created":
+                      return
+                  else:
+                      pass
+
+          if iteration < 30:
+              time.sleep(2)
+              iteration = iteration + 1
+          else:
+              raise kopf.PermanentError(f"create {customObjectName} failed, message: f{message}")
 
   def delete_custom_object_mariadb(self, prefix, plural):
       mariadb_name = prefix + self.name
