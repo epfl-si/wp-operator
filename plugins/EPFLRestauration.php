@@ -12,8 +12,8 @@ class EPFLRestaurationPlugin extends Plugin
 
 	public function updateOptions()
 	{
-		update_option( 'wpforms_challenge', $this->epfl_restauration_api_username);
-		update_option( 'wpforms_settings', $this->epfl_restauration_api_url);
-		update_option( 'wpforms_license', $this->epfl_restauration_api_password());
+		update_option( 'epfl_restauration_api_username', $this->epfl_restauration_api_username);
+		update_option( 'epfl_restauration_api_url', $this->epfl_restauration_api_url);
+		update_option( 'epfl_restauration_api_password', $this->epfl_restauration_api_password());
 	}
 }
