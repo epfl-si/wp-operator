@@ -3,7 +3,7 @@
 class EnlighterPlugin extends Plugin
 {
 	protected $pluginPath = "enlighter/Enlighter.php";
-	private $enlighterOptions = array (
+	protected $enlighterOptions = array (
 		'translation-enabled' => true,
 		'enlighterjs-init' => 'inline',
 		'enlighterjs-assets-js' => true,

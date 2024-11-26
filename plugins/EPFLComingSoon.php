@@ -3,7 +3,7 @@
 class EPFLComingSoonPlugin extends Plugin
 {
 	protected $pluginPath = "epfl-coming-soon/epfl-coming-soon.php";
-	private $epfl_csp_options = array (
+	protected $epfl_csp_options = array (
 		'status' => 'on',
 		'theme_maintenance' => 'no',
 		'status_code' => 'no',
