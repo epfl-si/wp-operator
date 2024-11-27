@@ -17,6 +17,7 @@ import yaml
 import re
 from datetime import datetime, timezone
 import time
+import secrets
 
 class Config:
     secret_name = "nginx-conf-site-tree"
@@ -116,7 +117,7 @@ class WordPressSiteOperator:
         "password": "wp-db-password-"
       }
 
-  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages):
+  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
       # https://stackoverflow.com/a/89243
       result = subprocess.run([Config.php, "ensure-wordpress-and-theme.php",
@@ -126,7 +127,7 @@ class WordPressSiteOperator:
                                f"--db-host={Config.db_host}",
                                f"--db-name={self.prefix['db']}{self.name}",
                                f"--db-user={self.prefix['user']}{self.name}",
-                               f"--db-password=secret",
+                               f"--db-password={secret}",
                                f"--title={title}",
                                f"--tagline={tagline}",
                                f"--plugins={plugins}",
@@ -319,7 +320,7 @@ class WordPressSiteOperator:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} already deleted")
 
-  def create_ingress(self, path):
+  def create_ingress(self, path, secret):
     body = client.V1Ingress(
         api_version="networking.k8s.io/v1",
         kind="Ingress",
@@ -351,7 +352,7 @@ fastcgi_param WP_ABSPATH         /wp/6/;
 fastcgi_param WP_DB_HOST         mariadb-min;
 fastcgi_param WP_DB_NAME         {self.prefix["db"]}{self.name};
 fastcgi_param WP_DB_USER         {self.prefix["user"]}{self.name};
-fastcgi_param WP_DB_PASSWORD     secret;
+fastcgi_param WP_DB_PASSWORD     {secret};
 """
             }
         ),
@@ -537,16 +538,16 @@ fastcgi_param WP_DB_PASSWORD     secret;
       unit_id = epfl["unit_id"]
       languages = wordpress["languages"]
 
-      secret = "secret" # Password, for the moment hard coded.
+      secret = secrets.token_urlsafe(32)
 
       self.create_database()
       self.create_secret(secret)
       self.create_user()
       self.create_grant()
-      self.create_ingress(path)
+      self.create_ingress(path, secret)
 
       if (not import_from_os3):
-          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages))
+          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret)
       else:
           environment = import_from_os3["environment"]
           ansible_host = import_from_os3["ansibleHost"]
