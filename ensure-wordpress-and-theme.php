@@ -248,9 +248,24 @@ function delete_default_pages_and_posts () {
 	}
 }
 
+// https://stackoverflow.com/a/31284266
+function generate_random_password(
+  $keyspace = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+) {
+  $str = '';
+  $max = mb_strlen($keyspace, '8bit') - 1;
+  if ($max < 1) {
+    throw new Exception('$keyspace must be at least two characters long');
+  }
+  for ($i = 0; $i < 32; ++$i) {
+    $str .= $keyspace[random_int(0, $max)];
+  }
+  return $str;
+}
+
 ensure_db_schema();
 ensure_other_basic_wordpress_things( $options );
-ensure_admin_user("admin", "admin@exemple.com", "secret");
+ensure_admin_user("admin", "admin@exemple.com", generate_random_password());
 ensure_site_title( $options );
 ensure_tagline( $options );
 ensure_theme( $options );
