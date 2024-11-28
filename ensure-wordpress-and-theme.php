@@ -42,6 +42,7 @@ $longopts  = array(
 	"unit-id:",
 	"languages:",
 	"secret-dir:",
+	"subdomain-name:"
 );
 $options = getopt($shortops, $longopts);
 if ( key_exists("h", $options) ) {
@@ -70,6 +71,7 @@ Options:
   --unit-id     Mandatory  Plugin unit ID
   --languages	Mandatory  List of languages
   --secret-dir  Mandatory  Secret file's folder
+  --subdomain-name Mandatory Site's subdomain name
 EOD;
   echo $help . "\n";
   exit();
@@ -118,6 +120,7 @@ define("PLUGINS", $options["plugins"] ?? null);
 define("UNIT_ID", $options["unit-id"]);
 define("LANGUAGES", $options["languages"]);
 define("SECRETS_DIR", $options["secret-dir"]);
+define("SUBDOMAIN_NAME", $options["subdomain-name"]);
 
 global $table_prefix; $table_prefix = "wp_";
 
@@ -204,12 +207,11 @@ function ensure_plugins () {
 		"EPFL-404",
 		"epfl-cache-control",
 		"epfl-coming-soon",
-		//"epfl-menus",
 		"epfl-remote-content-shortcode",
 		"ewww-image-optimizer",
 		"find-my-blocks",
 		"flowpaper",
-		"svg-support",
+		//"svg-support",
 		"EPFL-Tequila",
 		"tinymce-advanced",
 		"vsmd",
@@ -222,6 +224,9 @@ function ensure_plugins () {
 		$specificPlugin = explode(',', PLUGINS);
 	}
 	$pluginList = array_merge($defaultPlugins, $specificPlugin);
+	if (SUBDOMAIN_NAME === 'www.epfl.ch') {
+		array_push($pluginList, "epfl-menus");
+	}
 
 	$languagesList = explode(',', LANGUAGES);
 
