@@ -90,4 +90,7 @@ class ClusterWideExistenceOperator:
 
 if __name__ == '__main__':
     ClusterWideExistenceOperator(yaml.safe_load(open('WordPressSite-crd.yaml'))).hook()
+    for o in yaml.safe_load_all(open("operator.yaml")):
+        if "metadata" in o and "namespace" not in o["metadata"]:
+            ClusterWideExistenceOperator(o).hook()
     sys.exit(kopf.cli.main())
