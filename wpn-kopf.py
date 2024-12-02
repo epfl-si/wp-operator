@@ -448,7 +448,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
 
           with open(backup_file_path, "w") as backup_file:
               logging.info(f"   ↳ [{self.namespace}/{self.name}] Replacing www.epfl.ch with wpn.fsd.team in SQL backup")
-              sed_command = ["sed", "s/www\.epfl\.ch/wpn.fsd.team/g", f"{target}/db-backup.sql"]
+              sed_command = ["sed", r"s/www\.epfl\.ch/wpn.fsd.team/g", f"{target}/db-backup.sql"]
 
               subprocess.run(sed_command, stdout=backup_file, check=True)
 
