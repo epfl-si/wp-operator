@@ -13,9 +13,19 @@ import threading
 import time
 import yaml
 
-class ClusterWideExistenceOperator:
-    def __init__ (self, definition):
-        self.definition = definition
+
+class KubernetesObjectData:
+    @classmethod
+    def load (cls, path):
+        [o] = cls.load_all(path)
+        return o
+
+    @classmethod
+    def load_all (cls, path):
+        return (cls(o) for o in yaml.safe_load_all(open(path, 'r')))
+
+    def __init__ (self, deserialized_data):
+        self.definition = deserialized_data
 
     @property
     def name (self):
@@ -33,15 +43,23 @@ class ClusterWideExistenceOperator:
     def moniker (self):
         return f"{self.kind}/{self.name}"
 
+    def is_namespaced (self):
+        return "namespace" in self.definition["metadata"]
+
+
+class ClusterWideExistenceOperator:
+    def __init__ (self, k8s_object):
+        self.k8s_object = k8s_object
+
     def hook (self):
         @kopf.on.startup()
         async def on_kopf_startup (**kwargs):
             await self.ensure_exists()
 
-        @kopf.on.delete(self.kind,
-                        field='metadata.name', value=self.name)
+        @kopf.on.delete(self.k8s_object.kind,
+                        field='metadata.name', value=self.k8s_object.name)
         async def on_kopf_delete_crd (**kwargs):
-            logging.info(f"{self.moniker} is being deleted!")
+            logging.info(f"{self.k8s_object.moniker} is being deleted!")
 
             async def recreate_later ():
                 for _ in range(0, 30):
@@ -51,8 +69,8 @@ class ClusterWideExistenceOperator:
                     else:
                         await asyncio.sleep(1)
                 else:
-                    logging.error(f"Zombie {self.moniker} won't die!")
-                    raise kopf.PermanentError(f"Zombie {self.moniker} won't die!")
+                    logging.error(f"Zombie {self.k8s.moniker} won't die!")
+                    raise kopf.PermanentError(f"Zombie {self.k8s.moniker} won't die!")
 
             asyncio.create_task(recreate_later())
 
@@ -67,30 +85,32 @@ class ClusterWideExistenceOperator:
         await self._load_kube_config()
         async with ApiClient() as api:
             dyn_client = await DynamicClient(api)
-            resource = await dyn_client.resources.get(api_version=self.api_version, kind=self.kind)
-            got = await resource.get(name=self.name)
+            resource = await dyn_client.resources.get(api_version=self.k8s_object.api_version, kind=self.k8s_object.kind)
+            got = await resource.get(name=self.k8s_object.name)
             return got.reason != 'NotFound'
 
     async def ensure_exists (self):
         if await self.exists():
-            logging.info(f"↳ {self.moniker} already exists, doing nothing...")
+            logging.info(f"↳ {self.k8s_object.moniker} already exists, doing nothing...")
             return True
 
-        logging.info(f"↳ {self.moniker} does not exist, creating it...")
+        logging.info(f"↳ {self.k8s_object.moniker} does not exist, creating it...")
         async with ApiClient() as api:
             dyn_client = await DynamicClient(api)
-            resource = await dyn_client.resources.get(api_version=self.api_version, kind=self.kind)
+            resource = await dyn_client.resources.get(api_version=self.k8s_object.api_version, kind=self.k8s_object.kind)
 
             try:
-                await resource.create(body=self.definition)
-                logging.info(f"↳ {self.moniker}: created")
+                await resource.create(body=self.k8s_object.definition)
+                logging.info(f"↳ {self.k8s_object.moniker}: created")
             except ApiException as e:
-                logging.error(f"Error trying to create {self.moniker} :", e)
+                logging.error(f"Error trying to create {self.k8s_object.moniker} :", e)
                 raise e
 
+
 if __name__ == '__main__':
-    ClusterWideExistenceOperator(yaml.safe_load(open('WordPressSite-crd.yaml'))).hook()
-    for o in yaml.safe_load_all(open("operator.yaml")):
-        if "metadata" in o and "namespace" not in o["metadata"]:
+    crd = KubernetesObjectData.load('WordPressSite-crd.yaml')
+    ClusterWideExistenceOperator(crd).hook()
+    for o in KubernetesObjectData.load_all("operator.yaml"):
+        if not o.is_namespaced():
             ClusterWideExistenceOperator(o).hook()
     sys.exit(kopf.cli.main())
