@@ -1,9 +1,8 @@
 import asyncio
 import kopf
 import kopf.cli
-from kubernetes_asyncio import client, config
+from kubernetes_asyncio import client, config, dynamic
 from kubernetes_asyncio.client import ApiClient
-from kubernetes_asyncio.dynamic import DynamicClient
 from kubernetes_asyncio.client.exceptions import ApiException
 from kubernetes_asyncio.dynamic.exceptions import NotFoundError
 import logging
@@ -45,6 +44,17 @@ class KubernetesObjectData:
 
     def is_namespaced (self):
         return "namespace" in self.definition["metadata"]
+
+
+async def get_dynamic_resource (api, api_version, kind, **kwargs):
+        dyn_client = await dynamic.DynamicClient(api)
+        resource = await dyn_client.resources.get(api_version=api_version, kind=kind)
+        return await resource.get(**kwargs)
+
+async def create_dynamic_resource (api, api_version, kind, **kwargs):
+        dyn_client = await dynamic.DynamicClient(api)
+        resource = await dyn_client.resources.get(api_version=api_version, kind=kind)
+        return await resource.create(**kwargs)
 
 
 class ClusterWideExistenceOperator:
@@ -90,9 +100,7 @@ class ClusterWideExistenceOperator:
     async def exists (self):
         await self._load_kube_config()
         async with ApiClient() as api:
-            dyn_client = await DynamicClient(api)
-            resource = await dyn_client.resources.get(api_version=self.k8s_object.api_version, kind=self.k8s_object.kind)
-            got = await resource.get(name=self.k8s_object.name)
+            got = await get_dynamic_resource(api, api_version=self.k8s_object.api_version, kind=self.k8s_object.kind, name=self.k8s_object.name)
             return got.reason != 'NotFound'
 
     async def ensure_exists (self):
@@ -102,11 +110,8 @@ class ClusterWideExistenceOperator:
 
         logging.info(f"↳ {self.k8s_object.moniker} does not exist, creating it...")
         async with ApiClient() as api:
-            dyn_client = await DynamicClient(api)
-            resource = await dyn_client.resources.get(api_version=self.k8s_object.api_version, kind=self.k8s_object.kind)
-
             try:
-                await resource.create(body=self.k8s_object.definition)
+                await create_dynamic_resource(api, api_version=self.k8s_object.api_version, kind=self.k8s_object.kind, body=self.k8s_object.definition)
                 logging.info(f"↳ {self.k8s_object.moniker}: created")
             except ApiException as e:
                 logging.error(f"Error trying to create {self.k8s_object.moniker} :", e)
