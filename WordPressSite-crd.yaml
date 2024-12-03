@@ -103,8 +103,8 @@ spec:
                     description: Import database from existing OpenShift 3 site
                     type: object
                     properties:
-                      environment:
-                        description: Site environment (labs, inside, www, subdomains-lite)
+                      environment_os3:
+                        description: OpenShift3 site environment (labs, inside, www, subdomains-lite)
                         type: string
                         pattern: ^(labs|inside|www|subdomains-lite)$
                       ansibleHost:

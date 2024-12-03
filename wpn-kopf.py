@@ -592,7 +592,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       if (not import_from_os3):
           self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret, subdomain_name)
       else:
-          environment = import_from_os3["environment"]
+          environment = import_from_os3["environment_os3"]
           ansible_host = import_from_os3["ansibleHost"]
           self.restore_wordpress_from_os3(path, environment, ansible_host)
 
