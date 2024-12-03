@@ -5,6 +5,7 @@ from kubernetes_asyncio import client, config
 from kubernetes_asyncio.client import ApiClient
 from kubernetes_asyncio.dynamic import DynamicClient
 from kubernetes_asyncio.client.exceptions import ApiException
+from kubernetes_asyncio.dynamic.exceptions import NotFoundError
 import logging
 import os
 import sys
@@ -12,33 +13,50 @@ import threading
 import time
 import yaml
 
-class WordPressCRDOperator:
-    crd_name = "wordpresssites.wordpress.epfl.ch"
-    _kube_config_loaded = False
+class ClusterWideExistenceOperator:
+    def __init__ (self, definition):
+        self.definition = definition
 
-    @classmethod
-    def hook (cls):
-        self = cls()
+    @property
+    def name (self):
+        return self.definition["metadata"]["name"]
+
+    @property
+    def kind (self):
+        return self.definition["kind"]
+
+    @property
+    def api_version (self):
+        return self.definition["apiVersion"]
+
+    @property
+    def moniker (self):
+        return f"{self.kind}/{self.name}"
+
+    def hook (self):
         @kopf.on.startup()
         async def on_kopf_startup (**kwargs):
-            await self.ensure_crd_exists()
+            await self.ensure_exists()
 
-        @kopf.on.delete('customresourcedefinition',
-                        field='metadata.name', value=self.crd_name)
+        @kopf.on.delete(self.kind,
+                        field='metadata.name', value=self.name)
         async def on_kopf_delete_crd (**kwargs):
-            logging.info("CRD is being deleted!")
+            logging.info(f"{self.moniker} is being deleted!")
 
             async def recreate_later ():
                 for _ in range(0, 30):
                     if not await self.exists():
-                        await self.ensure_crd_exists()
+                        await self.ensure_exists()
                         return
                     else:
                         await asyncio.sleep(1)
                 else:
-                    raise kopf.PermanentError("Zombie CRD won't die!")
+                    logging.error(f"Zombie {self.moniker} won't die!")
+                    raise kopf.PermanentError(f"Zombie {self.moniker} won't die!")
 
             asyncio.create_task(recreate_later())
+
+    _kube_config_loaded = False
 
     async def _load_kube_config (self):
         if not self._kube_config_loaded:
@@ -48,31 +66,28 @@ class WordPressCRDOperator:
     async def exists (self):
         await self._load_kube_config()
         async with ApiClient() as api:
-            api_extensions = client.ApiextensionsV1Api(api)
-            crd_list = await api_extensions.list_custom_resource_definition()
-            return any(crd.metadata.name == self.crd_name for crd in crd_list.items)
+            dyn_client = await DynamicClient(api)
+            resource = await dyn_client.resources.get(api_version=self.api_version, kind=self.kind)
+            got = await resource.get(name=self.name)
+            return got.reason != 'NotFound'
 
-    async def ensure_crd_exists(self):
-        await self._load_kube_config()
+    async def ensure_exists (self):
         if await self.exists():
-            logging.info(f"↳ CRD '{self.crd_name}' already exists, doing nothing...")
+            logging.info(f"↳ {self.moniker} already exists, doing nothing...")
             return True
 
-        logging.info(f"↳ CRD '{self.crd_name}' does not exists, creating it...")
-        with open("WordPressSite-crd.yaml") as file:  # TODO: blocking
-            crd_file = yaml.safe_load(file)
+        logging.info(f"↳ {self.moniker} does not exist, creating it...")
         async with ApiClient() as api:
             dyn_client = await DynamicClient(api)
-            crd_resource = await dyn_client.resources.get(api_version='apiextensions.k8s.io/v1', kind='CustomResourceDefinition')
-          
+            resource = await dyn_client.resources.get(api_version=self.api_version, kind=self.kind)
+
             try:
-                await crd_resource.create(body=crd_file)
-                logging.info(f"↳ CRD '{self.crd_name}' created")
-                return True
-            except client.exceptions.ApiException as e:
-                logging.error("Error trying to create CRD :", e)
+                await resource.create(body=self.definition)
+                logging.info(f"↳ {self.moniker}: created")
+            except ApiException as e:
+                logging.error(f"Error trying to create {self.moniker} :", e)
                 raise e
 
 if __name__ == '__main__':
-    WordPressCRDOperator.hook()
+    ClusterWideExistenceOperator(yaml.safe_load(open('WordPressSite-crd.yaml'))).hook()
     sys.exit(kopf.cli.main())
