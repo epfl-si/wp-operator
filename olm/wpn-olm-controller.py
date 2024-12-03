@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import kopf
 import kopf.cli
 from kubernetes_asyncio import client, config, dynamic
@@ -31,6 +32,10 @@ class KubernetesObjectData:
         return self.definition["metadata"]["name"]
 
     @property
+    def namespace (self):
+        return self.definition["metadata"].get("namespace")
+
+    @property
     def kind (self):
         return self.definition["kind"]
 
@@ -45,16 +50,28 @@ class KubernetesObjectData:
     def is_namespaced (self):
         return "namespace" in self.definition["metadata"]
 
+    def copy (self, namespace=None):
+        new_def = copy.deepcopy(self.definition)
+        if namespace is not None:
+            new_def["metadata"]["namespace"] = namespace
 
-async def get_dynamic_resource (api, api_version, kind, **kwargs):
+        return self.__class__(new_def)
+
+
+async def get_dynamic_resource (api, api_version, kind, *args, **kwargs):
         dyn_client = await dynamic.DynamicClient(api)
         resource = await dyn_client.resources.get(api_version=api_version, kind=kind)
-        return await resource.get(**kwargs)
+        return await resource.get(*args, **kwargs)
 
 async def create_dynamic_resource (api, api_version, kind, **kwargs):
         dyn_client = await dynamic.DynamicClient(api)
         resource = await dyn_client.resources.get(api_version=api_version, kind=kind)
         return await resource.create(**kwargs)
+
+async def delete_dynamic_resource (api, api_version, kind, **kwargs):
+        dyn_client = await dynamic.DynamicClient(api)
+        resource = await dyn_client.resources.get(api_version=api_version, kind=kind)
+        return await resource.delete(**kwargs)
 
 
 class ClusterWideExistenceOperator:
@@ -118,10 +135,96 @@ class ClusterWideExistenceOperator:
                 raise e
 
 
+class PerNamespaceObjectCounter:
+    def __init__ (self, kind):
+        logging.info("Constructing PerNamespaceObjectCounter")
+        self.kind = kind
+        self.on_namespace_populated_callbacks = []
+        self.on_namespace_emptied_callbacks = []
+        self._previous_by_namespace = {}
+
+    def hook (self):
+        id = f'{self.kind}_by_namespace'
+        @kopf.index(self.kind, id=id)
+        def by_namespace(name, namespace, **_):
+            return { namespace: name }
+
+        @kopf.on.event(self.kind)
+        async def reconcile_by_namespace(event, **kwargs):
+            by_namespace = kwargs[id]
+
+            before = set(self._previous_by_namespace.keys())
+            after = set(by_namespace.keys())
+
+            for emptied_namespace in before - after:
+                for callback in reversed(self.on_namespace_emptied_callbacks):
+                    # TODO: should feed as a kopf sub-task, rather than this try/catch.
+                    try:
+                        await callback(emptied_namespace)
+                    except BaseException as e:
+                        logging.error(e)
+
+            for created_namespace in after - before:
+                for callback in self.on_namespace_populated_callbacks:
+                    # TODO: should feed as a kopf sub-task, rather than this try/catch.
+                    try:
+                        await callback(created_namespace)
+                    except BaseException as e:
+                        logging.error(e)
+
+            self._previous_by_namespace = copy.deepcopy(by_namespace)
+
+    def on_namespace_populated (self, f):
+        self.on_namespace_populated_callbacks.append(f)
+
+    def on_namespace_emptied (self, f):
+        self.on_namespace_emptied_callbacks.append(f)
+
+
 if __name__ == '__main__':
     crd = KubernetesObjectData.load('WordPressSite-crd.yaml')
     ClusterWideExistenceOperator(crd).hook()
+
+    sites = PerNamespaceObjectCounter('wordpresssites')
+    sites.hook()
+
+    namespaced_objects = []
     for o in KubernetesObjectData.load_all("operator.yaml"):
         if not o.is_namespaced():
             ClusterWideExistenceOperator(o).hook()
+        else:
+            namespaced_objects.append(o)
+
+    def rename_namespaced_objects (namespace):
+        return [o.copy(namespace=namespace) for o in namespaced_objects]
+
+    @sites.on_namespace_populated
+    async def startup_operator (namespace):
+        async with ApiClient() as api:
+            for o in rename_namespaced_objects(namespace):
+                try:
+                    await create_dynamic_resource(
+                        api,
+                        o.api_version,
+                        o.kind,
+                        body=o.definition)
+                    logging.info(f"{o.moniker}: created")
+                except BaseException as e:
+                    logging.error(f"Error creating {o.moniker}: {e}")
+
+    @sites.on_namespace_emptied
+    async def shutdown_operator (namespace):
+        async with ApiClient() as api:
+            for o in reversed(rename_namespaced_objects(namespace)):
+                try:
+                    await delete_dynamic_resource(
+                        api,
+                        o.api_version,
+                        o.kind,
+                        namespace=o.namespace,
+                        name=o.name)
+                    logging.info(f"{o.moniker}: deleted")
+                except BaseException as e:
+                    logging.error(f"Error deleting {o.moniker}: {e}")
+
     sys.exit(kopf.cli.main())
