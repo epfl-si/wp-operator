@@ -56,12 +56,18 @@ class ClusterWideExistenceOperator:
         async def on_kopf_startup (**kwargs):
             await self.ensure_exists()
 
-        @kopf.on.delete(self.k8s_object.kind,
-                        field='metadata.name', value=self.k8s_object.name)
-        async def on_kopf_delete_crd (**kwargs):
-            logging.info(f"{self.k8s_object.moniker} is being deleted!")
+        @kopf.daemon(self.k8s_object.kind,
+                     field='metadata.name', value=self.k8s_object.name)
+        async def watch (stopped, meta, **kwargs):
+            while not stopped:
+                # As per https://kopf.readthedocs.io/en/stable/daemons/#safe-sleep
+                # stopped.wait() puts us in a “light sleep”; therefore a long delay is best.
+                await stopped.wait(3600)
+            if "deletionTimestamp" not in meta:
+                return     # We are being stopped because the whole process is terminating
 
             async def recreate_later ():
+                """Wait for our Kubernetes object to actually go off the books; then recreate it."""
                 for _ in range(0, 30):
                     if not await self.exists():
                         await self.ensure_exists()
