@@ -34,7 +34,7 @@ abstract class Plugin {
 			'wp-gutenberg-epfl'  => new WPGutenbergEpflPlugin(),
 			'wp-media-folder' => new WPMediaFolderPlugin(),
 			'Inside' => new EPFLIntranetPlugin(),
-			'EPFLRestauration' => new EPFLRestaurationPlugin(),
+			'Restauration' => new EPFLRestaurationPlugin(),
 			 // 'Emploi' => new EmploiPlugin(),
 			'Library' => new LibraryPlugin(),
 			'CDHSHS' => new CDHSHSPlugin(), // EPFL Courses Search Engine plugin
