@@ -164,11 +164,11 @@ class PerNamespaceObjectCounter:
                     except BaseException as e:
                         logging.error(e)
 
-            for created_namespace in after - before:
+            for populated_namespace in after - before:
                 for callback in self.on_namespace_populated_callbacks:
                     # TODO: should feed as a kopf sub-task, rather than this try/catch.
                     try:
-                        await callback(created_namespace)
+                        await callback(populated_namespace)
                     except BaseException as e:
                         logging.error(e)
 
