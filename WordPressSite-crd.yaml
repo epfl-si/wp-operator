@@ -48,17 +48,6 @@ spec:
                 description: Path to the WordpressSite
                 type: string
                 pattern: ^/(.*)
-              visibility:
-                description: Set the visibility of the WordpressSite (public / internal)
-                type: string
-                pattern: ^(public|internal)$
-              kubernetes:
-                description: WordpressSite's k8s related properties
-                type: object
-                properties:
-                  service:
-                    description: Defines which service WordpressSite will be deployed to (ex-environment)
-                    type: string
               wordpress:
                 description: WordpressSite's own specs
                 type: object
@@ -128,8 +117,6 @@ spec:
             required:
               - hostname
               - path
-              - visibility
-              - kubernetes
               - wordpress
               - epfl
           history:
