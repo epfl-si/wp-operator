@@ -156,7 +156,7 @@ class WordPressSiteOperator:
       }
       self.patch = patch
 
-  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret):
+  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, subdomain_name):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
       # https://stackoverflow.com/a/89243
       result = subprocess.run([Config.php, "ensure-wordpress-and-theme.php",
@@ -172,7 +172,8 @@ class WordPressSiteOperator:
                                f"--plugins={plugins}",
                                f"--unit-id={unit_id}",
                                f"--languages={languages}",
-                               f"--secret-dir={Config.secret_dir}"], capture_output=True, text=True)
+                               f"--secret-dir={Config.secret_dir}",
+                               f"--subdomain-name={subdomain_name}"], capture_output=True, text=True)
       print(result.stdout)
       if "WordPress and plugins successfully installed" not in result.stdout:
           raise subprocess.CalledProcessError(0, "PHP script failed")
@@ -577,6 +578,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       tagline = wordpress["tagline"]
       plugins = wordpress["plugins"]
       unit_id = epfl["unit_id"]
+      subdomain_name = epfl["subdomain_name"]
       languages = wordpress["languages"]
 
       secret = secrets.token_urlsafe(32)
@@ -588,7 +590,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       self.create_ingress(path, secret)
 
       if (not import_from_os3):
-          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret)
+          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret, subdomain_name)
       else:
           environment = import_from_os3["environment"]
           ansible_host = import_from_os3["ansibleHost"]
