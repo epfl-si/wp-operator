@@ -378,11 +378,17 @@ location = {path}/wp-admin {{
 location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {{
     rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
     root /wp/6/;
+    location ~* \.(ico|pdf|flv|jpg|jpeg|png|gif|swf|svg)$ {{
+        add_header Cache-Control "129600, public";
+        # rewrite is not inherited https://stackoverflow.com/a/32126596
+        rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
+    }}
 }}
 
 location ~ (wp-content/uploads)/ {{
     rewrite .*/(wp-content/uploads/(.*)) /$2 break;
     root /data/{self.name}/uploads/;
+    add_header Cache-Control "129600, public";
 }}
 
 fastcgi_param WP_DEBUG           true;
