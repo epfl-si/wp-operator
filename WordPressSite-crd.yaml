@@ -104,8 +104,11 @@ spec:
                     description: WordpressSite's EPFL unit ID
                     type: integer
                     pattern: ^\d{5}$
-                  unit_name:
-                    description: WordpressSite's EPFL unit name
+                  environment_os4:
+                    description: OpenShift4 site environment
+                    type: string
+                  subdomain_name:
+                    description: Site's subdomain name
                     type: string
                   importFromOS3:
                     description: Import database from existing OpenShift 3 site
@@ -121,6 +124,7 @@ spec:
                         pattern: ^[a-z_]+$
                 required:
                   - unit_id
+                  - subdomain_name
             required:
               - hostname
               - path
@@ -141,6 +145,10 @@ spec:
         type: string
         description: "URL path of the site"
         jsonPath: ".spec.path"
+      - name: Subdomain
+        type: string
+        description: "WordPress site's subdomain name"
+        jsonPath: ".spec.epfl.subdomain_name"
       - name: Unit
         type: string
         description: "WordPress site's unit"
