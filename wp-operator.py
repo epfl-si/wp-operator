@@ -41,7 +41,7 @@ class Config:
         parser.add_argument('--db-host', help='Hostname of the database to connect to with PHP.',
                             default="mariadb-min")
         parser.add_argument('--secret-dir', help='Secret file\'s directory.',
-                            default="/home/rmaggi/dev/wp-dev-nginx/wp-operator/dev/secretFiles")
+                            default="dev/secretFiles")
         return parser
 
     @classmethod
