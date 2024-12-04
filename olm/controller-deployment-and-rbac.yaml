@@ -1,0 +1,33 @@
+# Any and all Kubernetes objects that are necessary and sufficient
+# to run the controller as a pod.
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wordpress-olm-controller
+  namespace: placeholder
+spec:
+  selector:
+    matchLabels:
+      wordpress-operator-role: olm-controller
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        wordpress-operator-role: olm-controller
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: wordpress-olm-controller
+      containers:
+      - name: controller
+#       image: controller:latest
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 10m
+            memory: 128Mi
+---
