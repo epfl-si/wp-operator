@@ -53,7 +53,6 @@ class Config:
 
         cmdline = cls.parser().parse_args(argv)
         cls.php = cmdline.php
-        cls.wp_php_ensure = cmdline.wp_php_ensure # TODO delete
         cls.wp_dir = os.path.join(cmdline.wp_dir, '')
         cls.wp_host = cmdline.wp_host
         cls.db_host = cmdline.db_host
@@ -101,11 +100,6 @@ class classproperty:
         self.fget = func
     def __get__(self, instance, owner):
         return self.fget(owner)
-
-
-# @kopf.on.update('wordpresssites')
-# def on_update_wordpresssite(spec, name, namespace, logger, **kwargs):
-#     WordPressSiteOperator(name, namespace).update_fn(spec, logger)
 
 class KubernetesAPI:
   __singleton = None
@@ -162,7 +156,6 @@ class WordPressSiteOperator:
 
   def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, subdomain_name):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
-      logging.info(f"ensure-wordpress-and-theme.php --name={self.name} --path={path} --wp-dir={Config.wp_dir} --wp-host={Config.wp_host} --db-host={Config.db_host} --db-name={self.prefix['db']}{self.name} --db-user={self.prefix['user']}{self.name} --db-password={secret} --title={title} --tagline={tagline} --plugins={plugins} --unit-id={unit_id} --languages={languages} --secret-dir={Config.secret_dir} --subdomain-name={subdomain_name}")
       # https://stackoverflow.com/a/89243
       result = subprocess.run([Config.php, "ensure-wordpress-and-theme.php",
                                f"--name={self.name}", f"--path={path}",
@@ -603,7 +596,6 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       self.create_ingress(path, secret)
 
       if (not import_from_os3):
-          #logging.info(f"ensure-wordpress-and-theme.php --name={self.name} --path={path} --wp-dir={Config.wp_dir} --wp-host={Config.wp_host} --db-host={Config.db_host} --db-name={self.prefix['db']}{self.name} --db-user={self.prefix['user']}{self.name} --db-password={secret} --title='{title}' --tagline='{tagline}' --plugins={plugins} --unit-id={unit_id} --languages={languages} --secret-dir={Config.secret_dir} --subdomain-name={subdomain_name}")
           self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret, subdomain_name)
       else:
           environment = import_from_os3["environment_os3"]
@@ -628,30 +620,6 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       # Deleting grant
       self.delete_custom_object_mariadb(self.prefix['grant'], "grants")
       self.delete_ingress()
-
-  # def update_fn(self, spec, logger):
-  #     # https://kopf.readthedocs.io/en/latest/walkthrough/updates/
-  #     logging.info(f"Update WordPressSite {self.name=} in {self.namespace=}")
-  #     path = spec.get('path')
-  #     wordpress = spec.get("wordpress")
-  #     epfl = spec.get("epfl")
-  #     title = wordpress["title"]
-  #     tagline = wordpress["tagline"]
-  #     plugins = wordpress["plugins"]
-  #     unit_id = epfl["unit_id"]
-  #     languages = wordpress["languages"]
-  #
-  #     secret = "secret" # Password, for the moment hard coded.
-  #
-  #     # self.update_database()
-  #     # self.update_secret(secret)
-  #     # self.update_user()
-  #     # self.update_grant()
-  #     # self.update_ingress(path)
-  #
-  #     # self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages))
-  #
-  #     logging.info(f"End of update WordPressSite {self.name=} in {self.namespace=}")
 
 class WordPressCRDOperator:
   # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
