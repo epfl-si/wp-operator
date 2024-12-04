@@ -127,7 +127,7 @@ global $table_prefix; $table_prefix = "wp_";
 define("WP_ADMIN", true);
 define("WP_INSTALLING", true);
 require_once( ABSPATH . 'wp-settings.php' );
-require_once ABSPATH . 'wp-admin/includes/plugin.php';
+require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
 
 function ensure_db_schema () {
   require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
