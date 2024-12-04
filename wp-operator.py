@@ -1,6 +1,6 @@
 # Kopf documentation : https://kopf.readthedocs.io/
 #
-# Run with `python3 wpn-kopf.py run -- --db-host mariadb-min.wordpress-test.svc`
+# Run with `python3 wp-operator.py run -- --db-host mariadb-min.wordpress-test.svc`
 #
 import argparse
 import kopf
@@ -26,7 +26,7 @@ class Config:
     @classmethod
     def parser(cls):
         parser = argparse.ArgumentParser(
-            prog='wpn-kopf',
+            prog='wp-operator',
             description='The WordPress Next Operator',
             epilog='Happy operating!')
 
@@ -62,7 +62,7 @@ class Config:
     @classmethod
     def script_dir(cls):
         for arg in cls.saved_argv:
-            if "wpn-kopf.py" in arg:
+            if "wp-operator.py" in arg:
                 script_full_path = os.path.join(os.getcwd(), arg)
                 return os.path.dirname(script_full_path)
         return "."  # Take a guess
@@ -74,7 +74,7 @@ class Config:
     @classmethod
     def splice_our_argv(cls):
         if "--" in sys.argv:
-            # E.g.   python3 ./wpn-kopf.py run -n wordpress-toto -- --php=/usr/local/bin/php --wp-dir=yadda/yadda
+            # E.g.   python3 ./wp-operator.py run -n wordpress-toto -- --php=/usr/local/bin/php --wp-dir=yadda/yadda
             end_of_kopf = sys.argv.index("--")
             ret = sys.argv[end_of_kopf + 1:]
             sys.argv[end_of_kopf:] = []
@@ -102,6 +102,10 @@ class classproperty:
     def __get__(self, instance, owner):
         return self.fget(owner)
 
+
+# @kopf.on.update('wordpresssites')
+# def on_update_wordpresssite(spec, name, namespace, logger, **kwargs):
+#     WordPressSiteOperator(name, namespace).update_fn(spec, logger)
 
 class KubernetesAPI:
   __singleton = None
@@ -158,6 +162,7 @@ class WordPressSiteOperator:
 
   def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, subdomain_name):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
+      logging.info(f"ensure-wordpress-and-theme.php --name={self.name} --path={path} --wp-dir={Config.wp_dir} --wp-host={Config.wp_host} --db-host={Config.db_host} --db-name={self.prefix['db']}{self.name} --db-user={self.prefix['user']}{self.name} --db-password={secret} --title={title} --tagline={tagline} --plugins={plugins} --unit-id={unit_id} --languages={languages} --secret-dir={Config.secret_dir} --subdomain-name={subdomain_name}")
       # https://stackoverflow.com/a/89243
       result = subprocess.run([Config.php, "ensure-wordpress-and-theme.php",
                                f"--name={self.name}", f"--path={path}",
@@ -174,7 +179,9 @@ class WordPressSiteOperator:
                                f"--languages={languages}",
                                f"--secret-dir={Config.secret_dir}",
                                f"--subdomain-name={subdomain_name}"], capture_output=True, text=True)
+
       print(result.stdout)
+
       if "WordPress and plugins successfully installed" not in result.stdout:
           raise subprocess.CalledProcessError(0, "PHP script failed")
       else:
@@ -596,6 +603,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       self.create_ingress(path, secret)
 
       if (not import_from_os3):
+          #logging.info(f"ensure-wordpress-and-theme.php --name={self.name} --path={path} --wp-dir={Config.wp_dir} --wp-host={Config.wp_host} --db-host={Config.db_host} --db-name={self.prefix['db']}{self.name} --db-user={self.prefix['user']}{self.name} --db-password={secret} --title='{title}' --tagline='{tagline}' --plugins={plugins} --unit-id={unit_id} --languages={languages} --secret-dir={Config.secret_dir} --subdomain-name={subdomain_name}")
           self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret, subdomain_name)
       else:
           environment = import_from_os3["environment_os3"]
@@ -621,6 +629,29 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       self.delete_custom_object_mariadb(self.prefix['grant'], "grants")
       self.delete_ingress()
 
+  # def update_fn(self, spec, logger):
+  #     # https://kopf.readthedocs.io/en/latest/walkthrough/updates/
+  #     logging.info(f"Update WordPressSite {self.name=} in {self.namespace=}")
+  #     path = spec.get('path')
+  #     wordpress = spec.get("wordpress")
+  #     epfl = spec.get("epfl")
+  #     title = wordpress["title"]
+  #     tagline = wordpress["tagline"]
+  #     plugins = wordpress["plugins"]
+  #     unit_id = epfl["unit_id"]
+  #     languages = wordpress["languages"]
+  #
+  #     secret = "secret" # Password, for the moment hard coded.
+  #
+  #     # self.update_database()
+  #     # self.update_secret(secret)
+  #     # self.update_user()
+  #     # self.update_grant()
+  #     # self.update_ingress(path)
+  #
+  #     # self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages))
+  #
+  #     logging.info(f"End of update WordPressSite {self.name=} in {self.namespace=}")
 
 class WordPressCRDOperator:
   # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
