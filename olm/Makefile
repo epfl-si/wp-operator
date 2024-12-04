@@ -81,6 +81,7 @@ bundle-tmp/manifests/clusterserviceversion.yaml: \
 # bundle` expects:
 	if ! grep ISAS-FSD $@ >/dev/null; then exit 200; fi
 	if grep 'deployments: \[\]' $@  >/dev/null; then exit 201; fi
+	if ! grep 'clusterPermissions:' $@  >/dev/null; then exit 202; fi
 
 	@rm -rf bundle-tmp/csv-tmp
 
