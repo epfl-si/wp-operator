@@ -1,0 +1,45 @@
+# This is the skeleton ClusterServiceVersion that OLM copies (by
+# default) into every single namespace of your cluster.
+#
+# `make bundle-tmp/manifests/clusterserviceversion.yaml` uses the
+# `operator-sdk generate bundle` command to enrich this template with
+# the operator's CRDs; the `Deployment` that runs wp-olm-controller.py
+# in the cluster (only once); and the `ServiceAccount` with RBAC that
+# are necessary and sufficient for said wp-olm-controller.py to do its
+# job.
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: wordpress-operator.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions: {}
+  description: WordPress operator
+  displayName: WordPress operator
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - WordPress
+  - EPFL
+  links:
+  - name: WordPress Operator
+    url: https://github.com/epfl-si/wp-operator/
+  maintainers:
+  - email: isas-fsd@groupes.epfl.ch
+    name: ISAS-FSD
+  maturity: alpha
+  provider:
+    name: epfl.ch
+    url: github.com/epfl-si
+  version: 0.0.0

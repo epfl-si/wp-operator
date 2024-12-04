@@ -50,9 +50,44 @@ controller-build: $(_docker_build_reqs) ## Build the OLM controller docker image
 controller-push: ## Push the OLM controller docker image.
 	docker push ${IMG}
 
+
+#############################################################################
+##@ Building the bundle image (which holds the OLM catalog info)
+
+CONTROLLER_IMG ?= $(shell echo $(IMG) \
+  | sed 's|quay-its.epfl.ch|anonymous.apps.t-ocp-its-01.xaas.epfl.ch|')
+_subst_controller_image := sed -e 's|^\#\( *image: \)controller:latest| \1 $(CONTROLLER_IMG)|'
+
+BUNDLE_GEN_FLAGS ?=  --version $(VERSION) $(BUNDLE_ADDITIONAL_FLAGS)
+
+bundle-tmp/manifests/clusterserviceversion.yaml: \
+  clusterserviceversion-tmpl.yaml \
+  controller-deployment-and-rbac.yaml
+	install -d $(dir $@)
+	rm -rf bundle-tmp/csv-tmp; mkdir -p bundle-tmp/csv-tmp
+
+	set -e -x; for file in $^ ; do cat $$file ; echo "---"; done | \
+	    $(_subst_controller_image) | \
+	    ( yq . || cat ) | \
+	(cd bundle-tmp/csv-tmp; operator-sdk generate bundle \
+	        --package wordpress-operator \
+	        --verbose --output-dir . $(BUNDLE_GEN_FLAGS))
+
+	cp $$(find bundle-tmp/csv-tmp/manifests/ -name *.clusterserviceversion.yaml) $@
+
+# Some sanity checks against the produced ClusterServiceVersion - If
+# your build fails here, check for syntax errors in your source YAML,
+# or name mismatches with respect to what `operator-sdk generate
+# bundle` expects:
+	if ! grep ISAS-FSD $@ >/dev/null; then exit 200; fi
+	if grep 'deployments: \[\]' $@  >/dev/null; then exit 201; fi
+
+	@rm -rf bundle-tmp/csv-tmp
+
+#############################################################################
 ##@ Cleanup
 
 .PHONY: clean
 clean: ## Remove intermediate files and built Docker images
-	rm -rf controller-build-tmp
+	rm -rf controller-build-tmp bundle-tmp
 	docker rmi $(IMG) || true
