@@ -2,5 +2,5 @@
 
 class EPFLIntranetPlugin extends Plugin
 {
-	protected $pluginPath = "epfl-intranet/epfl-intranet.php";
+  protected $pluginPath = "epfl-intranet/epfl-intranet.php";
 }

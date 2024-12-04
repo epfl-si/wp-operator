@@ -197,60 +197,59 @@ function ensure_theme ( $options ) {
 }
 
 function ensure_plugins () {
-	# This is the default plugin list that should be activated at installation
-	$defaultPlugins = array(
-		"Polylang",
-		"EPFL-Content-Filter",
-		"EPFL-settings",
-		"EPFL-Accred",
-		"Enlighter",
-		"EPFL-404",
-		"epfl-cache-control",
-		"epfl-coming-soon",
-		"epfl-remote-content-shortcode",
-		"ewww-image-optimizer",
-		"find-my-blocks",
-		"flowpaper",
-		//"svg-support",
-		"EPFL-Tequila",
-		"tinymce-advanced",
-		"vsmd",
-		"wp-gutenberg-epfl",
-		"wp-media-folder"
-	);
+  # This is the default plugin list that should be activated at installation
+  $defaultPlugins = array(
+    "Polylang",
+    "EPFL-Content-Filter",
+    "EPFL-settings",
+    "EPFL-Accred",
+    "Enlighter",
+    "EPFL-404",
+    "epfl-cache-control",
+    "epfl-coming-soon",
+    "epfl-remote-content-shortcode",
+    "ewww-image-optimizer",
+    "find-my-blocks",
+    "flowpaper",
+    "EPFL-Tequila",
+    "tinymce-advanced",
+    "vsmd",
+    "wp-gutenberg-epfl",
+    "wp-media-folder"
+  );
 
-	$specificPlugin = [];
-	if (PLUGINS !== null) {
-		$specificPlugin = explode(',', PLUGINS);
-	}
-	$pluginList = array_merge($defaultPlugins, $specificPlugin);
-	if (SUBDOMAIN_NAME === 'www.epfl.ch') {
-		array_push($pluginList, "epfl-menus");
-	}
+  $specificPlugin = [];
+  if (PLUGINS !== null) {
+    $specificPlugin = explode(',', PLUGINS);
+  }
+  $pluginList = array_merge($defaultPlugins, $specificPlugin);
+  if (SUBDOMAIN_NAME === 'www.epfl.ch') {
+    array_push($pluginList, "epfl-menus");
+  }
 
-	$languagesList = explode(',', LANGUAGES);
+  $languagesList = explode(',', LANGUAGES);
 
-	foreach ($pluginList as $pluginName) {
-		$plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR, $languagesList, ABSPATH);
-		$activatedPlugin = activate_plugin($plugin->getPluginPath());
-		if ($activatedPlugin instanceof WP_Error) {
-			throw new ErrorException(var_dump($activatedPlugin->errors) . " - " . $plugin->getPluginPath());
-		}
-		$plugin->addSpecialConfiguration();
-		$plugin->updateOptions();
-	}
+  foreach ($pluginList as $pluginName) {
+    $plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR, $languagesList, ABSPATH);
+    $activatedPlugin = activate_plugin($plugin->getPluginPath());
+    if ($activatedPlugin instanceof WP_Error) {
+      throw new ErrorException(var_dump($activatedPlugin->errors) . " - " . $plugin->getPluginPath());
+    }
+    $plugin->addSpecialConfiguration();
+    $plugin->updateOptions();
+  }
 }
 
 function delete_default_pages_and_posts () {
-	$pages = get_posts([
-		'post_type' => ['page', 'post'],
-		'posts_per_page' => -1, // get all
-		'post_status' => array_keys(get_post_statuses()), // all post statuses (publish, draft, private etc...)
-	]);
+  $pages = get_posts([
+    'post_type' => ['page', 'post'],
+    'posts_per_page' => -1, // get all
+    'post_status' => array_keys(get_post_statuses()), // all post statuses (publish, draft, private etc...)
+  ]);
 
-	foreach ($pages as $page) {
-		wp_delete_post($page->ID, true);
-	}
+  foreach ($pages as $page) {
+    wp_delete_post($page->ID, true);
+  }
 }
 
 // https://stackoverflow.com/a/31284266

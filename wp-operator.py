@@ -686,7 +686,6 @@ class WordPressCRDOperator:
       return False
 
 
-
 if __name__ == '__main__':
     Config.load_from_command_line()
     sys.exit(kopf.cli.main())

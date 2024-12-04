@@ -2,5 +2,5 @@
 
 class EPFLSettingsPlugin extends Plugin
 {
-	protected $pluginPath = "EPFL-settings/EPFL-settings.php";
+  protected $pluginPath = "EPFL-settings/EPFL-settings.php";
 }
