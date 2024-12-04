@@ -182,9 +182,6 @@ class PerNamespaceObjectCounter:
 
 
 if __name__ == '__main__':
-    crd = KubernetesObjectData.load('WordPressSite-crd.yaml')
-    ClusterWideExistenceOperator(crd).hook()
-
     sites = PerNamespaceObjectCounter('wordpresssites')
     sites.hook()
 
