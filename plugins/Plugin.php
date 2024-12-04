@@ -3,14 +3,14 @@
 $files = glob('./plugins/*.php');
 
 foreach ($files as $file) {
-	if ($file != 'Plugin.php'){
-		require_once($file);
-	}
+  if ($file != 'Plugin.php'){
+    require_once($file);
+  }
 }
 
 abstract class Plugin {
-	protected $pluginPath;
-	protected $secrets_dir;
+  protected $pluginPath;
+  protected $secrets_dir;
 
 	public static function create($pluginName, $unit_id, $secrets_dir, $languagesList, $wpDirPath) {
 		$pluginDict = array(
@@ -53,26 +53,26 @@ abstract class Plugin {
 		}
 	}
 
-	public function addSpecialConfiguration() {}
+  public function addSpecialConfiguration() {}
 
-	public function updateOptions()
-	{
-		foreach (get_object_vars($this) as $property => $value) {
-			if ($property != 'pluginPath') {
-				update_option( $property, $value );
-			}
-		}
-	}
+  public function updateOptions()
+  {
+    foreach (get_object_vars($this) as $property => $value) {
+      if ($property != 'pluginPath') {
+        update_option( $property, $value );
+      }
+    }
+  }
 
-	public function getPluginPath(): string
-	{
-		return $this->pluginPath;
-	}
+  public function getPluginPath(): string
+  {
+    return $this->pluginPath;
+  }
 
-	public function getSecretValue($secretName): string {
-		$myfile = fopen("$this->secrets_dir/$secretName", "r") or die("Unable to open file!");
-		$secret_value = fread($myfile,filesize("$this->secrets_dir/$secretName"));
-		fclose($myfile);
-		return $secret_value;
-	}
+  public function getSecretValue($secretName): string {
+    $myfile = fopen("$this->secrets_dir/$secretName", "r") or die("Unable to open file!");
+    $secret_value = fread($myfile,filesize("$this->secrets_dir/$secretName"));
+    fclose($myfile);
+    return $secret_value;
+  }
 }

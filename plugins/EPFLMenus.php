@@ -2,5 +2,5 @@
 
 class EPFLMenusPlugin extends Plugin
 {
-	protected $pluginPath = "epfl-menus/epfl-menus.php";
+  protected $pluginPath = "epfl-menus/epfl-menus.php";
 }
