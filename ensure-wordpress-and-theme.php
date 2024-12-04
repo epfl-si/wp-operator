@@ -38,11 +38,11 @@ $longopts  = array(
     "db-name:",
     "db-user:",
     "db-password:",
-	"plugins:",
-	"unit-id:",
-	"languages:",
-	"secret-dir:",
-	"subdomain-name:"
+    "plugins:",
+    "unit-id:",
+    "languages:",
+    "secret-dir:",
+    "subdomain-name:"
 );
 $options = getopt($shortops, $longopts);
 if ( key_exists("h", $options) ) {
