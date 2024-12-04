@@ -325,7 +325,7 @@ class WordPressSiteOperator:
 
       iteration = 0;
       while(True):
-          newUser = self.api.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
+          newUser = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
                                                                  version="v1alpha1",
                                                                  namespace=self.namespace,
                                                                  plural=customObjectType,
@@ -338,8 +338,8 @@ class WordPressSiteOperator:
                   else:
                       pass
 
-          if iteration < 30:
-              time.sleep(2)
+          if iteration < 12:
+              time.sleep(5)
               iteration = iteration + 1
           else:
               raise kopf.PermanentError(f"create {customObjectName} failed, message: f{message}")
@@ -425,7 +425,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
     )
 
     try:
-        self.api.networking.create_namespaced_ingress(
+        KubernetesAPI.networking.create_namespaced_ingress(
             namespace=self.namespace,
             body=body
         )
@@ -436,7 +436,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
 
   def delete_ingress(self):
       try:
-        self.api.networking.delete_namespaced_ingress(
+        KubernetesAPI.networking.delete_namespaced_ingress(
             namespace=self.namespace,
             name=self.name
         )
@@ -556,7 +556,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       restore_name = restore["metadata"]["name"]
       # Wait until the restore completes (either in error or successfully)
       while(True):
-          restored = self.api.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
+          restored = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
             version="v1alpha1",
             namespace=self.namespace,
             plural="restores",
