@@ -35,7 +35,8 @@ help: ## Display this help.
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE_TAG_BASE):v$(VERSION)
 
-_dependencies_from_dotdot = requirements.txt
+_dependencies_from_dotdot = requirements.txt \
+	operator.yaml
 _docker_build_reqs = $(patsubst %,controller-build-tmp/%,$(_dependencies_from_dotdot))
 $(_docker_build_reqs): controller-build-tmp/%: ../%
 	@mkdir $(dir $@) 2>/dev/null || true
