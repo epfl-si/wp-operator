@@ -12,46 +12,44 @@ abstract class Plugin {
   protected $pluginPath;
   protected $secrets_dir;
 
-	public static function create($pluginName, $unit_id, $secrets_dir, $languagesList, $wpDirPath) {
-		$pluginDict = array(
-			'Polylang' => new PolylangPlugin($languagesList, $wpDirPath),
-			'EPFL-Content-Filter' => new EPFLContentFilterPlugin(),
-			'EPFL-settings'  => new EPFLSettingsPlugin(),
-			'EPFL-Accred'  => new EPFLAccredPlugin($unit_id),
-			'Enlighter'  => new EnlighterPlugin(),
-			'EPFL-404'  => new EPFL404Plugin(),
-			'epfl-cache-control'  => new EPFLCacheControlPlugin(),
-			'epfl-coming-soon'  => new EPFLComingSoonPlugin(),
-			'epfl-menus'  => new EPFLMenusPlugin(),
-			'epfl-remote-content-shortcode'  => new EPFLRemoteContentShortcodePlugin(),
-			'ewww-image-optimizer'  => new EwwwImageOptimizerPlugin(),
-			'find-my-blocks'  => new FindMyBlocksPlugin(),
-			'flowpaper'  => new FlowpaperPlugin(),
-			// 'svg-support'  => new SVGSupportPlugin(),
-			'EPFL-Tequila'  => new EPFLTequilaPlugin(),
-			'tinymce-advanced'  => new TinymceAdvancedPlugin(),
-			'vsmd'  => new VSMDPlugin(),
-			'wp-gutenberg-epfl'  => new WPGutenbergEpflPlugin(),
-			'wp-media-folder' => new WPMediaFolderPlugin(),
-			'Inside' => new EPFLIntranetPlugin(),
-			'Restauration' => new EPFLRestaurationPlugin(),
-			 // 'Emploi' => new EmploiPlugin(),
-			'Library' => new LibraryPlugin(),
-			'CDHSHS' => new CDHSHSPlugin(), // EPFL Courses Search Engine plugin
-			'WPForms' => new WPFormsPlugin(),
-			'Payonline' => new PayonlinePlugin(),
-			'Surveys' => new SurveysPlugin(),
-			'DiplomaVerification' => new DiplomaVerificationPlugin(),
-			'PartnerUniversities' => new PartnerUniversitiesPlugin()
-		);
-		if (array_key_exists($pluginName, $pluginDict)) {
-			$plugin = $pluginDict[$pluginName];
-			$plugin->secrets_dir = $secrets_dir;
-			return $plugin;
-		} else {
-			throw new Exception("Plugin not found: $pluginName");
-		}
-	}
+  public static function create($pluginName, $unit_id, $secrets_dir, $languagesList, $wpDirPath) {
+    $pluginDict = array(
+      'CDHSHS' => new CDHSHSPlugin(), // EPFL Courses Search Engine plugin
+      'DiplomaVerification' => new DiplomaVerificationPlugin(),
+      'Enlighter' => new EnlighterPlugin(),
+      'EPFL-404' => new EPFL404Plugin(),
+      'EPFL-Accred' => new EPFLAccredPlugin($unit_id),
+      'epfl-cache-control' => new EPFLCacheControlPlugin(),
+      'epfl-coming-soon' => new EPFLComingSoonPlugin(),
+      'EPFL-Content-Filter' => new EPFLContentFilterPlugin(),
+      'epfl-menus' => new EPFLMenusPlugin(),
+      'epfl-remote-content-shortcode' => new EPFLRemoteContentShortcodePlugin(),
+      'EPFL-settings' => new EPFLSettingsPlugin(),
+      'EPFL-Tequila' => new EPFLTequilaPlugin(),
+      'ewww-image-optimizer' => new EwwwImageOptimizerPlugin(),
+      'find-my-blocks' => new FindMyBlocksPlugin(),
+      'flowpaper' => new FlowpaperPlugin(),
+      'Inside' => new EPFLIntranetPlugin(),
+      'Library' => new LibraryPlugin(),
+      'PartnerUniversities' => new PartnerUniversitiesPlugin(),
+      'Polylang' => new PolylangPlugin($languagesList, $wpDirPath),
+      'Payonline' => new PayonlinePlugin(),
+      'Restauration' => new EPFLRestaurationPlugin(),
+      'Surveys' => new SurveysPlugin(),
+      'tinymce-advanced' => new TinymceAdvancedPlugin(),
+      'vsmd' => new VSMDPlugin(),
+      'WPForms' => new WPFormsPlugin(),
+      'wp-gutenberg-epfl' => new WPGutenbergEpflPlugin(),
+      'wp-media-folder' => new WPMediaFolderPlugin(),
+    );
+    if (array_key_exists($pluginName, $pluginDict)) {
+      $plugin = $pluginDict[$pluginName];
+      $plugin->secrets_dir = $secrets_dir;
+      return $plugin;
+    } else {
+      throw new Exception("Plugin not found: $pluginName");
+    }
+  }
 
   public function addSpecialConfiguration() {}
 
