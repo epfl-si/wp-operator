@@ -1,6 +1,6 @@
 # Kopf documentation : https://kopf.readthedocs.io/
 #
-# Run with `python3 wpn-kopf.py run -- --db-host mariadb-min.wordpress-test.svc --wp-php-ensure manage-plugins.php --wp-dir=/home/you/dev/wp-dev/volumes/wp/6/`
+# Run with `python3 wp-operator.py run -- --db-host mariadb-min.wordpress-test.svc`
 #
 import argparse
 import kopf
@@ -17,6 +17,7 @@ import yaml
 import re
 from datetime import datetime, timezone
 import time
+import secrets
 
 class Config:
     secret_name = "nginx-conf-site-tree"
@@ -25,7 +26,7 @@ class Config:
     @classmethod
     def parser(cls):
         parser = argparse.ArgumentParser(
-            prog='wpn-kopf',
+            prog='wp-operator',
             description='The WordPress Next Operator',
             epilog='Happy operating!')
 
@@ -39,6 +40,8 @@ class Config:
                             default=cls.file_in_script_dir("ensure-wordpress-and-theme.php"))
         parser.add_argument('--db-host', help='Hostname of the database to connect to with PHP.',
                             default="mariadb-min")
+        parser.add_argument('--secret-dir', help='Secret file\'s directory.',
+                            default="dev/secretFiles")
         return parser
 
     @classmethod
@@ -50,15 +53,15 @@ class Config:
 
         cmdline = cls.parser().parse_args(argv)
         cls.php = cmdline.php
-        cls.wp_php_ensure = cmdline.wp_php_ensure
         cls.wp_dir = os.path.join(cmdline.wp_dir, '')
         cls.wp_host = cmdline.wp_host
         cls.db_host = cmdline.db_host
+        cls.secret_dir = cmdline.secret_dir
 
     @classmethod
     def script_dir(cls):
         for arg in cls.saved_argv:
-            if "wpn-kopf.py" in arg:
+            if "wp-operator.py" in arg:
                 script_full_path = os.path.join(os.getcwd(), arg)
                 return os.path.dirname(script_full_path)
         return "."  # Take a guess
@@ -70,7 +73,7 @@ class Config:
     @classmethod
     def splice_our_argv(cls):
         if "--" in sys.argv:
-            # E.g.   python3 ./wpn-kopf.py run -n wordpress-toto -- --php=/usr/local/bin/php --wp-dir=yadda/yadda
+            # E.g.   python3 ./wp-operator.py run -n wordpress-toto -- --php=/usr/local/bin/php --wp-dir=yadda/yadda
             end_of_kopf = sys.argv.index("--")
             ret = sys.argv[end_of_kopf + 1:]
             sys.argv[end_of_kopf:] = []
@@ -97,7 +100,6 @@ class classproperty:
         self.fget = func
     def __get__(self, instance, owner):
         return self.fget(owner)
-
 
 class KubernetesAPI:
   __singleton = None
@@ -152,49 +154,40 @@ class WordPressSiteOperator:
       }
       self.patch = patch
 
-  def install_wordpress_via_php(self, path, title, tagline):
+  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, subdomain_name):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
       # https://stackoverflow.com/a/89243
-      result = subprocess.run([Config.php, Config.wp_php_ensure,
+      result = subprocess.run([Config.php, "ensure-wordpress-and-theme.php",
                                f"--name={self.name}", f"--path={path}",
                                f"--wp-dir={Config.wp_dir}",
                                f"--wp-host={Config.wp_host}",
                                f"--db-host={Config.db_host}",
                                f"--db-name={self.prefix['db']}{self.name}",
                                f"--db-user={self.prefix['user']}{self.name}",
-                               f"--db-password=secret",
-                               f"--title={title}", f"--tagline={tagline}"], capture_output=True, text=True)
+                               f"--db-password={secret}",
+                               f"--title={title}",
+                               f"--tagline={tagline}",
+                               f"--plugins={plugins}",
+                               f"--unit-id={unit_id}",
+                               f"--languages={languages}",
+                               f"--secret-dir={Config.secret_dir}",
+                               f"--subdomain-name={subdomain_name}"], capture_output=True, text=True)
+
       print(result.stdout)
-      if "WordPress successfully installed" not in result.stdout:
+
+      if "WordPress and plugins successfully installed" not in result.stdout:
           raise subprocess.CalledProcessError(0, "PHP script failed")
       else:
           logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
 
-  def manage_plugins_php(self, plugins):
-      logging.info(f" ↳ [manage_plugins_php] Configuring (manage-plugins.php) with {self.name=} and {plugins=}")
-      # https://stackoverflow.com/a/89243
-      result = subprocess.run([Config.php, Config.wp_php_ensure,
-                               f"--name={self.name}",
-                               f"--wp-dir={Config.wp_dir}",
-                               f"--wp-host={Config.wp_host}",
-                               f"--db-host={Config.db_host}",
-                               f"--db-name={self.prefix['db']}{self.name}",
-                               f"--db-user={self.prefix['user']}{self.name}",
-                               f"--db-password=secret",
-                               f"--plugins={plugins}"], capture_output=True, text=True)
-      print(result.stdout)
-      if "WordPress plugins successfully installed" not in result.stdout:
-          raise subprocess.CalledProcessError(0, "PHP script failed")
-      else:
-          logging.info(f" ↳ [manage_plugins_php] End of configuring")
-
   def create_database(self):
       logging.info(f" ↳ [{self.namespace}/{self.name}] Create Database {self.prefix['db']}{self.name}")
+      db_name = f"{self.prefix['db']}{self.name}"
       body = {
           "apiVersion": "k8s.mariadb.com/v1alpha1",
           "kind": "Database",
           "metadata": {
-              "name": f"{self.prefix['db']}{self.name}",
+              "name": db_name,
               "namespace": self.namespace
           },
           "spec": {
@@ -218,6 +211,8 @@ class WordPressSiteOperator:
           if e.status != 409:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Database {self.prefix['db']}{self.name} already exists")
+
+      self.waitCustomObjectCreation("databases", db_name)
 
   def create_secret(self, secret):
       secret_name = self.prefix["password"] + self.name
@@ -283,6 +278,7 @@ class WordPressSiteOperator:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] User {user_name} already exists")
 
+      self.waitCustomObjectCreation("users", user_name)
 
   def create_grant(self):
       grant_name = f"{self.prefix['grant']}{self.name}"
@@ -322,6 +318,32 @@ class WordPressSiteOperator:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Grant {grant_name} already exists")
 
+      self.waitCustomObjectCreation("grants", grant_name)
+
+  def waitCustomObjectCreation(self, customObjectType, customObjectName):
+      # Wait until the customobject creation completes (either in error or successfully)
+
+      iteration = 0;
+      while(True):
+          newUser = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
+                                                                 version="v1alpha1",
+                                                                 namespace=self.namespace,
+                                                                 plural=customObjectType,
+                                                                 name=customObjectName)
+          for condition in newUser.get("status", {}).get("conditions", []):
+              if condition.get("type") == "Ready":
+                  message = condition.get("message")
+                  if message == "Created":
+                      return
+                  else:
+                      pass
+
+          if iteration < 12:
+              time.sleep(5)
+              iteration = iteration + 1
+          else:
+              raise kopf.PermanentError(f"create {customObjectName} failed, message: f{message}")
+
   def delete_custom_object_mariadb(self, prefix, plural):
       mariadb_name = prefix + self.name
       logging.info(f" ↳ [{self.namespace}/{self.name}] Delete MariaDB object {mariadb_name}")
@@ -338,7 +360,7 @@ class WordPressSiteOperator:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} already deleted")
 
-  def create_ingress(self, path):
+  def create_ingress(self, path, secret):
     body = client.V1Ingress(
         api_version="networking.k8s.io/v1",
         kind="Ingress",
@@ -356,11 +378,17 @@ location = {path}/wp-admin {{
 location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {{
     rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
     root /wp/6/;
+    location ~* \.(ico|pdf|apng|avif|webp|jpg|jpeg|png|gif|svg)$ {{
+        add_header Cache-Control "129600, public";
+        # rewrite is not inherited https://stackoverflow.com/a/32126596
+        rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
+    }}
 }}
 
 location ~ (wp-content/uploads)/ {{
     rewrite .*/(wp-content/uploads/(.*)) /$2 break;
     root /data/{self.name}/uploads/;
+    add_header Cache-Control "129600, public";
 }}
 
 fastcgi_param WP_DEBUG           true;
@@ -370,7 +398,7 @@ fastcgi_param WP_ABSPATH         /wp/6/;
 fastcgi_param WP_DB_HOST         mariadb-min;
 fastcgi_param WP_DB_NAME         {self.prefix["db"]}{self.name};
 fastcgi_param WP_DB_USER         {self.prefix["user"]}{self.name};
-fastcgi_param WP_DB_PASSWORD     secret;
+fastcgi_param WP_DB_PASSWORD     {secret};
 """
             }
         ),
@@ -396,16 +424,26 @@ fastcgi_param WP_DB_PASSWORD     secret;
         )
     )
 
-    KubernetesAPI.networking.create_namespaced_ingress(
-        namespace=self.namespace,
-        body=body
-    )
+    try:
+        KubernetesAPI.networking.create_namespaced_ingress(
+            namespace=self.namespace,
+            body=body
+        )
+    except ApiException as e:
+        if e.status != 409:
+            raise e
+        logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} already exists")
 
   def delete_ingress(self):
-    KubernetesAPI.networking.delete_namespaced_ingress(
-        namespace=self.namespace,
-        name=self.name
-    )
+      try:
+        KubernetesAPI.networking.delete_namespaced_ingress(
+            namespace=self.namespace,
+            name=self.name
+        )
+      except ApiException as e:
+          if e.status != 404:
+              raise e
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} already deleted")
 
   def get_os3_credentials(self, profile_name):
       logging.info(f"   ↳ [{self.namespace}/{self.name}] Get Restic and S3 secrets")
@@ -492,7 +530,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
           }
 
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Creating restore object in Kubernetes")
-          KubernetesAPI.custom.create_namespaced_custom_object(
+          restore = KubernetesAPI.custom.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
               namespace=self.namespace,
@@ -506,6 +544,7 @@ fastcgi_param WP_DB_PASSWORD     secret;
           pvc_name = "wordpress-test-wp-uploads-pvc-f401a87f-d2e9-4b20-85cc-61aa7cfc9d30"
           copy_media = subprocess.run([f"ssh -t root@itswbhst0020.xaas.epfl.ch 'cp -r /mnt/data-prod-ro/wordpress/{environment}/www.epfl.ch/htdocs{path}/wp-content/uploads/ /mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{self.name}/; chown -R 33:33 /mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{self.name}/uploads'"], shell=True, capture_output=True, text=True)
 
+          logging.info(f"   ↳ {copy_media.stdout}")
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Restored media from OS3")
       except subprocess.CalledProcessError as e:
           logging.error(f"Subprocess error in backup restoration: {e}")
@@ -514,6 +553,24 @@ fastcgi_param WP_DB_PASSWORD     secret;
       except Exception as e:
           logging.error(f"Unexpected error: {e}")
 
+      restore_name = restore["metadata"]["name"]
+      # Wait until the restore completes (either in error or successfully)
+      while(True):
+          restored = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
+            version="v1alpha1",
+            namespace=self.namespace,
+            plural="restores",
+            name=restore_name)
+          for condition in restored.get("status", {}).get("conditions", []):
+              if condition.get("type") == "Complete":
+                  message = condition.get("message")
+                  if message == "Success":
+                      return
+                  elif message == "Running":
+                      pass  # Fall through to the time.sleep() below
+                  else:
+                      raise kopf.PermanentError(f"restore {restore_name} failed, message: f{message}")
+          time.sleep(10)
 
   def create_site(self, spec):
       logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
@@ -525,22 +582,25 @@ fastcgi_param WP_DB_PASSWORD     secret;
       import_from_os3 = epfl.get("importFromOS3")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
+      plugins = wordpress["plugins"]
+      unit_id = epfl["unit_id"]
+      subdomain_name = epfl["subdomain_name"]
+      languages = wordpress["languages"]
 
-      secret = "secret" # Password, for the moment hard coded.
+      secret = secrets.token_urlsafe(32)
 
       self.create_database()
       self.create_secret(secret)
       self.create_user()
       self.create_grant()
-      self.create_ingress(path)
+      self.create_ingress(path, secret)
 
       if (not import_from_os3):
-          self.install_wordpress_via_php(path, title, tagline)
+          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret, subdomain_name)
       else:
-          environment = import_from_os3["environment"]
+          environment = import_from_os3["environment_os3"]
           ansible_host = import_from_os3["ansibleHost"]
           self.restore_wordpress_from_os3(path, environment, ansible_host)
-          self.manage_plugins_php("test,test,test")
 
       self.patch.status['wordpresssite'] = {
           'state': 'created',
@@ -560,7 +620,6 @@ fastcgi_param WP_DB_PASSWORD     secret;
       # Deleting grant
       self.delete_custom_object_mariadb(self.prefix['grant'], "grants")
       self.delete_ingress()
-
 
 class WordPressCRDOperator:
   # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
@@ -594,7 +653,6 @@ class WordPressCRDOperator:
           logging.error(f"Error verifying CRD file: {e}")
       return False
 
-    
 
 if __name__ == '__main__':
     Config.load_from_command_line()
