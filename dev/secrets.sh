@@ -1,7 +1,8 @@
 #!/bin/bash
 mkdir "secretFiles"
 
-# Get plugin secrets from kubectl and save them decoded in the secretFiles directory for development purposes
+# For development purposes, get plugin secrets from kubectl and save them decoded in the secretFiles directory
+# This is not in prod because Kubernetes take care of it
 jsonSecret=$(kubectl get secrets -n wordpress-test wp-plugin-secrets -o json | jq -r '.data')
 for key in $(echo "$jsonSecret" | jq -r 'keys[]'); do
   # Get the value for the current key
