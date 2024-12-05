@@ -1,11 +1,15 @@
 import asyncio
 import copy
+import uuid
 import kopf
 import kopf.cli
 from kubernetes_asyncio import client, config, dynamic
 from kubernetes_asyncio.client import ApiClient
 from kubernetes_asyncio.client.exceptions import ApiException
 from kubernetes_asyncio.dynamic.exceptions import NotFoundError
+from kubernetes.leaderelection import leaderelection
+from kubernetes.leaderelection.resourcelock.configmaplock import ConfigMapLock
+from kubernetes.leaderelection import electionconfig
 import logging
 import os
 import sys
@@ -198,6 +202,8 @@ if __name__ == '__main__':
     @sites.on_namespace_populated
     async def startup_operator (namespace):
         async with ApiClient() as api:
+            # Prevent more than one operator from running in the same namespace
+            # Check if a lock already exists, if yes, prevent a second operator to be created in the same namespace, and if not exist, create a lock & create the operator
             for o in rename_namespaced_objects(namespace):
                 try:
                     await create_dynamic_resource(
