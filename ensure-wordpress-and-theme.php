@@ -269,7 +269,7 @@ function generate_random_password(
 
 ensure_db_schema();
 ensure_other_basic_wordpress_things( $options );
-ensure_admin_user("admin", "admin@exemple.com", generate_random_password());
+ensure_admin_user( "admin", "admin@exemple.com", generate_random_password() );
 ensure_site_title( $options );
 ensure_tagline( $options );
 ensure_theme( $options );
