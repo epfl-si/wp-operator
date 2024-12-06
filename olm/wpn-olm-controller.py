@@ -181,6 +181,14 @@ class PerNamespaceObjectCounter:
         self.on_namespace_emptied_callbacks.append(f)
 
 
+@kopf.on.startup()
+def tune_kopf_settings(settings, **_):
+    settings.posting.level = logging.DEBUG
+    # We are never going to set a finalizer in a WordPressSite object...
+    # but we also do *not* want to keep removing the ones that the
+    # operator sets; and cause a causality loop with it!
+    settings.persistence.finalizer = 'epfl.ch/olm-controller-you-should-never-see-this-finalizer'
+
 if __name__ == '__main__':
     sites = PerNamespaceObjectCounter('wordpresssites')
     sites.hook()
