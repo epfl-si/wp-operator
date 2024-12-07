@@ -1,0 +1,40 @@
+# ⚠ This Dockerfile needs to be built from the directory above this one!
+#
+#   cd ..
+#   docker build -t quay-its.epfl.ch/svc0041/wordpress-olm-bundle:v0.0.1 \
+#       -f olm/Dockerfile.bundle .
+#
+FROM ubuntu:focal AS builder
+
+ARG BUNDLE_VERSION=0.0.1
+
+RUN export DEBIAN_FRONTEND=noninteractive; \
+    apt -qy update; apt -qy install curl
+
+# → https://github.com/operator-framework/operator-sdk/releases
+ARG operator_sdk_release=v1.38.0
+
+# → https://sdk.operatorframework.io/docs/installation/#install-from-github-release
+RUN set -e -x; \
+    export ARCH=$(case $(uname -m) in x86_64) echo -n amd64 ;; aarch64) echo -n arm64 ;; *) echo -n $(uname -m) ;; esac) ; \
+    export OS=$(uname | awk '{print tolower($0)}') ; \
+    export OPERATOR_SDK_DL_URL=https://github.com/operator-framework/operator-sdk/releases/download/${operator_sdk_release}; \
+    curl -Lo /usr/local/bin/operator-sdk ${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}; \
+    chmod +x /usr/local/bin/operator-sdk
+
+RUN mkdir /bundle-gen
+COPY olm/controller-deployment-and-rbac.yaml \
+     olm/clusterserviceversion-tmpl.yaml \
+     /bundle-gen
+
+RUN set -e -x; cd /bundle-gen; \
+    (for i in *.yaml; do cat $i; echo "---"; done) | operator-sdk generate bundle \
+        --package wordpress-operator \
+        --verbose --output-dir . --version ${BUNDLE_VERSION}
+
+# A few sanity checks, as `operator-sdk generate bundle` has a tendency
+# to fail silently:
+RUN test -f                    /bundle-gen/manifests/*clusterserviceversion.yaml
+RUN ! grep 'deployments: \[\]' /bundle-gen/manifests/*clusterserviceversion.yaml
+RUN grep ISAS-FSD              /bundle-gen/manifests/*clusterserviceversion.yaml
+RUN grep 'clusterPermissions:' /bundle-gen/manifests/*clusterserviceversion.yaml
