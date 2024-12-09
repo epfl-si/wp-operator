@@ -41,7 +41,7 @@ class Config:
         parser.add_argument('--db-host', help='Hostname of the database to connect to with PHP.',
                             default="mariadb-min")
         parser.add_argument('--secret-dir', help='Secret file\'s directory.',
-                            default="dev/secretFiles")
+                            default="secretFiles")
         return parser
 
     @classmethod
@@ -577,15 +577,11 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       hostname = spec.get('hostname')
       site_url = hostname + path
       wordpress = spec.get("wordpress")
-      epfl = spec.get("epfl")
-      import_object = epfl.get("import")
-      import_os3_backup_source = import_object.get("openshift3BackupSource")
-      owner = epfl.get("owner")
-      owner_epfl = owner.get("epfl")
+      unit_id = spec.get("owner", {}).get("epfl", {}).get("unitId")
+      import_object = spec.get("epfl", {}).get("import")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
       plugins = wordpress["plugins"]
-      unit_id = owner_epfl["unitId"]
       languages = wordpress["languages"]
 
       secret = secrets.token_urlsafe(32)
@@ -599,6 +595,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       if (not import_object):
           self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret)
       else:
+          import_os3_backup_source = import_object.get("openshift3BackupSource")
           environment = import_os3_backup_source["environment"]
           ansible_host = import_os3_backup_source["ansibleHost"]
           self.restore_wordpress_from_os3(path, environment, ansible_host)
