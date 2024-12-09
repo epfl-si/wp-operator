@@ -692,7 +692,24 @@ class NamespaceLeaderElection:
         # TODO: Retrieve the current namespace (how to do this!!?)
         namespace = 'wordpress-test'
         leader_election = cls(namespace)
-        leaderelection.LeaderElection(leader_election.config).run()
+
+        class QuietLeaderElection(leaderelection.LeaderElection):
+            def update_lock(self, leader_election_record):
+                """(Copied and) overridden to silence the “has successfully acquired lease” message every 5 seconds."""
+                # Update object with latest election record
+                update_status = self.election_config.lock.update(self.election_config.lock.name,
+                                                                 self.election_config.lock.namespace,
+                                                                 leader_election_record)
+        
+                if update_status is False:
+                    logging.info("{} failed to acquire lease".format(leader_election_record.holder_identity))
+                    return False
+        
+                self.observed_record = leader_election_record
+                self.observed_time_milliseconds = int(time.time() * 1000)
+                return True
+
+        QuietLeaderElection(leader_election.config).run()
 
 
 if __name__ == '__main__':
