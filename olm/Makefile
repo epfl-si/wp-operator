@@ -8,7 +8,7 @@ BUNDLE_VERSION := $(shell sed -ne 's/ARG BUNDLE_VERSION=\(.*\)/\1/p' < Dockerfil
 
 _image_stem := quay-its.epfl.ch/svc0041/wordpress-olm
 _bundle_docker_image := $(_image_stem)-bundle:v$(BUNDLE_VERSION)
-_controller_docker_image := $(_image_stem):v$(BUNDLE_VERSION)
+_controller_docker_image := $(_image_stem)-controller:v$(BUNDLE_VERSION)
 
 .PHONY: bundle-build
 bundle-build: ## Build the OLM bundle (metadata) image
