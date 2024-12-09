@@ -664,8 +664,8 @@ class NamespaceFromEnv:
             return os.environ['KUBERNETES_NAMESPACE']
         else:
             # Poor man's `click`
-            for i in range(1, len(sys.argv) - 1):
-                if sys.argv[i] in ('--namespace', '-n'):
+            for i in range(1, len(sys.argv)):
+                if (i < len(sys.argv)) and (sys.argv[i] in ('--namespace', '-n')):
                     return sys.argv[i + 1]
                 else:
                     matched = re.match('--namespace=(.*)$', sys.argv[i])
