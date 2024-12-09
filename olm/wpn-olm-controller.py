@@ -109,13 +109,13 @@ class ClusterWideExistenceOperator:
 
     _kube_config_loaded = False
 
-    async def _load_kube_config (self):
+    async def _load_config (self):
         if not self._kube_config_loaded:
-            await config.load_kube_config()
+            await config.load_config()
             self._kube_config_loaded = True
 
     async def exists (self):
-        await self._load_kube_config()
+        await self._load_config()
         async with ApiClient() as api:
             got = await get_dynamic_resource(api, api_version=self.k8s_object.api_version, kind=self.k8s_object.kind, name=self.k8s_object.name)
             return got.reason != 'NotFound'
