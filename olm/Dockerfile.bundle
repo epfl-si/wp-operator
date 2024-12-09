@@ -26,10 +26,10 @@ COPY olm/controller-deployment-and-rbac.yaml \
      WordPressSite-crd.yaml \
      /bundle-gen
 
-ARG BUNDLE_VERSION=0.0.5
+ARG BUNDLE_VERSION=0.0.7
 
 RUN set -e -x; cd /bundle-gen; \
-    sed -i 's|#\( *image\): controller:latest| \1: anonymous.apps.t-ocp-its-01.xaas.epfl.ch/repository/svc0041/wordpress-olm-controller:'"${BUNDLE_VERSION}"'|' controller-deployment-and-rbac.yaml; \
+    sed -i 's|#\( *image\): controller:latest| \1: anonymous.apps.t-ocp-its-01.xaas.epfl.ch/svc0041/wordpress-olm-controller:v'"${BUNDLE_VERSION}"'|' controller-deployment-and-rbac.yaml; \
     (for i in *.yaml; do cat $i; echo "---"; done) | operator-sdk generate bundle \
         --package wordpress-operator \
         --verbose --output-dir . --version ${BUNDLE_VERSION}
