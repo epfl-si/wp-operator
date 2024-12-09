@@ -725,7 +725,7 @@ class NamespaceLeaderElection:
 
     @classmethod
     def go (cls):
-        config.load_kube_config()
+        config.load_config()
         leader_election = cls()
 
         class QuietLeaderElection(leaderelection.LeaderElection):
