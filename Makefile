@@ -49,4 +49,5 @@ _tag:
 .PHONY: _push
 ## Push the image using `REGISTRY` and `WP_OPERATOR_IMAGE_TAG`
 _push:
+	docker push $(REGISTRY):latest
 	docker push $(REGISTRY):$(WP_OPERATOR_IMAGE_TAG)
