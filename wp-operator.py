@@ -657,15 +657,52 @@ class WordPressCRDOperator:
       return False
 
 
+class NamespaceFromEnv:
+    @classmethod
+    def guess (cls):
+        if 'KUBERNETES_NAMESPACE' in os.environ:
+            return os.environ['KUBERNETES_NAMESPACE']
+        else:
+            # Poor man's `click`
+            for i in range(1, len(sys.argv) - 1):
+                if sys.argv[i] in ('--namespace', '-n'):
+                    return sys.argv[i + 1]
+                else:
+                    matched = re.match('--namespace=(.*)$', sys.argv[i])
+                    if matched:
+                        return matched[1]
+
+        raise ValueError('This is a namespaced-*only* operator. Please set KUBERNETES_NAMESPACE or pass --namespace.')
+
+    guessed = None
+    @classmethod
+    def get (cls):
+        if cls.guessed is None:
+            cls.guessed = cls.guess()
+
+        return cls.guessed
+
+    @classmethod
+    def setup (cls):
+        namespace = cls.get()
+        logging.info(f'Running in namespace {namespace}')
+        os.environ['KUBERNETES_NAMESPACE'] = namespace
+        try:
+            dashdash_position = sys.argv.index('--')
+        except ValueError:
+            dashdash_position = len(sys.argv)
+        sys.argv[dashdash_position:dashdash_position] = [f'--namespace={namespace}']
+
+
 class NamespaceLeaderElection:
-    def __init__(self, namespace):
-        self.lock_namespace = namespace
-        self.lock_name = f"wpn-operator-lock-{namespace}"
+    def __init__(self):
+        self.lock_namespace = NamespaceFromEnv.get()
+        self.lock_name = f"wpn-operator-lock"
         self.candidate_id = uuid.uuid4()
         self.config = electionconfig.Config(
             ConfigMapLock(
-                self.lock_name, 
-                self.lock_namespace, 
+                self.lock_name,
+                self.lock_namespace,
                 self.candidate_id
             ),
             lease_duration = 17,
@@ -689,9 +726,7 @@ class NamespaceLeaderElection:
     @classmethod
     def go (cls):
         config.load_kube_config()
-        # TODO: Retrieve the current namespace (how to do this!!?)
-        namespace = 'wordpress-test'
-        leader_election = cls(namespace)
+        leader_election = cls()
 
         class QuietLeaderElection(leaderelection.LeaderElection):
             def update_lock(self, leader_election_record):
@@ -700,11 +735,11 @@ class NamespaceLeaderElection:
                 update_status = self.election_config.lock.update(self.election_config.lock.name,
                                                                  self.election_config.lock.namespace,
                                                                  leader_election_record)
-        
+
                 if update_status is False:
                     logging.info("{} failed to acquire lease".format(leader_election_record.holder_identity))
                     return False
-        
+
                 self.observed_record = leader_election_record
                 self.observed_time_milliseconds = int(time.time() * 1000)
                 return True
@@ -714,4 +749,5 @@ class NamespaceLeaderElection:
 
 if __name__ == '__main__':
     Config.load_from_command_line()
+    NamespaceFromEnv.setup()
     NamespaceLeaderElection.go()
