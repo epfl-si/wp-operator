@@ -59,6 +59,9 @@ rules:
     resources:
     - secrets
     verbs: ['*']
+  - apiGroups: ['']
+    resources: ['configmaps']
+    verbs: ['*']
 
 ---
 # ClusterRoleBinding/wp-operator

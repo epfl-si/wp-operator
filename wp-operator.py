@@ -697,7 +697,7 @@ class NamespaceFromEnv:
 class NamespaceLeaderElection:
     def __init__(self):
         self.lock_namespace = NamespaceFromEnv.get()
-        self.lock_name = f"wpn-operator-lock"
+        self.lock_name = f"wp-operator-lock"
         self.candidate_id = uuid.uuid4()
         self.config = electionconfig.Config(
             ConfigMapLock(
