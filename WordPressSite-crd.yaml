@@ -116,7 +116,7 @@ spec:
                           environment:
                             description: OpenShift3 site environment (labs, inside, www, subdomains-lite)
                             type: string
-                             pattern: ^(labs|inside|www|subdomains-lite)$
+                            pattern: ^(labs|inside|www|subdomains-lite)$
                           ansibleHost:
                             description: Current host used by Ansible
                             type: string
