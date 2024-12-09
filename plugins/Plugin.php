@@ -70,7 +70,7 @@ abstract class Plugin {
   # kubectl get secrets -n wordpress-test wp-plugin-secrets -o json
   # The pod "operator" will need to consume this secret as a mounted directory with this structure
   public function getSecretValue($secretName): string {
-    $myfile = fopen("$this->secrets_dir/$secretName", "r") or die("Unable to open file!");
+    $myfile = fopen("$this->secrets_dir/$secretName", "r") or die("Unable to open file! Please run the `dev/scripts.sh` script.");
     $secret_value = fread($myfile,filesize("$this->secrets_dir/$secretName"));
     fclose($myfile);
     return $secret_value;
