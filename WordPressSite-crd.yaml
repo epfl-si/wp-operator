@@ -107,6 +107,7 @@ spec:
                     properties:
                       sourceType:
                         description: The type of the data source this site is to be imported from
+                        type: string
                         pattern: ^(openshift3)$
                       openshift3BackupSource:
                         description: Details about the data source in the OpenShift 3 cluster
