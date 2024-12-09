@@ -154,7 +154,7 @@ class WordPressSiteOperator:
       }
       self.patch = patch
 
-  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, subdomain_name):
+  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
       # https://stackoverflow.com/a/89243
       result = subprocess.run([Config.php, "ensure-wordpress-and-theme.php",
@@ -170,8 +170,7 @@ class WordPressSiteOperator:
                                f"--plugins={plugins}",
                                f"--unit-id={unit_id}",
                                f"--languages={languages}",
-                               f"--secret-dir={Config.secret_dir}",
-                               f"--subdomain-name={subdomain_name}"], capture_output=True, text=True)
+                               f"--secret-dir={Config.secret_dir}"], capture_output=True, text=True)
 
       print(result.stdout)
 
@@ -586,7 +585,6 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       tagline = wordpress["tagline"]
       plugins = wordpress["plugins"]
       unit_id = owner_epfl["unitId"]
-      subdomain_name = epfl["subdomain_name"]
       languages = wordpress["languages"]
 
       secret = secrets.token_urlsafe(32)
@@ -598,7 +596,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       self.create_ingress(path, secret)
 
       if (not import_from_os3):
-          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret, subdomain_name)
+          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret)
       else:
           environment = import_from_os3["environment_os3"]
           ansible_host = import_from_os3["ansibleHost"]
