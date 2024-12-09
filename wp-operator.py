@@ -578,7 +578,8 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       site_url = hostname + path
       wordpress = spec.get("wordpress")
       epfl = spec.get("epfl")
-      import_from_os3 = epfl.get("importFromOS3")
+      import_object = epfl.get("import")
+      import_os3_backup_source = import_object.get("openshift3BackupSource")
       owner = epfl.get("owner")
       owner_epfl = owner.get("epfl")
       title = wordpress["title"]
@@ -595,11 +596,11 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       self.create_grant()
       self.create_ingress(path, secret)
 
-      if (not import_from_os3):
+      if (not import_object):
           self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret)
       else:
-          environment = import_from_os3["environment_os3"]
-          ansible_host = import_from_os3["ansibleHost"]
+          environment = import_os3_backup_source["environment"]
+          ansible_host = import_os3_backup_source["ansibleHost"]
           self.restore_wordpress_from_os3(path, environment, ansible_host)
 
       self.patch.status['wordpresssite'] = {
