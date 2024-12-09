@@ -19,6 +19,7 @@ import sys
 import yaml
 import re
 from datetime import datetime, timezone
+import threading
 import time
 import secrets
 import uuid
@@ -670,13 +671,16 @@ class NamespaceLeaderElection:
             lease_duration = 17,
             renew_deadline = 15,
             retry_period = 5,
-            onstarted_leading = self.start_kopf,
+            onstarted_leading = self.start_kopf_in_thread,
             onstopped_leading = self.exit_immediately
         )
 
-    def start_kopf(self):
+    def start_kopf_in_thread(self):
         print(f"Instance {self.candidate_id} is the leader for namespace {self.lock_namespace}.")
-        sys.exit(kopf.cli.main())
+        def do_run_kopf ():
+            sys.exit(kopf.cli.main())
+
+        threading.Thread(target=do_run_kopf).run()
 
     def exit_immediately(self):
         print(f"Instance {self.candidate_id} stopped being the leader for namespace {self.lock_namespace}.")
