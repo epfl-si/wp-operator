@@ -43,10 +43,39 @@ rules:
   - "wordpress.epfl.ch"
   resources:
   - wordpresssites
+  # Specifically deny "patch", to prevent Kopf from scribbling
+  # the `status`:
   verbs:
   - get
   - list
   - watch
+# The controller needs permission to create and delete all
+# (non-namespaced) objects in ../operator.yaml:
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingressclasses
+  resourceNames:
+  - wordpress
+  verbs:
+  - '*'
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  resourceNames:
+  - wp-operator
+  verbs:
+  - '*'
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  resourceNames:
+  - wp-operator
+  verbs:
+  - '*'
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
