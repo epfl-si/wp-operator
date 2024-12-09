@@ -42,12 +42,24 @@ spec:
               hostname:
                 description: Hostname of the desired WordpressSite
                 type: string
-                pattern: ^www.epfl.ch$
+                pattern: (.*).epfl.ch
                 default: www.epfl.ch
               path:
                 description: Path to the WordpressSite
                 type: string
                 pattern: ^/(.*)
+              owner:
+                description: Owner of the WordpressSite
+                type: object
+                properties:
+                  epfl:
+                    description: EPFL-specific ownership information for this WordPressSite
+                    type: object
+                    properties:
+                      unitId:
+                        description: EPFL unit ID of the owner
+                        type: integer
+                        # TODO : Valider le pattern officiel avec ISCS-IAM.
               wordpress:
                 description: WordpressSite's own specs
                 type: object
@@ -89,34 +101,29 @@ spec:
                 description: WordpressSite's EPFL related specs
                 type: object
                 properties:
-                  unit_id:
-                    description: WordpressSite's EPFL unit ID
-                    type: integer
-                    pattern: ^\d{5}$
-                  importFromOS3:
-                    description: Import database from existing OpenShift 3 site
+                  import:
+                    description: Import data from another source
                     type: object
                     properties:
-                      environment_os3:
-                        description: OpenShift3 site environment (labs, inside, www, subdomains-lite)
-                        type: string
-                        pattern: ^(labs|inside|www|subdomains-lite)$
-                      ansibleHost:
-                        description: Current host used by Ansible
-                        type: string
-                        pattern: ^[a-z_]+$
-                required:
-                  - unit_id
-                  - subdomain_name
+                      sourceType:
+                        description: The type of the data source this site is to be imported from
+                        pattern: ^(openshift3)$
+                      openshift3BackupSource:
+                        description: Details about the data source in the OpenShift 3 cluster
+                        type: object
+                        properties:
+                          environment:
+                            description: OpenShift3 site environment (labs, inside, www, subdomains-lite)
+                            type: string
+                             pattern: ^(labs|inside|www|subdomains-lite)$
+                          ansibleHost:
+                            description: Current host used by Ansible
+                            type: string
+                            pattern: ^[a-z_]+$
             required:
               - hostname
               - path
               - wordpress
-              - epfl
-          history:
-            description: History describes the organizational reasons why this WordpressSite exists.
-            type: object
-            x-kubernetes-preserve-unknown-fields: true
           status:
             description: Status defines the observed state of WordpressSite
             type: object
@@ -126,14 +133,10 @@ spec:
         type: string
         description: "URL path of the site"
         jsonPath: ".spec.path"
-      - name: Subdomain
-        type: string
-        description: "WordPress site's subdomain name"
-        jsonPath: ".spec.epfl.subdomain_name"
       - name: Unit
         type: string
         description: "WordPress site's unit"
-        jsonPath: ".spec.epfl.unit_id"
+        jsonPath: ".spec.owner.epfl.unitId"
       - name: Languages
         type: string
         description: "Initial languages for the site"
