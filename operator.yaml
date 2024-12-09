@@ -115,7 +115,7 @@ spec:
       automountServiceAccountToken: true
       containers:
         - name: wp-operator
-          image: quay-its.epfl.ch/svc0041/wp-operator:2024-003
+          image: quay-its.epfl.ch/svc0041/wp-operator:latest
           args:
           - --namespace=wordpress-test
           - --
