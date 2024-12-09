@@ -580,10 +580,12 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       wordpress = spec.get("wordpress")
       epfl = spec.get("epfl")
       import_from_os3 = epfl.get("importFromOS3")
+      owner = epfl.get("owner")
+      owner_epfl = owner.get("epfl")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
       plugins = wordpress["plugins"]
-      unit_id = epfl["unit_id"]
+      unit_id = owner_epfl["unitId"]
       subdomain_name = epfl["subdomain_name"]
       languages = wordpress["languages"]
 
