@@ -26,7 +26,7 @@ COPY olm/controller-deployment-and-rbac.yaml \
      WordPressSite-crd.yaml \
      /bundle-gen
 
-ARG BUNDLE_VERSION=0.0.4
+ARG BUNDLE_VERSION=0.0.5
 
 RUN set -e -x; cd /bundle-gen; \
     sed -i 's|#\( *image\): controller:latest| \1: anonymous.apps.t-ocp-its-01.xaas.epfl.ch/repository/svc0041/wordpress-olm-controller:'"${BUNDLE_VERSION}"'|' controller-deployment-and-rbac.yaml; \
