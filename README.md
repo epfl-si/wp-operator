@@ -59,9 +59,18 @@ Whenever outside the EPFL network, you will need to:
 ### In a Pod
 
 This repository contains the [Dockerfile](./Dockerfile) and an example
-([operator.yaml](./operator.yaml)) to deploy it in a cluster. Please note that
-our deployment is done by Ansible, so dive into [wp-ops] to find the latest
-version.
+([operator.yaml](./operator.yaml)) to deploy it in a cluster.
+
+Just run  `make` for help. Otherwise, use:
+  - `make image` to build a new (latest) image
+  - `make delete` (when needed) to remove previously installed operator
+  - `make deploy` to apply the new operator
+
+When in a development process, use `WP_OPERATOR_IMAGE_TAG=2024-000 make delete
+image deploy` to have a rapid cycle.
+
+Please note that our deployment is done by Ansible, so dive into [wp-ops] to
+find the latest version.
 
 
 ## Contributing
