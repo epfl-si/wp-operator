@@ -56,6 +56,11 @@ rules:
   - wordpress
   verbs: ["*"]
 - apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingressclasses
+  verbs: ["get", "list", "watch"]
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - rolebindings
@@ -70,6 +75,11 @@ rules:
   resourceNames:
   - wp-operator
   verbs: ["*"]
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
