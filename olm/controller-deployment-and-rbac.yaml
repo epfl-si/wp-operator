@@ -23,6 +23,7 @@ spec:
       containers:
       - name: controller
 #       image: controller:latest
+        imagePullPolicy: Always
         resources:
           limits:
             cpu: 500m
