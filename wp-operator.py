@@ -90,37 +90,8 @@ class Config:
 def on_delete_wordpresssite(spec, name, namespace, patch, **kwargs):
     WordPressSiteOperator(name, namespace, patch).delete_site(spec)
 
-class NamespaceLeaderElection:
-    def __init__(self, namespace):
-        self.lock_namespace = namespace
-        self.lock_name = f"wpn-operator-lock-{namespace}"
-        self.candidate_id = uuid.uuid4()
-        self.config = electionconfig.Config(
-            ConfigMapLock(
-                self.lock_name, 
-                self.lock_namespace, 
-                self.candidate_id
-            ),
-            lease_duration = 17,
-            renew_deadline = 15,
-            retry_period = 5,
-            onstarted_leading = self.on_started_leading,
-            onstopped_leading = self.on_stopped_leading
-        )
-
-    def on_started_leading(self):
-        print(f"Instance {self.candidate_id} is the leader for namespace {self.lock_namespace}.")
-
-    def on_stopped_leading(self):
-        print(f"Instance {self.candidate_id} stopped being the leader for namespace {self.lock_namespace}.")
-
 @kopf.on.startup()
 def on_kopf_startup (**kwargs):
-    config.load_kube_config()
-    # TODO: Retrieve the current namespace (how to do this!!?)
-    namespace = 'wordpress-test'
-    leader_election = NamespaceLeaderElection(namespace)
-    leaderelection.LeaderElection(leader_election.config).run()
     WordPressCRDOperator.ensure_wp_crd_exists()
 
 @kopf.on.create('wordpresssites')
@@ -685,6 +656,41 @@ class WordPressCRDOperator:
       return False
 
 
+class NamespaceLeaderElection:
+    def __init__(self, namespace):
+        self.lock_namespace = namespace
+        self.lock_name = f"wpn-operator-lock-{namespace}"
+        self.candidate_id = uuid.uuid4()
+        self.config = electionconfig.Config(
+            ConfigMapLock(
+                self.lock_name, 
+                self.lock_namespace, 
+                self.candidate_id
+            ),
+            lease_duration = 17,
+            renew_deadline = 15,
+            retry_period = 5,
+            onstarted_leading = self.start_kopf,
+            onstopped_leading = self.exit_immediately
+        )
+
+    def start_kopf(self):
+        print(f"Instance {self.candidate_id} is the leader for namespace {self.lock_namespace}.")
+        sys.exit(kopf.cli.main())
+
+    def exit_immediately(self):
+        print(f"Instance {self.candidate_id} stopped being the leader for namespace {self.lock_namespace}.")
+        sys.exit(0)
+
+    @classmethod
+    def go (cls):
+        config.load_kube_config()
+        # TODO: Retrieve the current namespace (how to do this!!?)
+        namespace = 'wordpress-test'
+        leader_election = cls(namespace)
+        leaderelection.LeaderElection(leader_election.config).run()
+
+
 if __name__ == '__main__':
     Config.load_from_command_line()
-    sys.exit(kopf.cli.main())
+    NamespaceLeaderElection.go()
