@@ -96,9 +96,6 @@ spec:
                   environment_os4:
                     description: OpenShift4 site environment
                     type: string
-                  subdomain_name:
-                    description: Site's subdomain name
-                    type: string
                   importFromOS3:
                     description: Import database from existing OpenShift 3 site
                     type: object
