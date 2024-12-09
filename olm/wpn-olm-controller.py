@@ -58,20 +58,40 @@ class KubernetesObjectData:
         return self.__class__(new_def)
 
 
+def raise_if_status_failed(resource_instance):
+    """
+    Raises an exception if the ResourceInstance indicates a failure.
+    """
+    if getattr(resource_instance, 'status', None) == "Failure":
+        reason = getattr(resource_instance, 'reason', 'Unknown reason')
+        message = getattr(resource_instance, 'message', 'No message provided')
+        code = getattr(resource_instance, 'code', 500)
+
+        raise ApiException(status=code, reason=f'{reason}. {message}')
+
 async def get_dynamic_resource (api, api_version, kind, *args, **kwargs):
         dyn_client = await dynamic.DynamicClient(api)
         resource = await dyn_client.resources.get(api_version=api_version, kind=kind)
-        return await resource.get(*args, **kwargs)
+        status = await resource.get(*args, **kwargs)
+        raise_if_status_failed(status)
 
 async def create_dynamic_resource (api, api_version, kind, **kwargs):
         dyn_client = await dynamic.DynamicClient(api)
         resource = await dyn_client.resources.get(api_version=api_version, kind=kind)
-        return await resource.create(**kwargs)
+        status = await resource.create(**kwargs)
+        raise_if_status_failed(status)
 
 async def delete_dynamic_resource (api, api_version, kind, **kwargs):
         dyn_client = await dynamic.DynamicClient(api)
         resource = await dyn_client.resources.get(api_version=api_version, kind=kind)
-        return await resource.delete(**kwargs)
+        status = await resource.delete(**kwargs)
+        raise_if_status_failed(status)
+
+async def get_dynamic_resource (api, api_version, kind, **kwargs):
+        dyn_client = await dynamic.DynamicClient(api)
+        resource = await dyn_client.resources.get(api_version=api_version, kind=kind)
+        status = await resource.get(**kwargs)
+        raise_if_status_failed(status)
 
 
 class ClusterWideExistenceOperator:
@@ -117,8 +137,14 @@ class ClusterWideExistenceOperator:
     async def exists (self):
         await self._load_config()
         async with ApiClient() as api:
-            got = await get_dynamic_resource(api, api_version=self.k8s_object.api_version, kind=self.k8s_object.kind, name=self.k8s_object.name)
-            return got.reason != 'NotFound'
+            try:
+                await get_dynamic_resource(api, api_version=self.k8s_object.api_version, kind=self.k8s_object.kind, name=self.k8s_object.name)
+                return True
+            except ApiException as e:
+                if not e.reason.startswith('NotFound'):
+                    raise
+                else:
+                    return False
 
     async def ensure_exists (self):
         if await self.exists():
