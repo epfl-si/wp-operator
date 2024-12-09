@@ -25,6 +25,7 @@ RUN set -e -x; \
 RUN mkdir /bundle-gen
 COPY olm/controller-deployment-and-rbac.yaml \
      olm/clusterserviceversion-tmpl.yaml \
+     WordPressSite-crd.yaml \
      /bundle-gen
 
 RUN set -e -x; cd /bundle-gen; \
@@ -34,10 +35,11 @@ RUN set -e -x; cd /bundle-gen; \
 
 # A few sanity checks, as `operator-sdk generate bundle` has a tendency
 # to fail silently:
-RUN test -f                    /bundle-gen/manifests/*clusterserviceversion.yaml
-RUN ! grep 'deployments: \[\]' /bundle-gen/manifests/*clusterserviceversion.yaml
-RUN grep ISAS-FSD              /bundle-gen/manifests/*clusterserviceversion.yaml
-RUN grep 'clusterPermissions:' /bundle-gen/manifests/*clusterserviceversion.yaml
+RUN test -f                                /bundle-gen/manifests/*clusterserviceversion.yaml
+RUN ! grep 'deployments: \[\]'             /bundle-gen/manifests/*clusterserviceversion.yaml
+RUN grep ISAS-FSD                          /bundle-gen/manifests/*clusterserviceversion.yaml
+RUN grep 'clusterPermissions:'             /bundle-gen/manifests/*clusterserviceversion.yaml
+RUN ! grep 'customresourcedefinitions: {}' /bundle-gen/manifests/*clusterserviceversion.yaml
 
 # Yup, that's ourselves:
 COPY olm/Dockerfile.bundle /bundle-gen
