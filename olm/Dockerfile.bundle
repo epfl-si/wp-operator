@@ -6,8 +6,6 @@
 #
 FROM ubuntu:focal AS builder
 
-ARG BUNDLE_VERSION=0.0.1
-
 RUN export DEBIAN_FRONTEND=noninteractive; \
     apt -qy update; apt -qy install curl
 
@@ -27,6 +25,8 @@ COPY olm/controller-deployment-and-rbac.yaml \
      olm/clusterserviceversion-tmpl.yaml \
      WordPressSite-crd.yaml \
      /bundle-gen
+
+ARG BUNDLE_VERSION=0.0.1
 
 RUN set -e -x; cd /bundle-gen; \
     (for i in *.yaml; do cat $i; echo "---"; done) | operator-sdk generate bundle \
