@@ -32,4 +32,4 @@ COPY . .
 # TODO: please note the "wpn-base" instead of "wp-base" for temporary comfort.
 COPY --from=wpn-base /wp /wp
 
-ENTRYPOINT [ "python3", "wpn-operator.py", "run"]
+ENTRYPOINT [ "python3", "wp-operator.py", "run"]
