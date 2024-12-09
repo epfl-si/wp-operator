@@ -38,3 +38,21 @@ RUN test -f                    /bundle-gen/manifests/*clusterserviceversion.yaml
 RUN ! grep 'deployments: \[\]' /bundle-gen/manifests/*clusterserviceversion.yaml
 RUN grep ISAS-FSD              /bundle-gen/manifests/*clusterserviceversion.yaml
 RUN grep 'clusterPermissions:' /bundle-gen/manifests/*clusterserviceversion.yaml
+
+# Yup, that's ourselves:
+COPY olm/Dockerfile.bundle /bundle-gen
+RUN set -e -x; \
+    mkdir /metadata; \
+    ( echo "annotations:" ; \
+      sed -ne 's/^LABEL \(.*\)=\(.*\)$/  \1: \2/p' \
+          < /bundle-gen/Dockerfile.bundle ) > /metadata/annotations.yaml
+
+FROM scratch
+
+LABEL operators.operatorframework.io.bundle.mediatype.v1=registry+v1
+LABEL operators.operatorframework.io.bundle.manifests.v1=manifests/
+LABEL operators.operatorframework.io.bundle.metadata.v1=metadata/
+LABEL operators.operatorframework.io.bundle.package.v1=wordpress-operator-olm
+
+COPY --from=builder /bundle-gen/manifests /manifests
+COPY --from=builder /metadata /metadata
