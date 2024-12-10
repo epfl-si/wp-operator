@@ -59,9 +59,6 @@ rules:
     resources:
     - secrets
     verbs: ['*']
-  - apiGroups: ['']
-    resources: ['configmaps']
-    verbs: ['*']
 
 ---
 # Deployment/wp-operator
@@ -86,7 +83,7 @@ spec:
       automountServiceAccountToken: true
       containers:
         - name: wp-operator
-          image: quay-its.epfl.ch/svc0041/wp-operator:latest
+          image: quay-its.epfl.ch/svc0041/wp-operator:2024-004
           args:
           - --namespace=wordpress-test
           - --
@@ -97,14 +94,3 @@ spec:
       imagePullSecrets:
         - name: svc0041-rke2-puller-pull-secret
       restartPolicy: Always
-
-
----
-# IngressClass/wordpress
-
-apiVersion: networking.k8s.io/v1
-kind: IngressClass
-metadata:
-  name: wordpress
-spec:
-  controller: epfl.ch/ingress-wordpress
