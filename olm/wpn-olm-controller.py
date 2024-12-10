@@ -246,7 +246,7 @@ if __name__ == '__main__':
     @sites.on_namespace_emptied
     async def shutdown_operator (namespace):
         async with ApiClient() as api:
-            for o in reversed(load_namespaced_objects(substitute_namespace=namespace)):
+            for o in reversed(list(load_namespaced_objects(substitute_namespace=namespace))):
                 try:
                     await delete_dynamic_resource(
                         api,
