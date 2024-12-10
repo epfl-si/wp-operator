@@ -228,7 +228,7 @@ if __name__ == '__main__':
 
     def load_namespaced_objects (substitute_namespace):
         with open("operator-namespaced.yaml") as f:
-            namespaced_objects_yaml = read(f)
+            namespaced_objects_yaml = f.read()
             namespaced_objects_yaml = re.sub("wordpress-test", substitute_namespace, namespaced_objects_yaml)
 
         return KubernetesObjectData.parse_all(namespaced_objects_yaml)
