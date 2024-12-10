@@ -12,6 +12,8 @@ import sys
 import threading
 import time
 import yaml
+import re
+import io
 
 
 class KubernetesObjectData:
@@ -22,7 +24,19 @@ class KubernetesObjectData:
 
     @classmethod
     def load_all (cls, path):
-        return (cls(o) for o in yaml.safe_load_all(open(path, 'r')))
+        return cls._load_all_from_stream(open(path, "r"))
+
+    @classmethod
+    def parse_all (cls, yaml_string):
+        with open (path, 'r' ) as f:
+            content = f.read()
+            input = io.StringIO(content)
+
+        return cls._load_all_from_stream(input)
+
+    @classmethod
+    def _load_all_from_stream (cls, f):
+        return (cls(o) for o in yaml.safe_load_all(f))
 
     def __init__ (self, deserialized_data):
         self.definition = deserialized_data
@@ -46,16 +60,6 @@ class KubernetesObjectData:
     @property
     def moniker (self):
         return f"{self.kind}/{self.name}"
-
-    def is_namespaced (self):
-        return "namespace" in self.definition["metadata"]
-
-    def copy (self, namespace=None):
-        new_def = copy.deepcopy(self.definition)
-        if namespace is not None:
-            new_def["metadata"]["namespace"] = namespace
-
-        return self.__class__(new_def)
 
 
 def raise_if_status_failed(resource_instance):
@@ -219,20 +223,20 @@ if __name__ == '__main__':
     sites = PerNamespaceObjectCounter('wordpresssites')
     sites.hook()
 
-    namespaced_objects = []
-    for o in KubernetesObjectData.load_all("operator.yaml"):
-        if not o.is_namespaced():
-            ClusterWideExistenceOperator(o).hook()
-        else:
-            namespaced_objects.append(o)
+    for o in KubernetesObjectData.load_all("operator-non-namespaced.yaml"):
+        ClusterWideExistenceOperator(o).hook()
 
-    def rename_namespaced_objects (namespace):
-        return [o.copy(namespace=namespace) for o in namespaced_objects]
+    def load_namespaced_objects (substitute_namespace):
+        with open("operator-namespaced.yaml") as f:
+            namespaced_objects_yaml = read(f)
+            namespaced_objects_yaml = re.sub("wordpress-test", substitute_namespace, namespaced_objects_yaml)
+
+        return KubernetesObjectData.parse_all(namespaced_objects_yaml)
 
     @sites.on_namespace_populated
     async def startup_operator (namespace):
         async with ApiClient() as api:
-            for o in rename_namespaced_objects(namespace):
+            for o in load_namespaced_objects(substitute_namespace=namespace):
                 try:
                     await create_dynamic_resource(
                         api,
@@ -246,7 +250,7 @@ if __name__ == '__main__':
     @sites.on_namespace_emptied
     async def shutdown_operator (namespace):
         async with ApiClient() as api:
-            for o in reversed(rename_namespaced_objects(namespace)):
+            for o in reversed(load_namespaced_objects(substitute_namespace=namespace)):
                 try:
                     await delete_dynamic_resource(
                         api,

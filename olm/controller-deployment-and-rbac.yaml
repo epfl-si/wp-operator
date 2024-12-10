@@ -47,7 +47,7 @@ rules:
   # the `status`:
   verbs: ["get", "list", "watch"]
 # The controller needs permission to create and delete all
-# (non-namespaced) objects in ../operator.yaml:
+# objects in ../operator-non-namespaced.yaml:
 - apiGroups:
   - networking.k8s.io
   resources:
@@ -60,6 +60,8 @@ rules:
   resources:
   - ingressclasses
   verbs: ["get", "list", "watch"]
+# Likewise, the controller needs to create and delete all
+# objects in  ../operator-namespaced.yaml:
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:

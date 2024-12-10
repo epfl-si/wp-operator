@@ -10,7 +10,7 @@ FROM python:3.12-slim
 COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 
-COPY olm/wpn-olm-controller.py operator.yaml .
+COPY olm/wpn-olm-controller.py operator-namespaced.yaml operator-non-namespaced.yaml .
 RUN set -e -x; \
     ( echo "#!/usr/local/bin/python3"; cat wpn-olm-controller.py ) > /usr/local/bin/wpn-olm-controller ; \
     chmod 755 /usr/local/bin/wpn-olm-controller
