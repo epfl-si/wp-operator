@@ -28,11 +28,7 @@ class KubernetesObjectData:
 
     @classmethod
     def parse_all (cls, yaml_string):
-        with open (path, 'r' ) as f:
-            content = f.read()
-            input = io.StringIO(content)
-
-        return cls._load_all_from_stream(input)
+        return cls._load_all_from_stream(io.StringIO(yaml_string))
 
     @classmethod
     def _load_all_from_stream (cls, f):
