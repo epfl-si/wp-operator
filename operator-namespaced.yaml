@@ -1,3 +1,11 @@
+# This YAML file lists all *namespaced* objects that the operator
+# needs to do its job when running inside the cluster.
+#
+# 💡 The namespace is always `wordpress-test`. Substitute it (as the
+# OLM controller does) if you want to run the operator in another
+# namespace.
+#
+# See also `opeator-non-namespaced.yaml`
 ---
 # ServiceAccount/wp-operator
 apiVersion: v1
