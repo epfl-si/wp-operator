@@ -59,7 +59,9 @@ rules:
   - networking.k8s.io
   resources:
   - ingressclasses
-  verbs: ["get", "list", "watch"]
+  # ⚠ `resourceNames` doesn't work on the "create" verb;
+  # see https://stackoverflow.com/a/65219397 . Bummer
+  verbs: ["create", "get", "list", "watch"]
 # Likewise, the controller needs to create and delete all
 # objects in  ../operator-namespaced.yaml:
 - apiGroups:
@@ -71,6 +73,12 @@ rules:
   - wp-operator
   verbs: ["*"]
 - apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs: ["create", "get", "list", "watch"]
+- apiGroups:
   - apps
   resources:
   - deployments
@@ -81,7 +89,7 @@ rules:
   - apps
   resources:
   - deployments
-  verbs: ["get", "list", "watch"]
+  verbs: ["create", "get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
