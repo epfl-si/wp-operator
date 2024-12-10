@@ -15,4 +15,7 @@ RUN set -e -x; \
     ( echo "#!/usr/local/bin/python3"; cat wpn-olm-controller.py ) > /usr/local/bin/wpn-olm-controller ; \
     chmod 755 /usr/local/bin/wpn-olm-controller
 
+## Uncomment the following line if you want to test out your RBAC live:
+# COPY --from=bitnami/kubectl:latest /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
+
 CMD ["/usr/local/bin/wpn-olm-controller", "run", "-A"]
