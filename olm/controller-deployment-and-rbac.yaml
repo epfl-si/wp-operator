@@ -43,9 +43,9 @@ rules:
   - "wordpress.epfl.ch"
   resources:
   - wordpresssites
-  # Specifically deny "patch", to prevent Kopf from scribbling
-  # the `status`:
   verbs: ["get", "list", "watch"]
+  # Notice the absence of `patch`, so that Kopf won't scribble
+  # on the `.status`, even if it wanted to (which it shouldn't).
 # The controller needs permission to create and delete all
 # objects in ../operator-non-namespaced.yaml:
 - apiGroups:
