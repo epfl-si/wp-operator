@@ -43,7 +43,7 @@ The main struggles of packaging your operator for OLM are therefore
 
 1. `kubectl apply` (or `oc apply`) the `CatalogSource` YAML that comes with your catalog image
 
-   →  As soon as you do that, a pod named something like `isas-fsd-catalog-xxxxx` should pop into the `openshift-marketplace` of your OKD cluster. Make sure it stays up.
+   →  As soon as you do that, a pod named something like `isas-fsd-catalog-xxxxx` should pop into the `openshift-marketplace` namespace of your OKD cluster. Make sure it stays up.
 2. Install the WordPress operator through the OLM GUI (Operators → OperatorHub)
 
   → If all goes to plan, a `wordpress-olm-controller-xxxxx-yyyyy` pod should start in namespace `openshift-operators` and likewise transition promptly to `Running` state.
@@ -58,7 +58,7 @@ The main struggles of packaging your operator for OLM are therefore
    make -C olm bundle-build bundle-push controller-build controller-push
    ```
 4. As soon as the `bundle-push` part is complete, you can start rebuilding the catalog image in another window.
-5. As soon as said catalog image is pushed into the registry, kill the `isas-fsd-xxxxx` pod in the `openshift-marketplace` of your OKD cluster, to force OLM to reload the catalog
+5. As soon as said catalog image is pushed into the registry, kill the `isas-fsd-xxxxx` pod in the `openshift-marketplace` namespace of your OKD cluster, to force OLM to reload the catalog.
 5. Wait for all the magical OLM things to happen, and make the new `ClusterServiceVersion` available for install.
 
   💡 Assuming you installed the operator successfully before; and you selected “Automatic” upgrades; the controller upgrade should start without any further intervention on your part.
