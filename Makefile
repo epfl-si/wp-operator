@@ -22,14 +22,14 @@ image: _build _tag _push
 .PHONY: deploy
 ## Deploy the WordPress operator unsing `operator.yaml`
 deploy:
-	@echo "Deploying$$(grep 'image:' operator.yaml | tr -s ' ') ..."
-	@echo " ... change it in ./operator.yaml if needed."
-	kubectl apply -f operator.yaml
+	@echo "Deploying$$(grep 'image:' operator-namespaced.yaml | tr -s ' ') ..."
+	@echo " ... change it in ./operator-namespaced.yaml if needed."
+	kubectl apply -f operator-namespaced.yaml
 
 .PHONY: delete
 ## Delete the WordPress operator unsing `operator.yaml`
 delete:
-	kubectl delete -f operator.yaml
+	kubectl delete -f operator-namespaced.yaml
 
 .PHONY: _build
 ## Build the image as `WP_OPERATOR_IMAGE_NAME`
