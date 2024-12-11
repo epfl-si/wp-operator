@@ -37,15 +37,6 @@ kind: ClusterRole
 metadata:
   name: wordpress-olm-controller
 rules:
-# The controller needs to enumerate `WordPressSite`s in
-# all namespaces:
-- apiGroups:
-  - "wordpress.epfl.ch"
-  resources:
-  - wordpresssites
-  verbs: ["get", "list", "watch"]
-  # Notice the absence of `patch`, so that Kopf won't scribble
-  # on the `.status`, even if it wanted to (which it shouldn't).
 # The controller needs permission to create and delete all
 # objects in ../operator-non-namespaced.yaml:
 - apiGroups:
@@ -65,6 +56,18 @@ rules:
 # Likewise, the controller needs to create and delete all
 # objects in  ../operator-namespaced.yaml:
 - apiGroups:
+  - apps
+  resources:
+  - deployments
+  resourceNames:
+  - wp-operator
+  verbs: ["*"]
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs: ["create", "get", "list", "watch"]
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - rolebindings
@@ -78,18 +81,38 @@ rules:
   - rolebindings
   - roles
   verbs: ["create", "get", "list", "watch"]
-- apiGroups:
-  - apps
+# And on top of all that, the controller is only able
+# to grant permissions (by means of creating `Role` objects)
+# if it wields said permissions itself:
+# (see: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#restrictions-on-role-creation-or-update)
+- apiGroups: ['wordpress.epfl.ch']
   resources:
-  - deployments
-  resourceNames:
-  - wp-operator
-  verbs: ["*"]
-- apiGroups:
-  - apps
+  - wordpresssites
+  - wordpresssites/status
+  verbs: ['*']
+- apiGroups: ['networking.k8s.io']
   resources:
-  - deployments
-  verbs: ["create", "get", "list", "watch"]
+  - ingresses
+  verbs: ['*']
+- apiGroups: ['']
+  resources:
+  - events
+  verbs: ['create', 'patch']
+- apiGroups: ['k8s.mariadb.com']
+  resources:
+  - backups
+  - connections
+  - databases
+  - grants
+  - mariadbs
+  - restores
+  - sqljobs
+  - users
+  verbs: ['*']
+- apiGroups: ['']
+  resources:
+  - secrets
+  verbs: ['*']
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
