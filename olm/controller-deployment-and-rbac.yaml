@@ -67,6 +67,13 @@ rules:
   resources:
   - deployments
   verbs: ["create", "get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["serviceaccounts"]
+  resourceNames: ["wp-operator"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["serviceaccounts"]
+  verbs: ["create", "get", "list", "watch"]
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
