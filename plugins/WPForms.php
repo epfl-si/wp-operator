@@ -40,7 +40,7 @@ class WPFormsPlugin extends Plugin
   );
   # Set the WPForms license
   private function get_wpforms_license_option() {
-    $wpforms_license = $this->getSecretValue('wpform_license');
+    $wpforms_license = $this->getSecretValue('wpforms_license');
     return array (
       'key' => $wpforms_license,
       'type' => 'elite',
