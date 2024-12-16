@@ -16,22 +16,6 @@ metadata:
 automountServiceAccountToken: false
 
 ---
-# RoleBinding/wp-operator
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: wp-operator
-  namespace: wordpress-test
-subjects:
-- kind: ServiceAccount
-  name: wp-operator
-  namespace: wordpress-test
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: wp-operator
-
----
 # Role/wp-operator
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -70,6 +54,22 @@ rules:
   - apiGroups: ['']
     resources: ['configmaps']
     verbs: ['*']
+
+---
+# RoleBinding/wp-operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wp-operator
+  namespace: wordpress-test
+subjects:
+- kind: ServiceAccount
+  name: wp-operator
+  namespace: wordpress-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: wp-operator
 
 ---
 # Deployment/wp-operator
@@ -124,23 +124,6 @@ automountServiceAccountToken: false
 
 ---
 
-# RoleBinding/wp-nginx
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: wp-nginx
-  namespace: wordpress-test
-subjects:
-- kind: ServiceAccount
-  name: wp-nginx
-  namespace: wordpress-test
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: wp-nginx
-
----
-
 # Role/wp-nginx
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -184,3 +167,20 @@ rules:
     resourceNames:
     - wp-nginx
     verbs: ['get', 'watch']
+
+---
+
+# RoleBinding/wp-nginx
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wp-nginx
+  namespace: wordpress-test
+subjects:
+- kind: ServiceAccount
+  name: wp-nginx
+  namespace: wordpress-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: wp-nginx
