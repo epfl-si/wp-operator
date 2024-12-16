@@ -3,7 +3,7 @@
 # ⚠ This Dockerfile needs to be built from the directory above this one!
 #
 #   cd ..
-#   docker build . -f olm/Dockerfile.controller
+#   docker build . -f olm/Dockerfile
 #
 FROM python:3.12-slim
 
