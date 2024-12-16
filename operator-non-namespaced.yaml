@@ -11,3 +11,39 @@ metadata:
   name: wordpress
 spec:
   controller: epfl.ch/ingress-wordpress
+
+
+---
+
+# ClusterRoleBinding/wp-nginx
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: wp-nginx
+subjects:
+- kind: ServiceAccount
+  name: wp-nginx
+  namespace: placeholder
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: wp-nginx
+
+---
+# ClusterRole/wp-nginx
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: wp-nginx
+rules:
+  - apiGroups: ['']
+    resources:
+    - configmaps
+    - endpoints
+    - pods
+    - secrets
+    verbs: ['list', 'watch']
+  - apiGroups: ['networking.k8s.io']
+    resources:
+    - ingressclasses
+    verbs: ['get', 'list', 'watch']

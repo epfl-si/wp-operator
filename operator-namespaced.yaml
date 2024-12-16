@@ -105,3 +105,82 @@ spec:
       imagePullSecrets:
         - name: svc0041-rke2-puller-pull-secret
       restartPolicy: Always
+
+# Additional RBAC for the WordPress Deployment starts here
+# We have no control over the fact that the `nginx-ingress-controller`
+# (that we use unmodified `FROM rancher/nginx-ingress-controller`)
+# wants this authority — And no other way to provide these permissions,
+# than to piggy-back them with our operator's OLM controller.
+
+---
+
+# ServiceAccount/wp-nginx
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wp-nginx
+  namespace: wordpress-test
+automountServiceAccountToken: false
+
+---
+
+# RoleBinding/wp-nginx
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wp-nginx
+  namespace: wordpress-test
+subjects:
+- kind: ServiceAccount
+  name: wp-nginx
+  namespace: wordpress-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: wp-nginx
+
+---
+
+# Role/wp-nginx
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wp-nginx
+  namespace: wordpress-test
+rules:
+  # Required for `--namespace` flag: the nginx controller wants to read its own namespace.
+  - apiGroups: ['']
+    resources:
+    - namespaces
+    verbs: ['get']
+  - apiGroups: ['networking.k8s.io']
+    resources:
+    - ingresses
+    - ingressclasses
+    verbs: ['get', 'list', 'watch']
+  - apiGroups: ['networking.k8s.io']
+    resources:
+    - ingresses/status
+    verbs: ['update']
+  - apiGroups: ['']
+    resources:
+    - events
+    verbs: ['create', 'patch']
+  # We have no control over `nginx-ingress-controller` throwing a tantrum
+  # if it doesn't have these permissions, even though it arguably doesn't
+  # need them in our use case:
+  - apiGroups: ['']
+    resources:
+    - pods
+    - services
+    verbs: ['get', 'list', 'watch']
+  - apiGroups: ['discovery.k8s.io']
+    resources:
+    - endpointslices
+    verbs: ['get', 'list', 'watch']
+  - apiGroups: ['']
+    resources:
+    - configmaps
+    resourceNames:
+    - wp-nginx
+    verbs: ['get', 'watch']
