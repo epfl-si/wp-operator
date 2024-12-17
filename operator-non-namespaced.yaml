@@ -30,19 +30,3 @@ rules:
     resources:
     - ingressclasses
     verbs: ['get', 'list', 'watch']
-
----
-
-# ClusterRoleBinding/wp-nginx
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: wp-nginx
-subjects:
-- kind: ServiceAccount
-  name: wp-nginx
-  namespace: placeholder
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: wp-nginx

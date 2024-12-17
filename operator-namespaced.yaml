@@ -203,11 +203,14 @@ rules:
 ---
 
 # ClusterRoleBinding/wp-nginx
+# 💡 The corresponding ClusterRole is in `operator-non-namespaced.yml`.
+# The reason this one is quote-unquote “namespaced”, is that we need to
+# have another one for every namespace. The controller's full text substitution
+# logic achieves that.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: wp-nginx
-  namespace: wordpress-test
+  name: wp-nginx--wordpress-test
 subjects:
 - kind: ServiceAccount
   name: wp-nginx
