@@ -185,3 +185,34 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: wp-nginx
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: wp-nginx
+rules:
+  # wp-nginx needs to get IngressClasses:
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingressclasses
+  verbs: ["get", "list", "watch"]
+
+---
+
+# ClusterRoleBinding/wp-nginx
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: wp-nginx
+  namespace: wordpress-test
+subjects:
+- kind: ServiceAccount
+  name: wp-nginx
+  namespace: wordpress-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: wp-nginx
