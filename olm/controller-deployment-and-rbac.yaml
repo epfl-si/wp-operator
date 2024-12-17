@@ -161,11 +161,6 @@ rules:
   resourceNames:
   - wp-nginx
   verbs: ['get']
-- apiGroups:
-  - networking.k8s.io
-  resources:
-  - ingressclasses
-  verbs: ["get", "list", "watch"]
 # As seen in `../operator-non-namespaced.yaml`:
 - apiGroups: ['']
   resources:
