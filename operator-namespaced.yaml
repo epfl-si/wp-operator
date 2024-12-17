@@ -53,6 +53,7 @@ rules:
     verbs: ['*']
   - apiGroups: ['']
     resources: ['configmaps']
+    resourceNames: ['wp-operator-lock']
     verbs: ['*']
 
 ---
