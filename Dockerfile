@@ -18,6 +18,7 @@ RUN apt-get --no-install-recommends -qy install \
         php-mysql \
         python3 \
         python3-pip \
+        rsync \
         unzip \
      && rm -rf /var/lib/apt/lists/*; # from 1.12GB to 869MB
 
