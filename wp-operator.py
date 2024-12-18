@@ -382,7 +382,7 @@ location = {path}/wp-admin {{
 location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {{
     rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
     root /wp/6/;
-    location ~* \.(ico|pdf|apng|avif|webp|jpg|jpeg|png|gif|svg)$ {{
+    location ~* \\.(ico|pdf|apng|avif|webp|jpg|jpeg|png|gif|svg)$ {{
         add_header Cache-Control "129600, public";
         # rewrite is not inherited https://stackoverflow.com/a/32126596
         rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
