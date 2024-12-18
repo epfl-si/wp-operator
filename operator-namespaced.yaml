@@ -117,6 +117,7 @@ spec:
         - name: wp-data-ro-openshift3
           persistentVolumeClaim:
             claimName: wp-data-ro-openshift3
+            readOnly: true
 
 # Additional RBAC for the WordPress Deployment starts here
 # We have no control over the fact that the `nginx-ingress-controller`
