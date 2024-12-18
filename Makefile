@@ -1,9 +1,8 @@
 SHELL := /bin/bash
 
 NAMESPACE = wordpress-test
-WP_OPERATOR_IMAGE_NAME = epflsi/wp-operator
+WP_OPERATOR_IMAGE_NAME = quay-its.epfl.ch/svc0041/wp-operator
 WP_OPERATOR_IMAGE_TAG ?= latest
-REGISTRY = quay-its.epfl.ch/svc0041/wp-operator
 
 .PHONY: help
 ## Print this help
@@ -17,7 +16,7 @@ operator:
 
 .PHONY: image
 ## Build, tag and push the image
-image: _build _tag _push
+image: _build _push
 
 .PHONY: deploy
 ## Deploy the WordPress operator unsing `operator.yaml`
@@ -36,18 +35,9 @@ delete:
 _build:
 	docker build -t $(WP_OPERATOR_IMAGE_NAME) .
 
-.PHONY: _tag
-## Tag the image using `WP_OPERATOR_IMAGE_TAG`
-_tag:
-	@echo Tagging image \"$(WP_OPERATOR_IMAGE_NAME)\" to \"$(REGISTRY):$(WP_OPERATOR_IMAGE_TAG)\".
-	@if [ $(WP_OPERATOR_IMAGE_TAG) = 'latest' ]; then \
-		echo Use \'WP_OPERATOR_IMAGE_TAG=2024-001 make tag\' to change the tag to something else.; \
-	fi
-	docker tag $(WP_OPERATOR_IMAGE_NAME) $(REGISTRY):latest
-	docker tag $(WP_OPERATOR_IMAGE_NAME) $(REGISTRY):$(WP_OPERATOR_IMAGE_TAG)
-
 .PHONY: _push
 ## Push the image using `REGISTRY` and `WP_OPERATOR_IMAGE_TAG`
 _push:
-	docker push $(REGISTRY):latest
-	docker push $(REGISTRY):$(WP_OPERATOR_IMAGE_TAG)
+push:
+	docker push $(WP_OPERATOR_IMAGE_NAME):latest
+	docker push $(WP_OPERATOR_IMAGE_NAME):$(WP_OPERATOR_IMAGE_TAG)
