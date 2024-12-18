@@ -595,7 +595,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
           # For production: the operator pod has both these volumes mounted.
           mounted_dst = f"/wp-data/{dst}/"
           os.makedirs(mounted_dst)
-          subprocess.run(["rsync", "-av", f"/wp-data-ro-openshift3/{src}/", mounted_dst], check=True)
+          subprocess.run(["rsync", "-a", f"/wp-data-ro-openshift3/{src}/", mounted_dst], check=True)
       else:
           # For developmnent only - Assume we have ssh access to itswbhst0020 which is rigged for this purpose:
           pvc_name = "wordpress-test-wp-uploads-pvc-f401a87f-d2e9-4b20-85cc-61aa7cfc9d30"
