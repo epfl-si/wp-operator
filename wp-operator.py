@@ -21,6 +21,7 @@ import re
 from datetime import datetime, timezone
 import threading
 import time
+import shlex
 import secrets
 import uuid
 
@@ -158,8 +159,8 @@ class WordPressSiteOperator:
 
   def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, hostname):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
-      # https://stackoverflow.com/a/89243
-      result = subprocess.run([Config.php, "ensure-wordpress-and-theme.php",
+
+      cmdline = [Config.php, "ensure-wordpress-and-theme.php",
                                f"--name={self.name}", f"--path={path}",
                                f"--wp-dir={Config.wp_dir}",
                                f"--wp-host={hostname}",
@@ -172,12 +173,17 @@ class WordPressSiteOperator:
                                f"--plugins={plugins}",
                                f"--unit-id={unit_id}",
                                f"--languages={languages}",
-                               f"--secret-dir={Config.secret_dir}"], capture_output=True, text=True)
+                               f"--secret-dir={Config.secret_dir}"]
+
+      cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
+      logging.info(f" Running: {cmdline_text}")
+      result = subprocess.run(cmdline, capture_output=True, text=True)
 
       print(result.stdout)
 
       if "WordPress and plugins successfully installed" not in result.stdout:
-          raise subprocess.CalledProcessError(0, "PHP script failed")
+          print()
+          raise subprocess.CalledProcessError(result.returncode, cmdline_text)
       else:
           logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
 
