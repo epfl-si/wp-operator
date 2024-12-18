@@ -46,6 +46,8 @@ class Config:
                             default="mariadb-min")
         parser.add_argument('--secret-dir', help='Secret file\'s directory.',
                             default="secretFiles")
+        parser.add_argument('--restore-secrets-file', help='Path to a .ini file that contains AWS credentials to read backups from',
+                            default="/keybase/team/epfl_wp_prod/aws-cli-credentials")
         return parser
 
     @classmethod
@@ -60,6 +62,7 @@ class Config:
         cls.wp_dir = os.path.join(cmdline.wp_dir, '')
         cls.db_host = cmdline.db_host
         cls.secret_dir = cmdline.secret_dir
+        cls.restore_secrets_file = cmdline.restore_secrets_file
 
     @classmethod
     def script_dir(cls):
@@ -459,7 +462,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
   def get_os3_credentials(self, profile_name):
       logging.info(f"   ↳ [{self.namespace}/{self.name}] Get Restic and S3 secrets")
 
-      file_path = "/keybase/team/epfl_wp_prod/aws-cli-credentials"
+      file_path = Config.restore_secrets_file
 
       with open(file_path, 'r') as file:
           content = file.read()

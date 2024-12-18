@@ -106,9 +106,12 @@ spec:
           - mariadb-min.wordpress-test.svc
           - --wp-dir=/wp/6
           - --secret-dir=/wp-secrets
+          - --restore-secrets-file=/restore-credentials/aws-cli-credentials.ini
           volumeMounts:
             - name: wp-data
               mountPath: /wp-data/
+            - name: restore-credentials
+              mountPath: /restore-credentials/
             - name: wp-data-ro-openshift3
               mountPath: /wp-data-ro-openshift3/
             - name: wp-secrets
@@ -121,6 +124,9 @@ spec:
         - name: wp-secrets
           secret:
             secretName: wp-plugin-secrets
+        - name: restore-credentials
+          secret:
+            secretName: restore-credentials
         - name: wp-data-ro-openshift3
           persistentVolumeClaim:
             claimName: wp-data-ro-openshift3
