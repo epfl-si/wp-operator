@@ -1,4 +1,4 @@
-# This container won't work in a development environnement: it need to be
+# This container won't work in a development environnement: it needs to be
 # deployed in the Kubernetes cluster and have to access this node's path
 # `/var/run/secrets/kubernetes.io/serviceaccount/token` in order to access the
 # Kubernetes's API.
