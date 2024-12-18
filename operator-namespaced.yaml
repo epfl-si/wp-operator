@@ -105,16 +105,22 @@ spec:
           - --db-host
           - mariadb-min.wordpress-test.svc
           - --wp-dir=/wp/6
+          - --secret-dir=/wp-secrets
           volumeMounts:
             - name: wp-data
               mountPath: /wp-data/
             - name: wp-data-ro-openshift3
               mountPath: /wp-data-ro-openshift3/
+            - name: wp-secrets
+              mountPath: /wp-secrets
       restartPolicy: Always
       volumes:
         - name: wp-data
           persistentVolumeClaim:
             claimName: wp-data
+        - name: wp-secrets
+          secret:
+            secretName: wp-plugin-secrets
         - name: wp-data-ro-openshift3
           persistentVolumeClaim:
             claimName: wp-data-ro-openshift3
