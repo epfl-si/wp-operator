@@ -10,6 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get -qy update
 RUN apt-get --no-install-recommends -qy install \
+        awscli \
         curl \
         git \
         jq \
