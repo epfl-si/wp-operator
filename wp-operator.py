@@ -506,7 +506,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
 
               subprocess.run(sed_command, stdout=backup_file, check=True)
 
-          copy_backup = subprocess.run([f"aws --endpoint-url=https://s3.epfl.ch --profile={profile_name} s3 cp {backup_file_path} s3://{credentials['BUCKET_NAME']}/backup/k8s/{self.name}/"], env=credentials, shell=True, capture_output=True, text=True)
+          subprocess.run([f"aws --endpoint-url=https://s3.epfl.ch --profile={profile_name} s3 cp {backup_file_path} s3://{credentials['BUCKET_NAME']}/backup/k8s/{self.name}/"], env=credentials, shell=True, check=True)
           logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup copied to S3")
 
           # Initiate the restore process in MariaDB
@@ -593,14 +593,13 @@ fastcgi_param WP_DB_PASSWORD     {secret};
   def restore_uploads_directory (self, src, dst):
       if os.path.exists("/wp-data-ro-openshift3") and os.path.exists("/wp-data"):
           # For production: the operator pod has both these volumes mounted.
-          subprocess.run(["rsync", "-av", f"/wp-data-ro-openshift3/{src}", f"/wp-data/{dst}"])
+          subprocess.run(["rsync", "-av", f"/wp-data-ro-openshift3/{src}", f"/wp-data/{dst}"], check=True)
       else:
           # For developmnent only - Assume we have ssh access to itswbhst0020 which is rigged for this purpose:
           pvc_name = "wordpress-test-wp-uploads-pvc-f401a87f-d2e9-4b20-85cc-61aa7cfc9d30"
           remote_dst = "/mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{dst}"
-          copy_media = subprocess.run([f"ssh -t root@itswbhst0020.xaas.epfl.ch 'set -e -x; rsync -av /mnt/data-prod-ro/wordpress/{src} {remote_dst}'"],
-                                      shell=True, capture_output=True, text=True)
-          logging.info(f"   ↳ {copy_media.stdout}")
+          subprocess.run([f"ssh -t root@itswbhst0020.xaas.epfl.ch 'set -e -x; rsync -av /mnt/data-prod-ro/wordpress/{src} {remote_dst}'"],
+                         shell=True, text=True)
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Restored media from OS3")
 
   def create_site(self, spec):
