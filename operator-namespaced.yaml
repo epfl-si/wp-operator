@@ -95,7 +95,7 @@ spec:
       automountServiceAccountToken: true
       containers:
         - name: wp-operator
-          image: quay-its.epfl.ch/svc0041/wp-operator:latest
+          image: anonymous.apps.t-ocp-its-01.xaas.epfl.ch/svc0041/wp-operator:latest
           args:
           - --namespace=wordpress-test
           - --
@@ -107,8 +107,6 @@ spec:
               mountPath: /wp-data/
             - name: wp-data-ro-openshift3
               mountPath: /wp-data-ro-openshift3/
-      imagePullSecrets:
-        - name: svc0041-rke2-puller-pull-secret
       restartPolicy: Always
       volumes:
         - name: wp-data
