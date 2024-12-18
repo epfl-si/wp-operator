@@ -131,6 +131,10 @@ rules:
   resources: ['configmaps']
   resourceNames: ['wp-operator-lock']
   verbs: ['*']
+  # Again, `resourceNames` doesn't work for create:
+- apiGroups: ['']
+  resources: ['configmaps']
+  verbs: ["create"]
 # Same as above for the permissions to be granted to
 # `ServiceAccount/wp-nginx` (the one for the `Deployment/` of the same
 # name). As seen in `../operator-namespaced.yaml`:

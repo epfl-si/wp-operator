@@ -55,6 +55,9 @@ rules:
     resources: ['configmaps']
     resourceNames: ['wp-operator-lock']
     verbs: ['*']
+  - apiGroups: ['']
+    resources: ['configmaps']
+    verbs: ["create"]
 
 ---
 # RoleBinding/wp-operator
