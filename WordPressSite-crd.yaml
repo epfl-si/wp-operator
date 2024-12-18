@@ -88,6 +88,7 @@ spec:
                     items:
                       type: string
                       pattern: ^[\w -_.]{3,}$
+                    default: []
                   debug:
                     description: Whether or not activate the WP_DEBUG
                     type: boolean

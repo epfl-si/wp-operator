@@ -598,7 +598,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       import_object = spec.get("epfl", {}).get("import")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
-      plugins = wordpress["plugins"]
+      plugins = wordpress.get("plugins", [])
       languages = wordpress["languages"]
 
       self.create_database()
