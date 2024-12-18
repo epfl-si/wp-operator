@@ -102,6 +102,10 @@ spec:
           - --db-host
           - mariadb-min.wordpress-test.svc
           - --wp-dir=/wp/6
+          volumeMounts:
+            - name: wp-uploads
+              mountPath: /wp-uploads/
+              subPath: wp-uploads
 
       imagePullSecrets:
         - name: svc0041-rke2-puller-pull-secret
