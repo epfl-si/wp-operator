@@ -544,12 +544,11 @@ fastcgi_param WP_DB_PASSWORD     {secret};
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Restore initiated on MariaDB")
 
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Restoring media from OS3")
+          self.restore_uploads_directory(
+              "{environment}/www.epfl.ch/htdocs{path}/wp-content/uploads",
+              "{self.name}/uploads"
+          )
 
-          pvc_name = "wordpress-test-wp-uploads-pvc-f401a87f-d2e9-4b20-85cc-61aa7cfc9d30"
-          copy_media = subprocess.run([f"ssh -t root@itswbhst0020.xaas.epfl.ch 'cp -r /mnt/data-prod-ro/wordpress/{environment}/www.epfl.ch/htdocs{path}/wp-content/uploads/ /mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{self.name}/; chown -R 33:33 /mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{self.name}/uploads'"], shell=True, capture_output=True, text=True)
-
-          logging.info(f"   ↳ {copy_media.stdout}")
-          logging.info(f"   ↳ [{self.namespace}/{self.name}] Restored media from OS3")
       except subprocess.CalledProcessError as e:
           logging.error(f"Subprocess error in backup restoration: {e}")
       except FileNotFoundError as e:
@@ -575,6 +574,19 @@ fastcgi_param WP_DB_PASSWORD     {secret};
                   else:
                       raise kopf.PermanentError(f"restore {restore_name} failed, message: f{message}")
           time.sleep(10)
+
+  def restore_uploads_directory (self, src, dst):
+      if os.path.exists("/wp-data-ro-openshift3") and os.path.exists("/wp-data"):
+          # For production: the operator pod has both these volumes mounted.
+          subprocess.run(["rsync", "-av", f"/wp-data-ro-openshift3/{src}", f"/wp-data/{dst}"])
+      else:
+          # For developmnent only - Assume we have ssh access to itswbhst0020 which is rigged for this purpose:
+          pvc_name = "wordpress-test-wp-uploads-pvc-f401a87f-d2e9-4b20-85cc-61aa7cfc9d30"
+          remote_dst = "/mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{dst}"
+          copy_media = subprocess.run([f"ssh -t root@itswbhst0020.xaas.epfl.ch 'set -e -x; rsync -av /mnt/data-prod-ro/wordpress/{src} {remote_dst}'"],
+                                      shell=True, capture_output=True, text=True)
+          logging.info(f"   ↳ {copy_media.stdout}")
+          logging.info(f"   ↳ [{self.namespace}/{self.name}] Restored media from OS3")
 
   def create_site(self, spec):
       logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")

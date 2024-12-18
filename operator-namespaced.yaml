@@ -105,6 +105,8 @@ spec:
           volumeMounts:
             - name: wp-data
               mountPath: /wp-data/
+            - name: wp-data-ro-openshift3
+              mountPath: /wp-data-ro-openshift3/
       imagePullSecrets:
         - name: svc0041-rke2-puller-pull-secret
       restartPolicy: Always
