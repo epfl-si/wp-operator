@@ -1,4 +1,4 @@
-# This container won't work in a development environnement: it needs to be
+# This container won't work in a development environment: it needs to be
 # deployed in the Kubernetes cluster and have to access this node's path
 # `/var/run/secrets/kubernetes.io/serviceaccount/token` in order to access the
 # Kubernetes's API.
@@ -28,7 +28,7 @@ COPY ./requirements.txt .
 RUN pip3 install -r requirements.txt
 COPY . .
 
-# `wp-base` below means the image built from https://github.com/epfl-si/wp-ops/tree/master/docker/wp-base
+# `wp-base` below means the image built from https://github.com/epfl-si/wp-ops/tree/WPN/docker/wp-base
 COPY --from=wp-base /wp /wp
 
 ENTRYPOINT [ "python3", "wp-operator.py", "run"]
