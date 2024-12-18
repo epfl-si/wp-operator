@@ -557,8 +557,8 @@ fastcgi_param WP_DB_PASSWORD     {secret};
 
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Restoring media from OS3")
           self.restore_uploads_directory(
-              "{environment}/www.epfl.ch/htdocs{path}/wp-content/uploads",
-              "{self.name}/uploads"
+              f"{environment}/www.epfl.ch/htdocs{path}/wp-content/uploads",
+              f"{self.name}/uploads"
           )
 
       except subprocess.CalledProcessError as e:
