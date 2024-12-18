@@ -215,12 +215,16 @@ class WordPressSiteOperator:
 
       self.waitCustomObjectCreation("databases", db_name)
 
-  def create_secret(self, secret):
-      secret_name = self.prefix["password"] + self.name
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Secret name={secret_name}")
+  @property
+  def secret_name(self):
+      return self.prefix["password"] + self.name
+
+  def create_secret(self):
+      secret = secrets.token_urlsafe(32)
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Secret name={self.secret_name}")
       body = client.V1Secret(
           type="Opaque",
-          metadata=client.V1ObjectMeta(name=secret_name, namespace=self.namespace),
+          metadata=client.V1ObjectMeta(name=self.secret_name, namespace=self.namespace),
           string_data={"password": secret}
       )
 
@@ -229,7 +233,7 @@ class WordPressSiteOperator:
       except ApiException as e:
           if e.status != 409:
               raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {secret_name} already exists")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {self.secret_name} already exists")
 
   def delete_secret(self):
       secret_name = self.prefix["password"] + self.name
@@ -586,16 +590,18 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       plugins = wordpress["plugins"]
       languages = wordpress["languages"]
 
-      secret = secrets.token_urlsafe(32)
-
       self.create_database()
-      self.create_secret(secret)
+      self.create_secret()
       self.create_user()
       self.create_grant()
-      self.create_ingress(path, secret, hostname)
+
+      mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.namespace).data['password'])
+      mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
+
+      self.create_ingress(path, mariadb_password, hostname)
 
       if (not import_object):
-          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret, hostname)
+          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname)
       else:
           import_os3_backup_source = import_object.get("openshift3BackupSource")
           environment = import_os3_backup_source["environment"]
