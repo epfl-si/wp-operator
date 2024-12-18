@@ -391,7 +391,7 @@ location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {{
 
 location ~ (wp-content/uploads)/ {{
     rewrite .*/(wp-content/uploads/(.*)) /$2 break;
-    root /data/{self.name}/uploads/;
+    root /wp-data/{self.name}/uploads/;
     add_header Cache-Control "129600, public";
 }}
 

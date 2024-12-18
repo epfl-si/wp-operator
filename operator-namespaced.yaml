@@ -103,13 +103,18 @@ spec:
           - mariadb-min.wordpress-test.svc
           - --wp-dir=/wp/6
           volumeMounts:
-            - name: wp-uploads
-              mountPath: /wp-uploads/
-              subPath: wp-uploads
-
+            - name: wp-data
+              mountPath: /wp-data/
       imagePullSecrets:
         - name: svc0041-rke2-puller-pull-secret
       restartPolicy: Always
+      volumes:
+        - name: wp-data
+          persistentVolumeClaim:
+            claimName: wp-data
+        - name: wp-data-ro-openshift3
+          persistentVolumeClaim:
+            claimName: wp-data-ro-openshift3
 
 # Additional RBAC for the WordPress Deployment starts here
 # We have no control over the fact that the `nginx-ingress-controller`
