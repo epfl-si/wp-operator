@@ -121,7 +121,7 @@ spec:
                           ansibleHost:
                             description: Current host used by Ansible
                             type: string
-                            pattern: ^[a-z_]+$
+                            pattern: ^[a-z0-9_]+$
             required:
               - hostname
               - path
