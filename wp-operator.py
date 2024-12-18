@@ -37,8 +37,6 @@ class Config:
 
         parser.add_argument('--wp-dir', help='The path to the WordPress sources to load and call.',
                             default="../volumes/wp/6/")   # TODO: this only makes sense in dev.
-        parser.add_argument('--wp-host', help='The hostname of the WordPresses to create.',
-                            default="wpn.fsd.team")       # TODO: read that from the CR instead.
         parser.add_argument('--php', help='The path to the PHP command-line (CLI) executable.',
                             default="php")
         parser.add_argument('--wp-php-ensure', help='The path to the PHP script that ensures the postconditions.',
@@ -59,7 +57,6 @@ class Config:
         cmdline = cls.parser().parse_args(argv)
         cls.php = cmdline.php
         cls.wp_dir = os.path.join(cmdline.wp_dir, '')
-        cls.wp_host = cmdline.wp_host
         cls.db_host = cmdline.db_host
         cls.secret_dir = cmdline.secret_dir
 
@@ -159,13 +156,13 @@ class WordPressSiteOperator:
       }
       self.patch = patch
 
-  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret):
+  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, hostname):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
       # https://stackoverflow.com/a/89243
       result = subprocess.run([Config.php, "ensure-wordpress-and-theme.php",
                                f"--name={self.name}", f"--path={path}",
                                f"--wp-dir={Config.wp_dir}",
-                               f"--wp-host={Config.wp_host}",
+                               f"--wp-host={hostname}",
                                f"--db-host={Config.db_host}",
                                f"--db-name={self.prefix['db']}{self.name}",
                                f"--db-user={self.prefix['user']}{self.name}",
@@ -364,7 +361,7 @@ class WordPressSiteOperator:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} already deleted")
 
-  def create_ingress(self, path, secret):
+  def create_ingress(self, path, secret, hostname):
     body = client.V1Ingress(
         api_version="networking.k8s.io/v1",
         kind="Ingress",
@@ -376,7 +373,7 @@ class WordPressSiteOperator:
 include "/etc/nginx/template/wordpress_fastcgi.conf";
 
 location = {path}/wp-admin {{
-    return 301 https://wpn.fsd.team{path}/wp-admin/;
+    return 301 https://{hostname}{path}/wp-admin/;
 }}
 
 location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {{
@@ -409,14 +406,14 @@ fastcgi_param WP_DB_PASSWORD     {secret};
         spec=client.V1IngressSpec(
             ingress_class_name="wordpress",
             rules=[client.V1IngressRule(
-                host="wpn.fsd.team",
+                host=hostname,
                 http=client.V1HTTPIngressRuleValue(
                     paths=[client.V1HTTPIngressPath(
                         path=path,
                         path_type="Prefix",
                         backend=client.V1IngressBackend(
                             service=client.V1IngressServiceBackend(
-                                name="wpn-nginx-service",
+                                name="wp-nginx",
                                 port=client.V1ServiceBackendPort(
                                     number=80,
                                 )
@@ -470,7 +467,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
           "AWS_SHARED_CREDENTIALS_FILE": file_path
       }
 
-  def restore_wordpress_from_os3(self, path, environment, ansible_host):
+  def restore_wordpress_from_os3(self, path, environment, ansible_host, hostname):
       logging.info(f" ↳ [{self.namespace}/{self.name}] Restoring WordPress from OS3")
 
       target = f"/tmp/backup/{self.name}"
@@ -489,8 +486,8 @@ fastcgi_param WP_DB_PASSWORD     {secret};
           backup_file_path = f"/tmp/backup/{self.name}/backup.{backup_time}.sql"
 
           with open(backup_file_path, "w") as backup_file:
-              logging.info(f"   ↳ [{self.namespace}/{self.name}] Replacing www.epfl.ch with wpn.fsd.team in SQL backup")
-              sed_command = ["sed", r"s/www\.epfl\.ch/wpn.fsd.team/g", f"{target}/db-backup.sql"]
+              logging.info(f"   ↳ [{self.namespace}/{self.name}] Replacing www.epfl.ch with {hostname} in SQL backup")
+              sed_command = ["sed", rf"s/www\.epfl\.ch/{hostname}/g", f"{target}/db-backup.sql"]
 
               subprocess.run(sed_command, stdout=backup_file, check=True)
 
@@ -595,15 +592,15 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       self.create_secret(secret)
       self.create_user()
       self.create_grant()
-      self.create_ingress(path, secret)
+      self.create_ingress(path, secret, hostname)
 
       if (not import_object):
-          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret)
+          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), secret, hostname)
       else:
           import_os3_backup_source = import_object.get("openshift3BackupSource")
           environment = import_os3_backup_source["environment"]
           ansible_host = import_os3_backup_source["ansibleHost"]
-          self.restore_wordpress_from_os3(path, environment, ansible_host)
+          self.restore_wordpress_from_os3(path, environment, ansible_host, hostname)
 
       self.patch.status['wordpresssite'] = {
           'state': 'created',
