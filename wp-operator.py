@@ -32,7 +32,7 @@ class Config:
     def parser(cls):
         parser = argparse.ArgumentParser(
             prog='wp-operator',
-            description='The WordPress Next Operator',
+            description='The EPFL WordPress Operator',
             epilog='Happy operating!')
 
         parser.add_argument('--wp-dir', help='The path to the WordPress sources to load and call.',
