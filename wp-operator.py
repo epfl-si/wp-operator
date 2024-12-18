@@ -406,7 +406,7 @@ location ~ (wp-content/uploads)/ {{
 }}
 
 fastcgi_param WP_DEBUG           true;
-fastcgi_param WP_ROOT_URI        {path}/;
+fastcgi_param WP_ROOT_URI        {ensure_final_slash(path)};
 fastcgi_param WP_SITE_NAME       {self.name};
 fastcgi_param WP_ABSPATH         /wp/6/;
 fastcgi_param WP_DB_HOST         mariadb-min;
@@ -778,6 +778,12 @@ class NamespaceLeaderElection:
                 return True
 
         QuietLeaderElection(leader_election.config).run()
+
+
+def ensure_final_slash (path):
+    if not path.endswith("/"):
+        path = f"{path}/"
+    return path
 
 
 if __name__ == '__main__':
