@@ -236,15 +236,14 @@ class WordPressSiteOperator:
           logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {self.secret_name} already exists")
 
   def delete_secret(self):
-      secret_name = self.prefix["password"] + self.name
       try:
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Delete Secret {secret_name}")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Delete Secret {self.secret_name}")
 
-          KubernetesAPI.core.delete_namespaced_secret(namespace=self.namespace, name=secret_name)
+          KubernetesAPI.core.delete_namespaced_secret(namespace=self.namespace, name=self.secret_name)
       except ApiException as e:
           if e.status != 404:
               raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {secret_name} already deleted")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {self.secret_name} already deleted")
 
   def create_user(self):
       user_name = f"{self.prefix['user']}{self.name}"
