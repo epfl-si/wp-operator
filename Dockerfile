@@ -23,7 +23,9 @@ RUN apt-get --no-install-recommends -qy install \
         unzip \
      && rm -rf /var/lib/apt/lists/*; # from 1.12GB to 869MB
 
+
 RUN mkdir -p /srv/wp-operator
+ENV HOME=/srv/wp-operator
 WORKDIR /srv/wp-operator
 COPY ./requirements.txt .
 RUN pip3 install -r requirements.txt
