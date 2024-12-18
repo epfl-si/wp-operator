@@ -90,7 +90,8 @@ def on_delete_wordpresssite(spec, name, namespace, patch, **kwargs):
     WordPressSiteOperator(name, namespace, patch).delete_site(spec)
 
 @kopf.on.startup()
-def on_kopf_startup (**kwargs):
+def on_kopf_startup (settings, **_):
+    settings.scanning.disabled = True
     WordPressCRDOperator.ensure_wp_crd_exists()
 
 @kopf.on.create('wordpresssites')
