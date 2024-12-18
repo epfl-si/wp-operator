@@ -561,10 +561,13 @@ fastcgi_param WP_DB_PASSWORD     {secret};
 
       except subprocess.CalledProcessError as e:
           logging.error(f"Subprocess error in backup restoration: {e}")
+          raise e
       except FileNotFoundError as e:
           logging.error(f"File error in backup restoration: {e}")
+          raise e
       except Exception as e:
           logging.error(f"Unexpected error: {e}")
+          raise e
 
       restore_name = restore["metadata"]["name"]
       # Wait until the restore completes (either in error or successfully)
