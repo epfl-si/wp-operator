@@ -27,9 +27,7 @@ COPY ./requirements.txt .
 RUN pip3 install -r requirements.txt
 COPY . .
 
-# The WordPress operator needs a valid WordPress installation that we retreive
-# from our "wp-base" image, which stands on quay-its.epfl.ch/svc0041/wp-base.
-# TODO: please note the "wpn-base" instead of "wp-base" for temporary comfort.
-COPY --from=wpn-base /wp /wp
+# `wp-base` below means the image built from https://github.com/epfl-si/wp-ops/tree/master/docker/wp-base
+COPY --from=wp-base /wp /wp
 
 ENTRYPOINT [ "python3", "wp-operator.py", "run"]
