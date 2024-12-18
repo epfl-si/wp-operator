@@ -594,7 +594,10 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       if os.path.exists("/wp-data-ro-openshift3") and os.path.exists("/wp-data"):
           # For production: the operator pod has both these volumes mounted.
           mounted_dst = f"/wp-data/{dst}/"
-          os.makedirs(mounted_dst)
+          try:
+              os.makedirs(mounted_dst)
+          except FileExistsError:
+              pass
           subprocess.run(["rsync", "-a", f"/wp-data-ro-openshift3/{src}/", mounted_dst], check=True)
       else:
           # For developmnent only - Assume we have ssh access to itswbhst0020 which is rigged for this purpose:
