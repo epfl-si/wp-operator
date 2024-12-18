@@ -492,7 +492,9 @@ fastcgi_param WP_DB_PASSWORD     {secret};
 
       try:
           # Execute the Restic command to restore the backup
-          restic_restore = subprocess.run([f"restic -r s3:https://s3.epfl.ch/{credentials['BUCKET_NAME']}/backup/wordpresses/{ansible_host}/sql restore latest --target {target}"], env=credentials, shell=True, check=True, text=True)
+          restic_command = f"restic -r s3:https://s3.epfl.ch/{credentials['BUCKET_NAME']}/backup/wordpresses/{ansible_host}/sql restore latest --target {target}"
+          logging.info(f"   Running: {restic_command}")
+          restic_restore = subprocess.run(restic_command, env=credentials, shell=True, check=True, text=True)
           logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup restored from S3")
 
           # Open file to write the modified SQL
