@@ -183,10 +183,10 @@ class WordPressSiteOperator:
       logging.info(f" Running: {cmdline_text}")
       result = subprocess.run(cmdline, capture_output=True, text=True)
 
-      print(result.stdout)
+      logging.info(result.stdout)
 
       if "WordPress and plugins successfully installed" not in result.stdout:
-          print()
+          logging.info()
           raise subprocess.CalledProcessError(result.returncode, cmdline_text)
       else:
           logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
@@ -679,7 +679,7 @@ class WordPressCRDOperator:
                   return True
               except client.exceptions.ApiException as e:
                   logging.error("Error trying to create CRD :", e)
-          print("Operator started and initialized")
+          logging.info("Operator started and initialized")
       except ApiException as e:
           logging.error(f"Error verifying CRD file: {e}")
       return False
@@ -741,14 +741,14 @@ class NamespaceLeaderElection:
         )
 
     def start_kopf_in_thread(self):
-        print(f"Instance {self.candidate_id} is the leader for namespace {self.lock_namespace}.")
+        logging.info(f"Instance {self.candidate_id} is the leader for namespace {self.lock_namespace}.")
         def do_run_kopf ():
             sys.exit(kopf.cli.main())
 
         threading.Thread(target=do_run_kopf).run()
 
     def exit_immediately(self):
-        print(f"Instance {self.candidate_id} stopped being the leader for namespace {self.lock_namespace}.")
+        logging.info(f"Instance {self.candidate_id} stopped being the leader for namespace {self.lock_namespace}.")
         sys.exit(0)
 
     @classmethod
