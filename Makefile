@@ -16,7 +16,7 @@ operator:
 
 .PHONY: image
 ## Build, tag and push the image
-image: _build _push
+image: build push
 
 .PHONY: deploy
 ## Deploy the WordPress operator unsing `operator.yaml`
@@ -30,14 +30,13 @@ deploy:
 delete:
 	kubectl delete -f operator-namespaced.yaml
 
-.PHONY: _build
+.PHONY: build
 ## Build the image as `WP_OPERATOR_IMAGE_NAME`
-_build:
+build:
 	docker build -t $(WP_OPERATOR_IMAGE_NAME) .
 
-.PHONY: _push
+.PHONY: push
 ## Push the image using `REGISTRY` and `WP_OPERATOR_IMAGE_TAG`
-_push:
 push:
 	docker push $(WP_OPERATOR_IMAGE_NAME):latest
 	docker push $(WP_OPERATOR_IMAGE_NAME):$(WP_OPERATOR_IMAGE_TAG)
