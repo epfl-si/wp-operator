@@ -114,7 +114,7 @@ define("DB_HOST", $options["db-host"]);
 define("DB_NAME", $options["db-name"]);
 define("DB_USER", $options["db-user"]);
 define("DB_PASSWORD", $options["db-password"]);
-define("PLUGINS", $options["plugins"] ?? null);
+define("PLUGINS", $options["plugins"] ?? "");
 define("UNIT_ID", $options["unit-id"]);
 define("LANGUAGES", $options["languages"]);
 define("SECRETS_DIR", $options["secret-dir"]);
@@ -261,13 +261,21 @@ function generate_random_password(
   return $str;
 }
 
+echo "DB schema\n";
 ensure_db_schema();
+echo "Options and common WordPress settings\n";
 ensure_other_basic_wordpress_things( $options );
+echo "Admin user\n";
 ensure_admin_user( "admin", "admin@exemple.com", generate_random_password() );
+echo "Site title\n";
 ensure_site_title( $options );
+echo "Tagline\n";
 ensure_tagline( $options );
+echo "Theme\n";
 ensure_theme( $options );
+echo "Delete default pages and posts\n";
 delete_default_pages_and_posts();
+echo "Plugins\n";
 ensure_plugins();
 
-echo "WordPress and plugins successfully installed";
+echo "WordPress and plugins successfully installed\n";
