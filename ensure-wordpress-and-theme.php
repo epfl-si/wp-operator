@@ -42,7 +42,7 @@ $longopts  = array(
     "unit-id:",
     "languages:",
     "secret-dir:",
-    "restored-site:"
+    "restored-site:",
 );
 $options = getopt($shortops, $longopts);
 if ( key_exists("h", $options) ) {
@@ -214,7 +214,7 @@ function get_plugin_list () {
         "tinymce-advanced",
         "vsmd",
         "wp-gutenberg-epfl",
-        "wp-media-folder"
+        "wp-media-folder",
     );
 
     $specificPlugin = [];
