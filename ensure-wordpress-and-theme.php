@@ -42,7 +42,7 @@ $longopts  = array(
     "unit-id:",
     "languages:",
     "secret-dir:",
-	"restored-site:"
+    "restored-site:"
 );
 $options = getopt($shortops, $longopts);
 if ( key_exists("h", $options) ) {
@@ -197,31 +197,31 @@ function ensure_theme ( $options ) {
 }
 
 function get_plugin_list () {
-	$defaultPlugins = array(
-		"Polylang",
-		"EPFL-Content-Filter",
-		"EPFL-settings",
-		"EPFL-Accred",
-		"Enlighter",
-		"EPFL-404",
-		"epfl-cache-control",
-		"epfl-coming-soon",
-		"epfl-remote-content-shortcode",
-		"ewww-image-optimizer",
-		"find-my-blocks",
-		"flowpaper",
-		"EPFL-Tequila",
-		"tinymce-advanced",
-		"vsmd",
-		"wp-gutenberg-epfl",
-		"wp-media-folder"
-	);
+    $defaultPlugins = array(
+        "Polylang",
+        "EPFL-Content-Filter",
+        "EPFL-settings",
+        "EPFL-Accred",
+        "Enlighter",
+        "EPFL-404",
+        "epfl-cache-control",
+        "epfl-coming-soon",
+        "epfl-remote-content-shortcode",
+        "ewww-image-optimizer",
+        "find-my-blocks",
+        "flowpaper",
+        "EPFL-Tequila",
+        "tinymce-advanced",
+        "vsmd",
+        "wp-gutenberg-epfl",
+        "wp-media-folder"
+    );
 
-	$specificPlugin = [];
-	if (PLUGINS !== null and PLUGINS != '') {
-		$specificPlugin = explode(',', PLUGINS);
-	}
-	return array_merge($defaultPlugins, $specificPlugin);
+    $specificPlugin = [];
+    if (PLUGINS !== null and PLUGINS != '') {
+        $specificPlugin = explode(',', PLUGINS);
+    }
+    return array_merge($defaultPlugins, $specificPlugin);
 }
 
 function ensure_plugins () {
@@ -269,39 +269,39 @@ function generate_random_password(
 }
 
 function ensure_plugins_for_restore () {
-	$pluginPath = [];
-	$pluginList = get_plugin_list();
+    $pluginPath = [];
+    $pluginList = get_plugin_list();
 
-	$languagesList = explode(',', LANGUAGES);
+    $languagesList = explode(',', LANGUAGES);
 
-	foreach ($pluginList as $pluginName) {
-		$plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR, $languagesList, ABSPATH);
-		$pluginPath[] = $plugin->getPluginPath();
-	}
-	update_option("active_plugins", $pluginPath);
+    foreach ($pluginList as $pluginName) {
+        $plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR, $languagesList, ABSPATH);
+        $pluginPath[] = $plugin->getPluginPath();
+    }
+    update_option("active_plugins", $pluginPath);
 }
 
 if (RESTORED_SITE == 1) {
-	ensure_plugins_for_restore();
+    ensure_plugins_for_restore();
 
-	echo "Plugins successfully configured\n";
+    echo "Plugins successfully configured\n";
 } else {
-	echo "DB schema\n";
-	ensure_db_schema();
-	echo "Options and common WordPress settings\n";
-	ensure_other_basic_wordpress_things($options);
-	echo "Admin user\n";
-	ensure_admin_user("admin", "admin@exemple.com", generate_random_password());
-	echo "Site title\n";
-	ensure_site_title($options);
-	echo "Tagline\n";
-	ensure_tagline($options);
-	echo "Theme\n";
-	ensure_theme($options);
-	echo "Delete default pages and posts\n";
-	delete_default_pages_and_posts();
-	echo "Plugins\n";
-	ensure_plugins();
+    echo "DB schema\n";
+    ensure_db_schema();
+    echo "Options and common WordPress settings\n";
+    ensure_other_basic_wordpress_things($options);
+    echo "Admin user\n";
+    ensure_admin_user("admin", "admin@exemple.com", generate_random_password());
+    echo "Site title\n";
+    ensure_site_title($options);
+    echo "Tagline\n";
+    ensure_tagline($options);
+    echo "Theme\n";
+    ensure_theme($options);
+    echo "Delete default pages and posts\n";
+    delete_default_pages_and_posts();
+    echo "Plugins\n";
+    ensure_plugins();
 
-	echo "WordPress and plugins successfully installed\n";
+    echo "WordPress and plugins successfully installed\n";
 }
