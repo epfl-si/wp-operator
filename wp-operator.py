@@ -161,7 +161,7 @@ class WordPressSiteOperator:
       }
       self.patch = patch
 
-  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, hostname):
+  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, hostname, restored_site):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
 
       cmdline = [Config.php, "ensure-wordpress-and-theme.php",
@@ -177,7 +177,8 @@ class WordPressSiteOperator:
                                f"--plugins={plugins}",
                                f"--unit-id={unit_id}",
                                f"--languages={languages}",
-                               f"--secret-dir={Config.secret_dir}"]
+                               f"--secret-dir={Config.secret_dir}",
+                               f"--restored-site={restored_site}"]
 
       cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
       logging.info(f" Running: {cmdline_text}")
@@ -185,7 +186,7 @@ class WordPressSiteOperator:
 
       logging.info(result.stdout)
 
-      if "WordPress and plugins successfully installed" not in result.stdout:
+      if "WordPress and plugins successfully installed" not in result.stdout and "Plugins successfully configured" not in result.stdout:
           logging.info()
           raise subprocess.CalledProcessError(result.returncode, cmdline_text)
       else:
@@ -480,7 +481,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
           "AWS_SHARED_CREDENTIALS_FILE": file_path
       }
 
-  def restore_wordpress_from_os3(self, path, environment, ansible_host, hostname):
+  def restore_wordpress_from_os3(self, path, environment, ansible_host, hostname, plugins, title, tagline, mariadb_password, unit_id, languages):
       logging.info(f" ↳ [{self.namespace}/{self.name}] Restoring WordPress from OS3")
 
       target = f"/tmp/backup/{self.name}"
@@ -583,6 +584,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
               if condition.get("type") == "Complete":
                   message = condition.get("message")
                   if message == "Success":
+                      self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, languages, mariadb_password, hostname, 1)
                       return
                   elif message == "Running":
                       pass  # Fall through to the time.sleep() below
@@ -631,12 +633,12 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       self.create_ingress(path, mariadb_password, hostname)
 
       if (not import_object):
-          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname)
+          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname, 0)
       else:
           import_os3_backup_source = import_object.get("openshift3BackupSource")
           environment = import_os3_backup_source["environment"]
           ansible_host = import_os3_backup_source["ansibleHost"]
-          self.restore_wordpress_from_os3(path, environment, ansible_host, hostname)
+          self.restore_wordpress_from_os3(path, environment, ansible_host, hostname, plugins, title, tagline, mariadb_password, unit_id, ','.join(languages))
 
       self.patch.status['wordpresssite'] = {
           'state': 'created',
