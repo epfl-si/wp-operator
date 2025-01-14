@@ -161,7 +161,7 @@ class WordPressSiteOperator:
       }
       self.patch = patch
 
-  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, hostname, restored_site):
+  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, hostname, restored_site = 0):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
 
       cmdline = [Config.php, "ensure-wordpress-and-theme.php",
@@ -633,7 +633,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       self.create_ingress(path, mariadb_password, hostname)
 
       if (not import_object):
-          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname, 0)
+          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname)
       else:
           import_os3_backup_source = import_object.get("openshift3BackupSource")
           environment = import_os3_backup_source["environment"]
