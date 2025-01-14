@@ -69,12 +69,6 @@ def raise_if_status_failed(resource_instance):
 
         raise ApiException(status=code, reason=f'{reason}. {message}')
 
-async def get_dynamic_resource (api, api_version, kind, *args, **kwargs):
-        dyn_client = await dynamic.DynamicClient(api)
-        resource = await dyn_client.resources.get(api_version=api_version, kind=kind)
-        status = await resource.get(*args, **kwargs)
-        raise_if_status_failed(status)
-
 async def create_dynamic_resource (api, api_version, kind, **kwargs):
         dyn_client = await dynamic.DynamicClient(api)
         resource = await dyn_client.resources.get(api_version=api_version, kind=kind)
