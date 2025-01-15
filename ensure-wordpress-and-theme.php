@@ -41,7 +41,8 @@ $longopts  = array(
     "plugins:",
     "unit-id:",
     "languages:",
-    "secret-dir:"
+    "secret-dir:",
+    "restored-site:",
 );
 $options = getopt($shortops, $longopts);
 if ( key_exists("h", $options) ) {
@@ -70,6 +71,7 @@ Options:
   --unit-id     Mandatory  Plugin unit ID
   --languages	Mandatory  List of languages
   --secret-dir  Mandatory  Secret file's folder
+  --restored-site Optional `1` if it's a restored site, the default value is `0` (for new sites)
 EOD;
   echo $help . "\n";
   exit();
@@ -118,6 +120,8 @@ define("PLUGINS", $options["plugins"] ?? "");
 define("UNIT_ID", $options["unit-id"]);
 define("LANGUAGES", $options["languages"]);
 define("SECRETS_DIR", $options["secret-dir"]);
+$options["restored-site"] = $options["restored-site"] ?? '0';
+define("RESTORED_SITE", $options["restored-site"]);
 
 global $table_prefix; $table_prefix = "wp_";
 
@@ -193,33 +197,37 @@ function ensure_theme ( $options ) {
   print( switch_theme( $theme->get_stylesheet() ) );
 }
 
+function get_plugin_list () {
+    $defaultPlugins = array(
+        "EPFL-404",
+        "Enlighter",
+        "EPFL-Accred",
+        "epfl-cache-control",
+        "epfl-coming-soon",
+        "EPFL-Content-Filter",
+        "epfl-remote-content-shortcode",
+        "EPFL-settings",
+        "EPFL-Tequila",
+        "ewww-image-optimizer",
+        "find-my-blocks",
+        "flowpaper",
+        "Polylang",
+        "tinymce-advanced",
+        "vsmd",
+        "wp-gutenberg-epfl",
+        "wp-media-folder",
+    );
+
+    $specificPlugin = [];
+    if (PLUGINS !== null and PLUGINS != '') {
+        $specificPlugin = explode(',', PLUGINS);
+    }
+    return array_merge($defaultPlugins, $specificPlugin);
+}
+
 function ensure_plugins () {
   # This is the default plugin list that should be activated at installation
-  $defaultPlugins = array(
-    "Polylang",
-    "EPFL-Content-Filter",
-    "EPFL-settings",
-    "EPFL-Accred",
-    "Enlighter",
-    "EPFL-404",
-    "epfl-cache-control",
-    "epfl-coming-soon",
-    "epfl-remote-content-shortcode",
-    "ewww-image-optimizer",
-    "find-my-blocks",
-    "flowpaper",
-    "EPFL-Tequila",
-    "tinymce-advanced",
-    "vsmd",
-    "wp-gutenberg-epfl",
-    "wp-media-folder"
-  );
-
-  $specificPlugin = [];
-  if (PLUGINS !== null) {
-    $specificPlugin = explode(',', PLUGINS);
-  }
-  $pluginList = array_merge($defaultPlugins, $specificPlugin);
+  $pluginList = get_plugin_list();
 
   $languagesList = explode(',', LANGUAGES);
 
@@ -261,21 +269,40 @@ function generate_random_password(
   return $str;
 }
 
-echo "DB schema\n";
-ensure_db_schema();
-echo "Options and common WordPress settings\n";
-ensure_other_basic_wordpress_things( $options );
-echo "Admin user\n";
-ensure_admin_user( "admin", "admin@exemple.com", generate_random_password() );
-echo "Site title\n";
-ensure_site_title( $options );
-echo "Tagline\n";
-ensure_tagline( $options );
-echo "Theme\n";
-ensure_theme( $options );
-echo "Delete default pages and posts\n";
-delete_default_pages_and_posts();
-echo "Plugins\n";
-ensure_plugins();
+function ensure_plugins_for_restore () {
+    $pluginPath = [];
+    $pluginList = get_plugin_list();
 
-echo "WordPress and plugins successfully installed\n";
+    $languagesList = explode(',', LANGUAGES);
+
+    foreach ($pluginList as $pluginName) {
+        $plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR, $languagesList, ABSPATH);
+        $pluginPath[] = $plugin->getPluginPath();
+    }
+    update_option("active_plugins", $pluginPath);
+}
+
+if (RESTORED_SITE == 1) {
+    ensure_plugins_for_restore();
+
+    echo "Plugins successfully configured\n";
+} else {
+    echo "DB schema\n";
+    ensure_db_schema();
+    echo "Options and common WordPress settings\n";
+    ensure_other_basic_wordpress_things($options);
+    echo "Admin user\n";
+    ensure_admin_user("admin", "admin@exemple.com", generate_random_password());
+    echo "Site title\n";
+    ensure_site_title($options);
+    echo "Tagline\n";
+    ensure_tagline($options);
+    echo "Theme\n";
+    ensure_theme($options);
+    echo "Delete default pages and posts\n";
+    delete_default_pages_and_posts();
+    echo "Plugins\n";
+    ensure_plugins();
+
+    echo "WordPress and plugins successfully installed\n";
+}
