@@ -187,7 +187,6 @@ class WordPressSiteOperator:
       logging.info(result.stdout)
 
       if "WordPress and plugins successfully installed" not in result.stdout and "Plugins successfully configured" not in result.stdout:
-          logging.info()
           raise subprocess.CalledProcessError(result.returncode, cmdline_text)
       else:
           logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
