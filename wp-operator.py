@@ -684,6 +684,15 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       plugins = wordpress.get("plugins", [])
       languages = wordpress["languages"]
 
+      databases = KubernetesAPI.custom.list_namespaced_custom_object(
+        group="k8s.mariadb.com",
+        version="v1alpha1",
+        namespace=self.namespace,
+        plural="databases"
+      )
+      
+      logging.info(databases)
+
       self.create_database()
       self.create_secret()
       self.create_user()
