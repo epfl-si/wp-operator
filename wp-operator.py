@@ -101,6 +101,21 @@ def on_kopf_startup (settings, **_):
 def on_create_wordpresssite(spec, name, namespace, patch, **kwargs):
     WordPressSiteOperator(name, namespace, patch).create_site(spec)
 
+@kopf.on.create('databases')
+def on_create_database(spec, name, namespace, patch, **kwargs):
+    MariaDBPlacementController(name, namespace).get_least_populated_mariadb()
+
+@kopf.on.delete('databases')
+def on_delete_database(spec, name, namespace, patch, **kwargs):
+    MariaDBPlacementController(name, namespace).get_least_populated_mariadb()
+
+@kopf.on.create('mariadbs')
+def on_create_mariadb(spec, name, namespace, patch, **kwargs):
+    MariaDBPlacementController(name, namespace).get_least_populated_mariadb()
+
+@kopf.on.delete('mariadbs')
+def on_delete_mariadb(spec, name, namespace, patch, **kwargs):
+    MariaDBPlacementController(name, namespace).get_least_populated_mariadb()
 
 class classproperty:
     def __init__(self, func):
@@ -147,6 +162,183 @@ class KubernetesAPI:
   def networking(cls):
     return cls.__get()._networking
 
+class MariaDBPlacementController:
+    def __init__(self, name, namespace):
+        self.name = name
+        self.namespace = namespace
+        self.get_least_populated_mariadb()
+
+    def get_least_populated_mariadb (self):
+      databases = KubernetesAPI.custom.list_namespaced_custom_object(
+          group="k8s.mariadb.com",
+          version="v1alpha1",
+          namespace=self.namespace,
+          plural="databases"
+      )
+
+      groupedDatabases = {}
+      for db in databases['items']:
+          mariadb = db["spec"]["mariaDbRef"]["name"]
+          if mariadb not in groupedDatabases:
+              groupedDatabases[mariadb] = []
+          groupedDatabases[mariadb].append(db)
+
+      db_per_mariadb = {key: len(value) for key, value in groupedDatabases.items()}
+      mariadb_with_least_dbs = min(db_per_mariadb, key=db_per_mariadb.get)
+      self.mariadb_min = mariadb_with_least_dbs
+
+    def _waitCustomObjectCreation(self, customObjectType, customObjectName):
+      # Wait until the customobject creation completes (either in error or successfully)
+
+      iteration = 0;
+      while(True):
+          newUser = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
+                                                                 version="v1alpha1",
+                                                                 namespace=self.namespace,
+                                                                 plural=customObjectType,
+                                                                 name=customObjectName)
+          for condition in newUser.get("status", {}).get("conditions", []):
+              if condition.get("type") == "Ready":
+                  message = condition.get("message")
+                  if message == "Created":
+                      return
+                  else:
+                      pass
+
+          if iteration < 12:
+              time.sleep(5)
+              iteration = iteration + 1
+          else:
+              raise kopf.PermanentError(f"create {customObjectName} failed, message: f{message}")
+
+    def create_database(self, prefix):
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Database {prefix['db']}{self.name}")
+      db_name = f"{prefix['db']}{self.name}"
+      body = {
+          "apiVersion": "k8s.mariadb.com/v1alpha1",
+          "kind": "Database",
+          "metadata": {
+              "name": db_name,
+              "namespace": self.namespace
+          },
+          "spec": {
+              "mariaDbRef": {
+                  "name": self.mariadb_min
+              },
+              "characterSet": "utf8mb4",
+              "collate": "utf8mb4_unicode_ci"
+          }
+      }
+
+      try:
+          KubernetesAPI.custom.create_namespaced_custom_object(
+              group="k8s.mariadb.com",
+              version="v1alpha1",
+              namespace=self.namespace,
+              plural="databases",
+              body=body
+          )
+      except ApiException as e:
+          if e.status != 409:
+              raise e
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Database {prefix['db']}{self.name} already exists")
+
+      self._waitCustomObjectCreation("databases", db_name)
+
+    def create_user(self, prefix):
+      user_name = f"{prefix['user']}{self.name}"
+      password_name = f"{prefix['password']}{self.name}"
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Create User name={user_name}")
+      body = {
+          "apiVersion": "k8s.mariadb.com/v1alpha1",
+          "kind": "User",
+          "metadata": {
+              "name": user_name,
+              "namespace": self.namespace
+          },
+          "spec": {
+              "mariaDbRef": {
+                  "name": self.mariadb_min
+              },
+              "passwordSecretKeyRef": {
+                  "name": password_name,
+                  "key": "password"
+              },
+              "host": "%",
+              "cleanupPolicy": "Delete"
+          }
+      }
+
+      try:
+          KubernetesAPI.custom.create_namespaced_custom_object(
+              group="k8s.mariadb.com",
+              version="v1alpha1",
+              namespace=self.namespace,
+              plural="users",
+              body=body
+          )
+      except ApiException as e:
+          if e.status != 409:
+              raise e
+          logging.info(f" ↳ [{self.namespace}/{self.name}] User {user_name} already exists")
+
+      self.waitCustomObjectCreation("users", user_name)
+
+    def create_grant(self, prefix):
+      grant_name = f"{prefix['grant']}{self.name}"
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Grant: {grant_name}")
+      body = {
+          "apiVersion": "k8s.mariadb.com/v1alpha1",
+          "kind": "Grant",
+          "metadata": {
+              "name": grant_name,
+              "namespace": self.namespace
+          },
+          "spec": {
+              "mariaDbRef": {
+                  "name": self.mariadb_min
+              },
+              "privileges": [
+                  "ALL PRIVILEGES"
+              ],
+              "database": f"{prefix['db']}{self.name}",
+              "table" : "*",
+              "username": f"{prefix['user']}{self.name}",
+              "grantOption": False,
+              "host": "%"
+          }
+      }
+
+      try:
+          KubernetesAPI.custom.create_namespaced_custom_object(
+              group="k8s.mariadb.com",
+              version="v1alpha1",
+              namespace=self.namespace,
+              plural="grants",
+              body=body
+          )
+      except ApiException as e:
+          if e.status != 409:
+              raise e
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Grant {grant_name} already exists")
+
+      self.waitCustomObjectCreation("grants", grant_name)
+
+    def delete_custom_object_mariadb(self, prefix, plural):
+      mariadb_name = prefix + self.name
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Delete MariaDB object {mariadb_name}")
+      try:
+          KubernetesAPI.custom.delete_namespaced_custom_object(
+              group="k8s.mariadb.com",
+              version="v1alpha1",
+              plural=plural,
+              namespace=self.namespace,
+              name=mariadb_name
+          )
+      except ApiException as e:
+          if e.status != 404:
+              raise e
+          logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} does not exist")
 
 class WordPressSiteOperator:
 
@@ -154,11 +346,11 @@ class WordPressSiteOperator:
       self.name = name
       self.namespace = namespace
       self.prefix = {
-        "db": "wp-db-",
-        "user": "wp-db-user-",
-        "grant": "wp-db-grant-",
-        "password": "wp-db-password-",
-        "route": "wp-route-"
+          "db": "wp-db-",
+          "user": "wp-db-user-",
+          "grant": "wp-db-grant-",
+          "password": "wp-db-password-",
+          "route": "wp-route-"
       }
       self.patch = patch
       self.least_populated_mariadb = self.get_least_populated_mariadb()
@@ -193,40 +385,6 @@ class WordPressSiteOperator:
       else:
           logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
 
-  def create_database(self):
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Database {self.prefix['db']}{self.name}")
-      db_name = f"{self.prefix['db']}{self.name}"
-      body = {
-          "apiVersion": "k8s.mariadb.com/v1alpha1",
-          "kind": "Database",
-          "metadata": {
-              "name": db_name,
-              "namespace": self.namespace
-          },
-          "spec": {
-              "mariaDbRef": {
-                  "name": self.least_populated_mariadb
-              },
-              "characterSet": "utf8mb4",
-              "collate": "utf8mb4_unicode_ci"
-          }
-      }
-
-      try:
-          KubernetesAPI.custom.create_namespaced_custom_object(
-              group="k8s.mariadb.com",
-              version="v1alpha1",
-              namespace=self.namespace,
-              plural="databases",
-              body=body
-          )
-      except ApiException as e:
-          if e.status != 409:
-              raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Database {self.prefix['db']}{self.name} already exists")
-
-      self.waitCustomObjectCreation("databases", db_name)
-
   @property
   def secret_name(self):
       return self.prefix["password"] + self.name
@@ -256,125 +414,6 @@ class WordPressSiteOperator:
           if e.status != 404:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {self.secret_name} does not exist")
-
-  def create_user(self):
-      user_name = f"{self.prefix['user']}{self.name}"
-      password_name = f"{self.prefix['password']}{self.name}"
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Create User name={user_name}")
-      body = {
-          "apiVersion": "k8s.mariadb.com/v1alpha1",
-          "kind": "User",
-          "metadata": {
-              "name": user_name,
-              "namespace": self.namespace
-          },
-          "spec": {
-              "mariaDbRef": {
-                  "name": self.least_populated_mariadb
-              },
-              "passwordSecretKeyRef": {
-                  "name": password_name,
-                  "key": "password"
-              },
-              "host": "%",
-              "cleanupPolicy": "Delete"
-          }
-      }
-
-      try:
-          KubernetesAPI.custom.create_namespaced_custom_object(
-              group="k8s.mariadb.com",
-              version="v1alpha1",
-              namespace=self.namespace,
-              plural="users",
-              body=body
-          )
-      except ApiException as e:
-          if e.status != 409:
-              raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] User {user_name} already exists")
-
-      self.waitCustomObjectCreation("users", user_name)
-
-  def create_grant(self):
-      grant_name = f"{self.prefix['grant']}{self.name}"
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Grant: {grant_name}")
-      body = {
-          "apiVersion": "k8s.mariadb.com/v1alpha1",
-          "kind": "Grant",
-          "metadata": {
-              "name": grant_name,
-              "namespace": self.namespace
-          },
-          "spec": {
-              "mariaDbRef": {
-                  "name": self.least_populated_mariadb
-              },
-              "privileges": [
-                  "ALL PRIVILEGES"
-              ],
-              "database": f"{self.prefix['db']}{self.name}",
-              "table" : "*",
-              "username": f"{self.prefix['user']}{self.name}",
-              "grantOption": False,
-              "host": "%"
-          }
-      }
-
-      try:
-          KubernetesAPI.custom.create_namespaced_custom_object(
-              group="k8s.mariadb.com",
-              version="v1alpha1",
-              namespace=self.namespace,
-              plural="grants",
-              body=body
-          )
-      except ApiException as e:
-          if e.status != 409:
-              raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Grant {grant_name} already exists")
-
-      self.waitCustomObjectCreation("grants", grant_name)
-
-  def waitCustomObjectCreation(self, customObjectType, customObjectName):
-      # Wait until the customobject creation completes (either in error or successfully)
-
-      iteration = 0;
-      while(True):
-          newUser = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
-                                                                 version="v1alpha1",
-                                                                 namespace=self.namespace,
-                                                                 plural=customObjectType,
-                                                                 name=customObjectName)
-          for condition in newUser.get("status", {}).get("conditions", []):
-              if condition.get("type") == "Ready":
-                  message = condition.get("message")
-                  if message == "Created":
-                      return
-                  else:
-                      pass
-
-          if iteration < 12:
-              time.sleep(5)
-              iteration = iteration + 1
-          else:
-              raise kopf.PermanentError(f"create {customObjectName} failed, message: f{message}")
-
-  def delete_custom_object_mariadb(self, prefix, plural):
-      mariadb_name = prefix + self.name
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Delete MariaDB object {mariadb_name}")
-      try:
-          KubernetesAPI.custom.delete_namespaced_custom_object(
-              group="k8s.mariadb.com",
-              version="v1alpha1",
-              plural=plural,
-              namespace=self.namespace,
-              name=mariadb_name
-          )
-      except ApiException as e:
-          if e.status != 404:
-              raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} does not exist")
 
   def create_ingress(self, path, secret, hostname):
     body = client.V1Ingress(
@@ -672,25 +711,6 @@ fastcgi_param WP_DB_PASSWORD     {secret};
                          shell=True, text=True)
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Restored media from OS3")
 
-  def get_least_populated_mariadb (self) :
-      databases = KubernetesAPI.custom.list_namespaced_custom_object(
-          group="k8s.mariadb.com",
-          version="v1alpha1",
-          namespace=self.namespace,
-          plural="databases"
-      )
-
-      groupedDatabases = {}
-      for db in databases['items']:
-          mariadb = db["spec"]["mariaDbRef"]["name"]
-          if mariadb not in groupedDatabases:
-              groupedDatabases[mariadb] = []
-          groupedDatabases[mariadb].append(db)
-
-      db_per_mariadb = {key: len(value) for key, value in groupedDatabases.items()}
-      mariadb_min = min(db_per_mariadb, key=db_per_mariadb.get)
-      return mariadb_min
-
   def create_site(self, spec):
       logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
       path = spec.get('path')
@@ -704,16 +724,16 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       plugins = wordpress.get("plugins", [])
       languages = wordpress["languages"]
 
-      self.create_database()
+      MariaDBPlacementController(self.name, self.namespace).create_database(self.prefix)
       self.create_secret()
-      self.create_user()
-      self.create_grant()
+      MariaDBPlacementController(self.name, self.namespace).create_user(self.prefix)
+      MariaDBPlacementController(self.name, self.namespace).create_grant(self.prefix)
 
       mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.namespace).data['password'])
       mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
 
       self.create_ingress(path, mariadb_password, hostname)
-      
+
       # TODO: to be adapted during OS4 migration and removed at the end.
       if (path.split("/")[1] == "labs"):
           self.create_route(path, hostname)
@@ -737,12 +757,12 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       logging.info(f"Delete WordPressSite {self.name=} in {self.namespace=}")
 
       # Deleting database
-      self.delete_custom_object_mariadb(self.prefix['db'], "databases")
+      MariaDBPlacementController(self.name, self.namespace).delete_custom_object_mariadb(self.prefix['db'], "databases")
       self.delete_secret()
       # Deleting user
-      self.delete_custom_object_mariadb(self.prefix['user'], "users")
+      MariaDBPlacementController(self.name, self.namespace).delete_custom_object_mariadb(self.prefix['user'], "users")
       # Deleting grant
-      self.delete_custom_object_mariadb(self.prefix['grant'], "grants")
+      MariaDBPlacementController(self.name, self.namespace).delete_custom_object_mariadb(self.prefix['grant'], "grants")
       self.delete_ingress()
       self.delete_route()
 
