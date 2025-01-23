@@ -161,6 +161,7 @@ class WordPressSiteOperator:
         "route": "wp-route-"
       }
       self.patch = patch
+      self.least_populated_mariadb = self.get_least_populated_mariadb()
 
   def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, hostname, restored_site = 0):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
@@ -204,7 +205,7 @@ class WordPressSiteOperator:
           },
           "spec": {
               "mariaDbRef": {
-                  "name": "mariadb-min"
+                  "name": self.least_populated_mariadb
               },
               "characterSet": "utf8mb4",
               "collate": "utf8mb4_unicode_ci"
@@ -269,7 +270,7 @@ class WordPressSiteOperator:
           },
           "spec": {
               "mariaDbRef": {
-                  "name": "mariadb-min"
+                  "name": self.least_populated_mariadb
               },
               "passwordSecretKeyRef": {
                   "name": password_name,
@@ -307,7 +308,7 @@ class WordPressSiteOperator:
           },
           "spec": {
               "mariaDbRef": {
-                  "name": "mariadb-min"
+                  "name": self.least_populated_mariadb
               },
               "privileges": [
                   "ALL PRIVILEGES"
@@ -410,7 +411,7 @@ fastcgi_param WP_DEBUG           true;
 fastcgi_param WP_ROOT_URI        {ensure_final_slash(path)};
 fastcgi_param WP_SITE_NAME       {self.name};
 fastcgi_param WP_ABSPATH         /wp/6/;
-fastcgi_param WP_DB_HOST         mariadb-min;
+fastcgi_param WP_DB_HOST         {self.least_populated_mariadb};
 fastcgi_param WP_DB_NAME         {self.prefix["db"]}{self.name};
 fastcgi_param WP_DB_USER         {self.prefix["user"]}{self.name};
 fastcgi_param WP_DB_PASSWORD     {secret};
@@ -582,7 +583,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
               },
               "spec": {
                   "mariaDbRef": {
-                      "name": "mariadb-min"
+                      "name": self.least_populated_mariadb
                   },
                   "s3": {
                       "bucket": credentials["BUCKET_NAME"],
@@ -665,11 +666,30 @@ fastcgi_param WP_DB_PASSWORD     {secret};
           subprocess.run(["rsync", "-rlp", f"/wp-data-ro-openshift3/{src}/", mounted_dst], check=True)
       else:
           # For developmnent only - Assume we have ssh access to itswbhst0020 which is rigged for this purpose:
-          pvc_name = "wordpress-test-wp-uploads-pvc-f401a87f-d2e9-4b20-85cc-61aa7cfc9d30"
-          remote_dst = "/mnt/data/nfs-storageclass/{pvc_name}/wp-uploads/{dst}"
+          # remote_dst = "/mnt/data_new_nas_4_prod/wordpress-data/svc0041p-wordpress-wordpress-data-pvc-b8385080-dd08-47a7-9363-c11bf55be7a7/{dst}"
+          remote_dst = "/mnt/data/wordpress-data/svc0041t-wordpress-wordpress-data-pvc-239b8f80-f867-4268-9a36-ec03c91ac981/{dst}"
           subprocess.run([f"ssh -t root@itswbhst0020.xaas.epfl.ch 'set -e -x; rsync -av /mnt/data-prod-ro/wordpress/{src} {remote_dst}'"],
                          shell=True, text=True)
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Restored media from OS3")
+
+  def get_least_populated_mariadb (self) :
+      databases = KubernetesAPI.custom.list_namespaced_custom_object(
+          group="k8s.mariadb.com",
+          version="v1alpha1",
+          namespace=self.namespace,
+          plural="databases"
+      )
+
+      groupedDatabases = {}
+      for db in databases['items']:
+          mariadb = db["spec"]["mariaDbRef"]["name"]
+          if mariadb not in groupedDatabases:
+              groupedDatabases[mariadb] = []
+          groupedDatabases[mariadb].append(db)
+
+      db_per_mariadb = {key: len(value) for key, value in groupedDatabases.items()}
+      mariadb_min = min(db_per_mariadb, key=db_per_mariadb.get)
+      return mariadb_min
 
   def create_site(self, spec):
       logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
@@ -683,15 +703,6 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       tagline = wordpress["tagline"]
       plugins = wordpress.get("plugins", [])
       languages = wordpress["languages"]
-
-      databases = KubernetesAPI.custom.list_namespaced_custom_object(
-        group="k8s.mariadb.com",
-        version="v1alpha1",
-        namespace=self.namespace,
-        plural="databases"
-      )
-      
-      logging.info(databases)
 
       self.create_database()
       self.create_secret()
