@@ -95,7 +95,6 @@ def on_delete_wordpresssite(spec, name, namespace, patch, **kwargs):
 @kopf.on.startup()
 def on_kopf_startup (settings, **_):
     settings.scanning.disabled = True
-    WordPressCRDOperator.ensure_wp_crd_exists()
 
 @kopf.on.create('wordpresssites')
 def on_create_wordpresssite(spec, name, namespace, patch, **kwargs):
@@ -765,38 +764,6 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       MariaDBPlacementController(self.name, self.namespace).delete_custom_object_mariadb(self.prefix['grant'], "grants")
       self.delete_ingress()
       self.delete_route()
-
-class WordPressCRDOperator:
-  # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
-  @classmethod
-  def ensure_wp_crd_exists(cls):
-      dyn_client = KubernetesAPI.dynamic
-      api_extensions_instance = KubernetesAPI.extensions
-      crd_name = "wordpresssites.wordpress.epfl.ch"
-
-      try:
-          crd_list = api_extensions_instance.list_custom_resource_definition()
-          exists = any(crd.metadata.name == crd_name for crd in crd_list.items)
-
-          if exists:
-              logging.info(f"↳ CRD '{crd_name}' already exists, doing nothing...")
-              return True
-          else:
-              logging.info(f"↳ CRD '{crd_name}' does not exists, creating it...")
-              with open("WordPressSite-crd.yaml") as file:
-                  crd_file = yaml.safe_load(file)
-              crd_resource = dyn_client.resources.get(api_version='apiextensions.k8s.io/v1', kind='CustomResourceDefinition')
-
-              try:
-                  crd_resource.create(body=crd_file)
-                  logging.info(f"↳ CRD '{crd_name}' created")
-                  return True
-              except client.exceptions.ApiException as e:
-                  logging.error("Error trying to create CRD :", e)
-          logging.info("Operator started and initialized")
-      except ApiException as e:
-          logging.error(f"Error verifying CRD file: {e}")
-      return False
 
 
 class NamespaceFromEnv:
