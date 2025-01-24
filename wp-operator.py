@@ -351,8 +351,66 @@ class WordPressSiteOperator:
           "password": "wp-db-password-",
           "route": "wp-route-"
       }
-      self.patch = patch
-      self.least_populated_mariadb = self.get_least_populated_mariadb()
+
+
+
+      self.placer = MariaDBPlacer(namespace)
+
+      @kopf.on.delete('wordpresssites')
+      def on_delete_wordpresssite(spec, name, namespace, patch, **kwargs):
+        self.delete_site(spec)
+
+      @kopf.on.create('wordpresssites')
+      def on_create_wordpresssite(spec, name, namespace, patch, **kwargs):
+        self.create_site(spec)
+
+  def create_site(self, spec):
+      logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
+      path = spec.get('path')
+      hostname = spec.get('hostname')
+      site_url = hostname + path
+      wordpress = spec.get("wordpress")
+      unit_id = spec.get("owner", {}).get("epfl", {}).get("unitId")
+      import_object = spec.get("epfl", {}).get("import")
+      title = wordpress["title"]
+      tagline = wordpress["tagline"]
+      plugins = wordpress.get("plugins", [])
+      languages = wordpress["languages"]
+
+      self.mariadb_name = MariaDBPlacer(self.namespace).place_and_create_database(self.name, self.prefix)
+
+      self._waitCustomObjectCreation("databases", f"{self.prefix['db']}{self.name}")
+
+      self.create_secret()
+      self.create_user()
+      self.create_grant()
+
+      mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.namespace).data['password'])
+      mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
+
+      self.create_ingress(path, mariadb_password, hostname)
+
+      if (not import_object):
+          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname)
+      else:
+          import_os3_backup_source = import_object.get("openshift3BackupSource")
+          environment = import_os3_backup_source["environment"]
+          ansible_host = import_os3_backup_source["ansibleHost"]
+          self.restore_wordpress_from_os3(path, environment, ansible_host, hostname, plugins, title, tagline, mariadb_password, unit_id, ','.join(languages))
+
+      logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
+
+  def delete_site(self, spec):
+      logging.info(f"Delete WordPressSite {self.name=} in {self.namespace=}")
+
+      # Deleting database
+      self.delete_custom_object_mariadb(self.prefix['db'], "databases")
+      self.delete_secret()
+      # Deleting user
+      self.delete_custom_object_mariadb(self.prefix['user'], "users")
+      # Deleting grant
+      self.delete_custom_object_mariadb(self.prefix['grant'], "grants")
+      self.delete_ingress()
 
   def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, hostname, restored_site = 0):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
@@ -745,11 +803,6 @@ fastcgi_param WP_DB_PASSWORD     {secret};
           ansible_host = import_os3_backup_source["ansibleHost"]
           self.restore_wordpress_from_os3(path, environment, ansible_host, hostname, plugins, title, tagline, mariadb_password, unit_id, ','.join(languages))
 
-      self.patch.status['wordpresssite'] = {
-          'state': 'created',
-          'url': site_url,
-          'lastUpdate': datetime.utcnow().isoformat()
-      }
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
   def delete_site(self, spec):
