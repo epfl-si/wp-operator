@@ -87,34 +87,9 @@ class Config:
         else:
             return None
 
-
-@kopf.on.delete('wordpresssites')
-def on_delete_wordpresssite(spec, name, namespace, patch, **kwargs):
-    WordPressSiteOperator(name, namespace, patch).delete_site(spec)
-
 @kopf.on.startup()
 def on_kopf_startup (settings, **_):
     settings.scanning.disabled = True
-
-@kopf.on.create('wordpresssites')
-def on_create_wordpresssite(spec, name, namespace, patch, **kwargs):
-    WordPressSiteOperator(name, namespace, patch).create_site(spec)
-
-@kopf.on.create('databases')
-def on_create_database(spec, name, namespace, patch, **kwargs):
-    MariaDBPlacementController(name, namespace).get_least_populated_mariadb()
-
-@kopf.on.delete('databases')
-def on_delete_database(spec, name, namespace, patch, **kwargs):
-    MariaDBPlacementController(name, namespace).get_least_populated_mariadb()
-
-@kopf.on.create('mariadbs')
-def on_create_mariadb(spec, name, namespace, patch, **kwargs):
-    MariaDBPlacementController(name, namespace).get_least_populated_mariadb()
-
-@kopf.on.delete('mariadbs')
-def on_delete_mariadb(spec, name, namespace, patch, **kwargs):
-    MariaDBPlacementController(name, namespace).get_least_populated_mariadb()
 
 class classproperty:
     def __init__(self, func):
@@ -161,215 +136,195 @@ class KubernetesAPI:
   def networking(cls):
     return cls.__get()._networking
 
-class MariaDBPlacementController:
-    def __init__(self, name, namespace):
-        self.name = name
-        self.namespace = namespace
-        self.get_least_populated_mariadb()
+class MariaDBPlacer:
+    def __init__(self):
+      self._mariadbs_by_namespace = {}
+      # TODO wait for KOPF to be done sending us the initial updates
 
-    def get_least_populated_mariadb (self):
-      databases = KubernetesAPI.custom.list_namespaced_custom_object(
-          group="k8s.mariadb.com",
-          version="v1alpha1",
-          namespace=self.namespace,
-          plural="databases"
-      )
+      @kopf.on.event('databases')
+      def on_event_database(event, spec, name, namespace, patch, **kwargs):
+        if (event['type'] in [None, 'ADDED', 'MODIFIED']) :
+          self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", []).append(spec)
+        elif (event['type'] == 'DELETED') :
+          previous_databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", [])
+          self._mariadbs_at(namespace, spec['mariaDbRef']['name'])["databases"] = [
+            db for db in previous_databases
+            if not (db.metadata.name == name and db.metadata.namespace == namespace)
+          ]
+        self._log_mariadbs()
 
-      groupedDatabases = {}
-      for db in databases['items']:
-          mariadb = db["spec"]["mariaDbRef"]["name"]
-          if mariadb not in groupedDatabases:
-              groupedDatabases[mariadb] = []
-          groupedDatabases[mariadb].append(db)
+      @kopf.on.event('mariadbs')
+      def on_event_mariadb(event, spec, name, namespace, patch, **kwargs):
+        if (event['type'] in [None, 'ADDED', 'MODIFIED']) :
+          self._mariadbs_at(namespace, name)["spec"] = spec
+        elif (event['type'] == 'DELETED') :
+          if namespace in self._mariadbs_by_namespace:
+            if name in self._mariadbs_by_namespace[namespace]:
+              del self._mariadbs_by_namespace[namespace][name]
+        self._log_mariadbs()
 
-      db_per_mariadb = {key: len(value) for key, value in groupedDatabases.items()}
-      mariadb_with_least_dbs = min(db_per_mariadb, key=db_per_mariadb.get)
-      self.mariadb_min = mariadb_with_least_dbs
+    def _mariadbs_at (self, namespace, name):
+      return self._mariadbs_by_namespace.setdefault(namespace, {}).setdefault(name, {})
 
-    def _waitCustomObjectCreation(self, customObjectType, customObjectName):
-      # Wait until the customobject creation completes (either in error or successfully)
+    def _log_mariadbs (self):
+        # TODO: should be logging.debug
+        logging.info("test---", self._mariadbs_by_namespace)
 
-      iteration = 0;
-      while(True):
-          newUser = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
-                                                                 version="v1alpha1",
-                                                                 namespace=self.namespace,
-                                                                 plural=customObjectType,
-                                                                 name=customObjectName)
-          for condition in newUser.get("status", {}).get("conditions", []):
-              if condition.get("type") == "Ready":
-                  message = condition.get("message")
-                  if message == "Created":
-                      return
-                  else:
-                      pass
+    def place_and_create_database(self, namespace, prefix, name) :
+        mariadb_min_name = self._least_populated_mariadb()
+        logging.info(f" ↳ [{namespace}/{name}] Create Database {prefix['db']}{name}")
+        db_name = f"{prefix['db']}{name}"
+        body = {
+            "apiVersion": "k8s.mariadb.com/v1alpha1",
+            "kind": "Database",
+            "metadata": {
+                "name": db_name,
+                "namespace": namespace
+            },
+            "spec": {
+                "mariaDbRef": {
+                    "name": mariadb_min_name
+                },
+                "characterSet": "utf8mb4",
+                "collate": "utf8mb4_unicode_ci"
+            }
+        }
 
-          if iteration < 12:
-              time.sleep(5)
-              iteration = iteration + 1
-          else:
-              raise kopf.PermanentError(f"create {customObjectName} failed, message: f{message}")
+        try:
+            KubernetesAPI.custom.create_namespaced_custom_object(
+                group="k8s.mariadb.com",
+                version="v1alpha1",
+                namespace=namespace,
+                plural="databases",
+                body=body
+            )
+        except ApiException as e:
+            if e.status != 409:
+                raise e
+            logging.info(f" ↳ [{namespace}/{name}] Database {prefix['db']}{name} already exists")
 
-    def create_database(self, prefix):
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Database {prefix['db']}{self.name}")
-      db_name = f"{prefix['db']}{self.name}"
-      body = {
-          "apiVersion": "k8s.mariadb.com/v1alpha1",
-          "kind": "Database",
-          "metadata": {
-              "name": db_name,
-              "namespace": self.namespace
-          },
-          "spec": {
-              "mariaDbRef": {
-                  "name": self.mariadb_min
-              },
-              "characterSet": "utf8mb4",
-              "collate": "utf8mb4_unicode_ci"
-          }
-      }
+            # TODO get the correct placement from k8s
 
-      try:
-          KubernetesAPI.custom.create_namespaced_custom_object(
-              group="k8s.mariadb.com",
-              version="v1alpha1",
-              namespace=self.namespace,
-              plural="databases",
-              body=body
-          )
-      except ApiException as e:
-          if e.status != 409:
-              raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Database {prefix['db']}{self.name} already exists")
+        return mariadb_min_name
 
-      self._waitCustomObjectCreation("databases", db_name)
-
-    def create_user(self, prefix):
-      user_name = f"{prefix['user']}{self.name}"
-      password_name = f"{prefix['password']}{self.name}"
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Create User name={user_name}")
-      body = {
-          "apiVersion": "k8s.mariadb.com/v1alpha1",
-          "kind": "User",
-          "metadata": {
-              "name": user_name,
-              "namespace": self.namespace
-          },
-          "spec": {
-              "mariaDbRef": {
-                  "name": self.mariadb_min
-              },
-              "passwordSecretKeyRef": {
-                  "name": password_name,
-                  "key": "password"
-              },
-              "host": "%",
-              "cleanupPolicy": "Delete"
-          }
-      }
-
-      try:
-          KubernetesAPI.custom.create_namespaced_custom_object(
-              group="k8s.mariadb.com",
-              version="v1alpha1",
-              namespace=self.namespace,
-              plural="users",
-              body=body
-          )
-      except ApiException as e:
-          if e.status != 409:
-              raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] User {user_name} already exists")
-
-      self.waitCustomObjectCreation("users", user_name)
-
-    def create_grant(self, prefix):
-      grant_name = f"{prefix['grant']}{self.name}"
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Grant: {grant_name}")
-      body = {
-          "apiVersion": "k8s.mariadb.com/v1alpha1",
-          "kind": "Grant",
-          "metadata": {
-              "name": grant_name,
-              "namespace": self.namespace
-          },
-          "spec": {
-              "mariaDbRef": {
-                  "name": self.mariadb_min
-              },
-              "privileges": [
-                  "ALL PRIVILEGES"
-              ],
-              "database": f"{prefix['db']}{self.name}",
-              "table" : "*",
-              "username": f"{prefix['user']}{self.name}",
-              "grantOption": False,
-              "host": "%"
-          }
-      }
-
-      try:
-          KubernetesAPI.custom.create_namespaced_custom_object(
-              group="k8s.mariadb.com",
-              version="v1alpha1",
-              namespace=self.namespace,
-              plural="grants",
-              body=body
-          )
-      except ApiException as e:
-          if e.status != 409:
-              raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Grant {grant_name} already exists")
-
-      self.waitCustomObjectCreation("grants", grant_name)
-
-    def delete_custom_object_mariadb(self, prefix, plural):
-      mariadb_name = prefix + self.name
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Delete MariaDB object {mariadb_name}")
-      try:
-          KubernetesAPI.custom.delete_namespaced_custom_object(
-              group="k8s.mariadb.com",
-              version="v1alpha1",
-              plural=plural,
-              namespace=self.namespace,
-              name=mariadb_name
-          )
-      except ApiException as e:
-          if e.status != 404:
-              raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} does not exist")
+    def _least_populated_mariadb (self):
+        pass
+        # TODO  look into the dict the least populated mariadb
+        # databases = KubernetesAPI.custom.list_namespaced_custom_object(
+        #     group="k8s.mariadb.com",
+        #     version="v1alpha1",
+        #     namespace=self.namespace,
+        #     plural="databases"
+        # )
+        #
+        # groupedDatabases = {}
+        # for db in databases['items']:
+        #     mariadb = db["spec"]["mariaDbRef"]["name"]
+        #     if mariadb not in groupedDatabases:
+        #         groupedDatabases[mariadb] = []
+        #     groupedDatabases[mariadb].append(db)
+        #
+        # db_per_mariadb = {key: len(value) for key, value in groupedDatabases.items()}
+        # mariadb_with_least_dbs = min(db_per_mariadb, key=db_per_mariadb.get)
+        # self._mariadbs = mariadb_with_least_dbs
 
 class WordPressSiteOperator:
 
-  def __init__(self, name, namespace, patch):
-      self.name = name
-      self.namespace = namespace
-      self.prefix = {
-          "db": "wp-db-",
-          "user": "wp-db-user-",
-          "grant": "wp-db-grant-",
-          "password": "wp-db-password-",
-          "route": "wp-route-"
-      }
+  @classmethod
+  def go (cls):
+    placer = MariaDBPlacer()
+
+    @kopf.on.delete('wordpresssites')
+    def on_delete_wordpresssite(spec, name, namespace, **kwargs):
+      WordPressSiteOperator(name, namespace, placer).delete_site(spec)
+
+    @kopf.on.create('wordpresssites')
+    def on_create_wordpresssite(spec, name, namespace, **kwargs):
+      WordPressSiteOperator(name, namespace, placer).create_site(spec)
+
+  def __init__(self, name, namespace, placer):
+    self.name = name
+    self.namespace = namespace
+    self.placer = placer
+    self.prefix = {
+        "db": "wp-db-",
+        "user": "wp-db-user-",
+        "grant": "wp-db-grant-",
+        "password": "wp-db-password-",
+        "route": "wp-route-"
+    }
+
+  def create_site(self, spec):
+      logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
+      path = spec.get('path')
+      hostname = spec.get('hostname')
+      site_url = hostname + path
+      wordpress = spec.get("wordpress")
+      unit_id = spec.get("owner", {}).get("epfl", {}).get("unitId")
+      import_object = spec.get("epfl", {}).get("import")
+      title = wordpress["title"]
+      tagline = wordpress["tagline"]
+      plugins = wordpress.get("plugins", [])
+      languages = wordpress["languages"]
+
+      self.mariadb_name = self.placer.place_and_create_database(self.namespace, self.prefix, self.name)
+
+      self._waitMariaDBObjectReady("databases", f"{self.prefix['db']}{self.name}")
+
+      self.create_secret()
+      self.create_user()
+      self.create_grant()
+
+      mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.namespace).data['password'])
+      mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
+
+      self.create_ingress(path, mariadb_password, hostname)
+
+      # TODO: to be adapted during OS4 migration and removed at the end.
+      if (path.split("/")[1] == "labs"):
+          self.create_route(path, hostname)
+
+      if (not import_object):
+          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname)
+      else:
+          import_os3_backup_source = import_object.get("openshift3BackupSource")
+          environment = import_os3_backup_source["environment"]
+          ansible_host = import_os3_backup_source["ansibleHost"]
+          self.restore_wordpress_from_os3(path, environment, ansible_host, hostname, plugins, title, tagline, mariadb_password, unit_id, ','.join(languages))
+
+      logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
+
+  def delete_site(self, spec):
+      logging.info(f"Delete WordPressSite {self.name=} in {self.namespace=}")
+
+      # Deleting database
+      self.delete_custom_object_mariadb(self.prefix['db'], "databases")
+      self.delete_secret()
+      # Deleting user
+      self.delete_custom_object_mariadb(self.prefix['user'], "users")
+      # Deleting grant
+      self.delete_custom_object_mariadb(self.prefix['grant'], "grants")
+      self.delete_ingress()
+      self.delete_route()
 
   def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, hostname, restored_site = 0):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
 
       cmdline = [Config.php, "ensure-wordpress-and-theme.php",
-                               f"--name={self.name}", f"--path={path}",
-                               f"--wp-dir={Config.wp_dir}",
-                               f"--wp-host={hostname}",
-                               f"--db-host={Config.db_host}",
-                               f"--db-name={self.prefix['db']}{self.name}",
-                               f"--db-user={self.prefix['user']}{self.name}",
-                               f"--db-password={secret}",
-                               f"--title={title}",
-                               f"--tagline={tagline}",
-                               f"--plugins={plugins}",
-                               f"--unit-id={unit_id}",
-                               f"--languages={languages}",
-                               f"--secret-dir={Config.secret_dir}",
-                               f"--restored-site={restored_site}"]
+                       f"--name={self.name}", f"--path={path}",
+                       f"--wp-dir={Config.wp_dir}",
+                       f"--wp-host={hostname}",
+                       f"--db-host={Config.db_host}",
+                       f"--db-name={self.prefix['db']}{self.name}",
+                       f"--db-user={self.prefix['user']}{self.name}",
+                       f"--db-password={secret}",
+                       f"--title={title}",
+                       f"--tagline={tagline}",
+                       f"--plugins={plugins}",
+                       f"--unit-id={unit_id}",
+                       f"--languages={languages}",
+                       f"--secret-dir={Config.secret_dir}",
+                       f"--restored-site={restored_site}"]
 
       cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
       logging.info(f" Running: {cmdline_text}")
@@ -412,6 +367,126 @@ class WordPressSiteOperator:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {self.secret_name} does not exist")
 
+  def create_user(self):
+      user_name = f"{self.prefix['user']}{self.name}"
+      password_name = f"{self.prefix['password']}{self.name}"
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Create User name={user_name}")
+      body = {
+          "apiVersion": "k8s.mariadb.com/v1alpha1",
+          "kind": "User",
+          "metadata": {
+              "name": user_name,
+              "namespace": self.namespace
+          },
+          "spec": {
+              "mariaDbRef": {
+                  "name": self.mariadb_name
+              },
+              "passwordSecretKeyRef": {
+                  "name": password_name,
+                  "key": "password"
+              },
+              "host": "%",
+              "cleanupPolicy": "Delete"
+          }
+      }
+
+      try:
+          KubernetesAPI.custom.create_namespaced_custom_object(
+              group="k8s.mariadb.com",
+              version="v1alpha1",
+              namespace=self.namespace,
+              plural="users",
+              body=body
+          )
+      except ApiException as e:
+          if e.status != 409:
+              raise e
+          logging.info(f" ↳ [{self.namespace}/{self.name}] User {user_name} already exists")
+
+      self._waitMariaDBObjectReady("users", user_name)
+
+  def create_grant(self):
+      grant_name = f"{self.prefix['grant']}{self.name}"
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Grant: {grant_name}")
+      body = {
+          "apiVersion": "k8s.mariadb.com/v1alpha1",
+          "kind": "Grant",
+          "metadata": {
+              "name": grant_name,
+              "namespace": self.namespace
+          },
+          "spec": {
+              "mariaDbRef": {
+                  "name": self.mariadb_name
+              },
+              "privileges": [
+                  "ALL PRIVILEGES"
+              ],
+              "database": f"{self.prefix['db']}{self.name}",
+              "table" : "*",
+              "username": f"{self.prefix['user']}{self.name}",
+              "grantOption": False,
+              "host": "%"
+          }
+      }
+
+      try:
+          KubernetesAPI.custom.create_namespaced_custom_object(
+              group="k8s.mariadb.com",
+              version="v1alpha1",
+              namespace=self.namespace,
+              plural="grants",
+              body=body
+          )
+      except ApiException as e:
+          if e.status != 409:
+              raise e
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Grant {grant_name} already exists")
+
+      self._waitMariaDBObjectReady("grants", grant_name)
+
+  def _waitMariaDBObjectReady(self, customObjectType, customObjectName):
+      # Wait until the customobject creation completes (either in error or successfully)
+
+      message = ''
+      iteration = 0;
+      while(True):
+          newUser = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
+                                                                 version="v1alpha1",
+                                                                 namespace=self.namespace,
+                                                                 plural=customObjectType,
+                                                                 name=customObjectName)
+          for condition in newUser.get("status", {}).get("conditions", []):
+              if condition.get("type") == "Ready":
+                  message = condition.get("message")
+                  if message == "Created":
+                      return
+                  else:
+                      pass
+
+          if iteration < 12:
+              time.sleep(5)
+              iteration = iteration + 1
+          else:
+              raise kopf.PermanentError(f"create {customObjectName} failed, message: f{message}")
+
+  def delete_custom_object_mariadb(self, prefix, plural):
+      mariadb_name = prefix + self.name
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Delete MariaDB object {mariadb_name}")
+      try:
+          KubernetesAPI.custom.delete_namespaced_custom_object(
+              group="k8s.mariadb.com",
+              version="v1alpha1",
+              plural=plural,
+              namespace=self.namespace,
+              name=mariadb_name
+          )
+      except ApiException as e:
+          if e.status != 404:
+              raise e
+          logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} does not exist")
+
   def create_ingress(self, path, secret, hostname):
     body = client.V1Ingress(
         api_version="networking.k8s.io/v1",
@@ -447,7 +522,7 @@ fastcgi_param WP_DEBUG           true;
 fastcgi_param WP_ROOT_URI        {ensure_final_slash(path)};
 fastcgi_param WP_SITE_NAME       {self.name};
 fastcgi_param WP_ABSPATH         /wp/6/;
-fastcgi_param WP_DB_HOST         {self.least_populated_mariadb};
+fastcgi_param WP_DB_HOST         {self.mariadb_name};
 fastcgi_param WP_DB_NAME         {self.prefix["db"]}{self.name};
 fastcgi_param WP_DB_USER         {self.prefix["user"]}{self.name};
 fastcgi_param WP_DB_PASSWORD     {secret};
@@ -619,7 +694,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
               },
               "spec": {
                   "mariaDbRef": {
-                      "name": self.least_populated_mariadb
+                      "name": self.mariadb_name
                   },
                   "s3": {
                       "bucket": credentials["BUCKET_NAME"],
@@ -707,57 +782,6 @@ fastcgi_param WP_DB_PASSWORD     {secret};
           subprocess.run([f"ssh -t root@itswbhst0020.xaas.epfl.ch 'set -e -x; rsync -av /mnt/data-prod-ro/wordpress/{src} {remote_dst}'"],
                          shell=True, text=True)
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Restored media from OS3")
-
-  def create_site(self, spec):
-      logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
-      path = spec.get('path')
-      hostname = spec.get('hostname')
-      site_url = hostname + path
-      wordpress = spec.get("wordpress")
-      unit_id = spec.get("owner", {}).get("epfl", {}).get("unitId")
-      import_object = spec.get("epfl", {}).get("import")
-      title = wordpress["title"]
-      tagline = wordpress["tagline"]
-      plugins = wordpress.get("plugins", [])
-      languages = wordpress["languages"]
-
-      MariaDBPlacementController(self.name, self.namespace).create_database(self.prefix)
-      self.create_secret()
-      MariaDBPlacementController(self.name, self.namespace).create_user(self.prefix)
-      MariaDBPlacementController(self.name, self.namespace).create_grant(self.prefix)
-
-      mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.namespace).data['password'])
-      mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
-
-      self.create_ingress(path, mariadb_password, hostname)
-
-      # TODO: to be adapted during OS4 migration and removed at the end.
-      if (path.split("/")[1] == "labs"):
-          self.create_route(path, hostname)
-
-      if (not import_object):
-          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname)
-      else:
-          import_os3_backup_source = import_object.get("openshift3BackupSource")
-          environment = import_os3_backup_source["environment"]
-          ansible_host = import_os3_backup_source["ansibleHost"]
-          self.restore_wordpress_from_os3(path, environment, ansible_host, hostname, plugins, title, tagline, mariadb_password, unit_id, ','.join(languages))
-
-      logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
-
-  def delete_site(self, spec):
-      logging.info(f"Delete WordPressSite {self.name=} in {self.namespace=}")
-
-      # Deleting database
-      MariaDBPlacementController(self.name, self.namespace).delete_custom_object_mariadb(self.prefix['db'], "databases")
-      self.delete_secret()
-      # Deleting user
-      MariaDBPlacementController(self.name, self.namespace).delete_custom_object_mariadb(self.prefix['user'], "users")
-      # Deleting grant
-      MariaDBPlacementController(self.name, self.namespace).delete_custom_object_mariadb(self.prefix['grant'], "grants")
-      self.delete_ingress()
-      self.delete_route()
-
 
 class NamespaceFromEnv:
     @classmethod
@@ -858,4 +882,5 @@ def ensure_final_slash (path):
 if __name__ == '__main__':
     Config.load_from_command_line()
     NamespaceFromEnv.setup()
+    WordPressSiteOperator.go()
     NamespaceLeaderElection.go()
