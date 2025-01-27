@@ -144,12 +144,12 @@ class MariaDBPlacer:
       @kopf.on.event('databases')
       def on_event_database(event, spec, name, namespace, patch, **kwargs):
         if (event['type'] in [None, 'ADDED', 'MODIFIED']) :
-          self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", []).append(spec)
+          self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", []).append({'name': name, 'namespace': namespace, 'spec': spec})
         elif (event['type'] == 'DELETED') :
           previous_databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", [])
           self._mariadbs_at(namespace, spec['mariaDbRef']['name'])["databases"] = [
             db for db in previous_databases
-            if not (db.metadata.name == name and db.metadata.namespace == namespace)
+            if not (db['name'] == name and db['namespace'] == namespace)
           ]
         self._log_mariadbs()
 
@@ -170,8 +170,8 @@ class MariaDBPlacer:
         # TODO: should be logging.debug
         logging.info("test---", self._mariadbs_by_namespace)
 
-    def place_and_create_database(self, namespace, prefix, name) :
-        mariadb_min_name = self._least_populated_mariadb()
+    def place_and_create_database(self, namespace, prefix, name):
+        mariadb_min_name = self._least_populated_mariadb(namespace)
         logging.info(f" ↳ [{namespace}/{name}] Create Database {prefix['db']}{name}")
         db_name = f"{prefix['db']}{name}"
         body = {
@@ -207,26 +207,15 @@ class MariaDBPlacer:
 
         return mariadb_min_name
 
-    def _least_populated_mariadb (self):
-        pass
-        # TODO  look into the dict the least populated mariadb
-        # databases = KubernetesAPI.custom.list_namespaced_custom_object(
-        #     group="k8s.mariadb.com",
-        #     version="v1alpha1",
-        #     namespace=self.namespace,
-        #     plural="databases"
-        # )
-        #
-        # groupedDatabases = {}
-        # for db in databases['items']:
-        #     mariadb = db["spec"]["mariaDbRef"]["name"]
-        #     if mariadb not in groupedDatabases:
-        #         groupedDatabases[mariadb] = []
-        #     groupedDatabases[mariadb].append(db)
-        #
-        # db_per_mariadb = {key: len(value) for key, value in groupedDatabases.items()}
-        # mariadb_with_least_dbs = min(db_per_mariadb, key=db_per_mariadb.get)
-        # self._mariadbs = mariadb_with_least_dbs
+    def _least_populated_mariadb (self, namespace):
+        lens = []
+        for namespace_name, content in self._mariadbs_by_namespace.items():
+          if namespace_name == namespace:
+            for mariadb_name, mariadb_content in content.items():
+              lens.append({'mariadb_name': mariadb_name, 'len': len(mariadb_content['databases'])})
+        mariadb_min = min(lens, key=lambda x: x['len'])
+        print(lens)
+        return mariadb_min['mariadb_name']
 
 class WordPressSiteOperator:
 
