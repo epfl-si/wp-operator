@@ -501,7 +501,6 @@ fastcgi_param WP_DB_PASSWORD     {secret};
             plural="routes",
             body=body
         )
-        #utils.create_from_dict(client, body)
     except ApiException as e:
         if e.status != 409:
             raise e
@@ -697,7 +696,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       
       # TODO: to be adapted during OS4 migration and removed at the end.
       if (path.split("/")[1] == "labs"):
-        self.create_route(path, hostname)
+          self.create_route(path, hostname)
 
       if (not import_object):
           self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname)
