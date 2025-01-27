@@ -25,6 +25,12 @@ import shlex
 import secrets
 import uuid
 
+# Remove warning: InsecureRequestWarning (Unverified HTTPS request is being made to host 'api.okd-test.fsd.team'.
+# Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings)
+from urllib3.exceptions import InsecureRequestWarning
+from urllib3 import disable_warnings
+disable_warnings(InsecureRequestWarning)
+
 class Config:
     secret_name = "nginx-conf-site-tree"
     saved_argv = [arg for arg in sys.argv]
