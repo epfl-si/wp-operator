@@ -150,7 +150,13 @@ class MariaDBPlacer:
       @kopf.on.event('databases')
       def on_event_database(event, spec, name, namespace, patch, **kwargs):
         if (event['type'] in [None, 'ADDED', 'MODIFIED']) :
-          self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", []).append({'name': name, 'namespace': namespace, 'spec': spec})
+          databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", [])
+          db_exist = False
+          for db in databases:
+            if (db['name'] == name and db['namespace'] == namespace):
+              db_exist = True
+          if not db_exist:
+            self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", []).append({'name': name, 'namespace': namespace, 'spec': spec})
         elif (event['type'] == 'DELETED') :
           previous_databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", [])
           self._mariadbs_at(namespace, spec['mariaDbRef']['name'])["databases"] = [
