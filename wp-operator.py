@@ -179,8 +179,12 @@ class MariaDBPlacer:
       return self._mariadbs_by_namespace.setdefault(namespace, {}).setdefault(name, {})
 
     def _log_mariadbs (self):
-        # TODO: should be logging.debug
-        logging.info("test---", self._mariadbs_by_namespace)
+        for namespace_name, content in self._mariadbs_by_namespace.items():
+            # Create a copy to prevent RuntimeError (dictionary changed size during iteration)
+            content_copy = content.copy()
+            if content_copy.items():
+                for mariadb_name, mariadb_content in content_copy.items():
+                    logging.info(f"YY: mariadb_name: {mariadb_name}, db_count: {len(mariadb_content['databases'])}")
 
     def place_and_create_database(self, namespace, prefix, name):
         mariadb_min_name = self._least_populated_mariadb(namespace)
