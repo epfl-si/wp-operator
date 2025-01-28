@@ -316,20 +316,20 @@ class WordPressSiteOperator:
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
 
       cmdline = [Config.php, "ensure-wordpress-and-theme.php",
-                       f"--name={self.name}", f"--path={path}",
-                       f"--wp-dir={Config.wp_dir}",
-                       f"--wp-host={hostname}",
-                       f"--db-host={Config.db_host}",
-                       f"--db-name={self.prefix['db']}{self.name}",
-                       f"--db-user={self.prefix['user']}{self.name}",
-                       f"--db-password={secret}",
-                       f"--title={title}",
-                       f"--tagline={tagline}",
-                       f"--plugins={plugins}",
-                       f"--unit-id={unit_id}",
-                       f"--languages={languages}",
-                       f"--secret-dir={Config.secret_dir}",
-                       f"--restored-site={restored_site}"]
+                               f"--name={self.name}", f"--path={path}",
+                               f"--wp-dir={Config.wp_dir}",
+                               f"--wp-host={hostname}",
+                               f"--db-host={Config.db_host}",
+                               f"--db-name={self.prefix['db']}{self.name}",
+                               f"--db-user={self.prefix['user']}{self.name}",
+                               f"--db-password={secret}",
+                               f"--title={title}",
+                               f"--tagline={tagline}",
+                               f"--plugins={plugins}",
+                               f"--unit-id={unit_id}",
+                               f"--languages={languages}",
+                               f"--secret-dir={Config.secret_dir}",
+                               f"--restored-site={restored_site}"]
 
       cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
       logging.info(f" Running: {cmdline_text}")
