@@ -225,13 +225,12 @@ class MariaDBPlacer:
         return mariadb_min_name
 
     def _least_populated_mariadb (self, namespace):
-        lens = []
+        db_count_by_mariadb = []
         for namespace_name, content in self._mariadbs_by_namespace.items():
           if namespace_name == namespace:
             for mariadb_name, mariadb_content in content.items():
-              lens.append({'mariadb_name': mariadb_name, 'len': len(mariadb_content['databases'])})
-        mariadb_min = min(lens, key=lambda x: x['len'])
-        print(lens)
+              db_count_by_mariadb.append({'mariadb_name': mariadb_name, 'len': len(mariadb_content.setdefault("databases", []))})
+        mariadb_min = min(db_count_by_mariadb, key=lambda x: x['len'])
         return mariadb_min['mariadb_name']
 
 class WordPressSiteOperator:
