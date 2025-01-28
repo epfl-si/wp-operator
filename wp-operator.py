@@ -188,8 +188,15 @@ class MariaDBPlacer:
 
     def place_and_create_database(self, namespace, prefix, name):
         mariadb_min_name = self._least_populated_mariadb(namespace)
-        logging.info(f" ↳ [{namespace}/{name}] Create Database {prefix['db']}{name}")
+        db_spec = {
+            "mariaDbRef": {
+                "name": mariadb_min_name
+            },
+            "characterSet": "utf8mb4",
+            "collate": "utf8mb4_unicode_ci"
+        }
         db_name = f"{prefix['db']}{name}"
+        self._mariadbs_at(namespace, mariadb_min_name).setdefault("databases", []).append({'name': db_name, 'namespace': namespace, 'spec': db_spec})
         body = {
             "apiVersion": "k8s.mariadb.com/v1alpha1",
             "kind": "Database",
@@ -197,13 +204,7 @@ class MariaDBPlacer:
                 "name": db_name,
                 "namespace": namespace
             },
-            "spec": {
-                "mariaDbRef": {
-                    "name": mariadb_min_name
-                },
-                "characterSet": "utf8mb4",
-                "collate": "utf8mb4_unicode_ci"
-            }
+            "spec": db_spec
         }
 
         try:
