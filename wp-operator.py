@@ -776,7 +776,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
               os.makedirs(mounted_dst)
           except FileExistsError:
               pass
-          subprocess.run(["rsync", "-rlp", f"/wp-data-ro-openshift3/{src}/", mounted_dst], check=True)
+          subprocess.run(["rsync", "-rlpv", f"/wp-data-ro-openshift3/{src}/", mounted_dst], check=True)
       else:
           # For developmnent only - Assume we have ssh access to itswbhst0020 which is rigged for this purpose:
           # remote_dst = "/mnt/data_new_nas_4_prod/wordpress-data/svc0041p-wordpress-wordpress-data-pvc-b8385080-dd08-47a7-9363-c11bf55be7a7/{dst}"
