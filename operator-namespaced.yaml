@@ -118,7 +118,7 @@ spec:
       volumes:
         - name: wp-data
           persistentVolumeClaim:
-            claimName: wp-data
+            claimName: wordpress-data
         - name: wp-secrets
           secret:
             secretName: wp-plugin-secrets
