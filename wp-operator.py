@@ -254,7 +254,7 @@ class WordPressSiteOperator:
       except ApiException as e:
           if e.status != 404:
               raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {self.secret_name} already deleted")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {self.secret_name} does not exist")
 
   def create_user(self):
       user_name = f"{self.prefix['user']}{self.name}"
@@ -373,7 +373,7 @@ class WordPressSiteOperator:
       except ApiException as e:
           if e.status != 404:
               raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} already deleted")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} does not exist")
 
   def create_ingress(self, path, secret, hostname):
     body = client.V1Ingress(
@@ -458,7 +458,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       except ApiException as e:
           if e.status != 404:
               raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} already deleted")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} does not exist")
 
   def create_route(self, path, hostname):
     route_name = self.prefix['route'] + self.name
@@ -520,7 +520,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       except ApiException as e:
           if e.status != 404:
               raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Route object {route_name} already deleted")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Route object {route_name} does not exist")
 
   def get_os3_credentials(self, profile_name):
       logging.info(f"   ↳ [{self.namespace}/{self.name}] Get Restic and S3 secrets")
