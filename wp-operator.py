@@ -157,7 +157,8 @@ class WordPressSiteOperator:
         "db": "wp-db-",
         "user": "wp-db-user-",
         "grant": "wp-db-grant-",
-        "password": "wp-db-password-"
+        "password": "wp-db-password-",
+        "route": "wp-route-"
       }
       self.patch = patch
 
@@ -253,7 +254,7 @@ class WordPressSiteOperator:
       except ApiException as e:
           if e.status != 404:
               raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {self.secret_name} already deleted")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {self.secret_name} does not exist")
 
   def create_user(self):
       user_name = f"{self.prefix['user']}{self.name}"
@@ -372,7 +373,7 @@ class WordPressSiteOperator:
       except ApiException as e:
           if e.status != 404:
               raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} already deleted")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} does not exist")
 
   def create_ingress(self, path, secret, hostname):
     body = client.V1Ingress(
@@ -457,7 +458,69 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       except ApiException as e:
           if e.status != 404:
               raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} already deleted")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} does not exist")
+
+  def create_route(self, path, hostname):
+    route_name = self.prefix['route'] + self.name
+    logging.info(f" ↳ [{self.namespace}/{self.name}] Create Route {route_name}")
+    body = {
+        "apiVersion": "route.openshift.io/v1",
+        "kind": "Route",
+        "metadata": {
+            "name": route_name,
+            "namespace": self.namespace,
+            "labels": {
+                "app": "wp-nginx",
+                "route": "public"
+            },
+        },
+        "spec": {
+            "to": {
+                "kind": "Service",
+                "name": "wp-nginx"
+            },
+            "tls": {
+                "termination": "edge",
+                "insecureEdgeTerminationPolicy": "Redirect",
+                "destinationCACertificate": ""
+            },
+            "host": hostname,
+            "path": path,
+            "port": {
+                "targetPort": "80"
+            },
+            "alternateBackends": []
+        }
+    }
+
+    try:
+        KubernetesAPI.custom.create_namespaced_custom_object(
+            group="route.openshift.io",
+            version="v1",
+            namespace=self.namespace,
+            plural="routes",
+            body=body
+        )
+    except ApiException as e:
+        if e.status != 409:
+            raise e
+        logging.info(f" ↳ [{self.namespace}/{self.name}] Route {route_name} already exists")
+
+  def delete_route(self):
+      route_name = self.prefix['route'] + self.name
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Delete Route object {route_name}")
+      try:
+          KubernetesAPI.custom.delete_namespaced_custom_object(
+              group="route.openshift.io",
+              version="v1",
+              plural="routes",
+              namespace=self.namespace,
+              name=route_name
+          )
+      except ApiException as e:
+          if e.status != 404:
+              raise e
+          logging.info(f" ↳ [{self.namespace}/{self.name}] Route object {route_name} does not exist")
 
   def get_os3_credentials(self, profile_name):
       logging.info(f"   ↳ [{self.namespace}/{self.name}] Get Restic and S3 secrets")
@@ -630,6 +693,10 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
 
       self.create_ingress(path, mariadb_password, hostname)
+      
+      # TODO: to be adapted during OS4 migration and removed at the end.
+      if (path.split("/")[1] == "labs"):
+          self.create_route(path, hostname)
 
       if (not import_object):
           self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname)
@@ -657,6 +724,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       # Deleting grant
       self.delete_custom_object_mariadb(self.prefix['grant'], "grants")
       self.delete_ingress()
+      self.delete_route()
 
 class WordPressCRDOperator:
   # Ensuring that the "WordpressSites" CRD exists. If not, create it from the "WordPressSite-crd.yaml" file.
