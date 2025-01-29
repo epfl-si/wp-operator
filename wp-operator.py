@@ -1,6 +1,6 @@
 # Kopf documentation : https://kopf.readthedocs.io/
 #
-# Run with `python3 wp-operator.py run -- --db-host mariadb-min.wordpress-test.svc`
+# Run with `python3 wp-operator.py run --`
 #
 import argparse
 import kopf
@@ -48,8 +48,6 @@ class Config:
                             default="php")
         parser.add_argument('--wp-php-ensure', help='The path to the PHP script that ensures the postconditions.',
                             default=cls.file_in_script_dir("ensure-wordpress-and-theme.php"))
-        parser.add_argument('--db-host', help='Hostname of the database to connect to with PHP.',
-                            default="mariadb-min")
         parser.add_argument('--secret-dir', help='Secret file\'s directory.',
                             default="secretFiles")
         parser.add_argument('--restore-secrets-file', help='Path to a .ini file that contains AWS credentials to read backups from',
@@ -66,7 +64,6 @@ class Config:
         cmdline = cls.parser().parse_args(argv)
         cls.php = cmdline.php
         cls.wp_dir = os.path.join(cmdline.wp_dir, '')
-        cls.db_host = cmdline.db_host
         cls.secret_dir = cmdline.secret_dir
         cls.restore_secrets_file = cmdline.restore_secrets_file
 
@@ -319,7 +316,7 @@ class WordPressSiteOperator:
                                f"--name={self.name}", f"--path={path}",
                                f"--wp-dir={Config.wp_dir}",
                                f"--wp-host={hostname}",
-                               f"--db-host={Config.db_host}",
+                               f"--db-host={self.mariadb_name}",
                                f"--db-name={self.prefix['db']}{self.name}",
                                f"--db-user={self.prefix['user']}{self.name}",
                                f"--db-password={secret}",

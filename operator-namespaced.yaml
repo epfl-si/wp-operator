@@ -102,8 +102,6 @@ spec:
           args:
           - --namespace=wordpress-test
           - --
-          - --db-host
-          - mariadb-min.wordpress-test.svc
           - --wp-dir=/wp/6
           - --secret-dir=/wp-secrets
           - --restore-secrets-file=/restore-credentials/aws-cli-credentials.ini
