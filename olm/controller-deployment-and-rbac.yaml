@@ -53,6 +53,12 @@ rules:
   # ⚠ `resourceNames` doesn't work on the "create" verb;
   # see https://stackoverflow.com/a/65219397 . Bummer
   verbs: ["create", "get", "list", "watch"]
+# WP-Operator manage WordPressSite's Routes
+- apiGroups:
+  - route.openshift.io/v1
+  resources:
+  - routes
+  verbs: ["create", "get", "list", "watch"]
 # Likewise, the controller needs to create and delete all
 # objects in  ../operator-namespaced.yaml:
 - apiGroups:
