@@ -188,16 +188,16 @@ class MariaDBPlacer:
                     logging.info(f"YY: mariadb_name: {mariadb_name}, db_count: {len(mariadb_content['databases'])}")
 
     def place_and_create_database(self, namespace, prefix, name):
-        mariadb_min_name = self._least_populated_mariadb(namespace)
+        least_populated_mariadb = self._least_populated_mariadb(namespace)
         db_spec = {
             "mariaDbRef": {
-                "name": mariadb_min_name
+                "name": least_populated_mariadb
             },
             "characterSet": "utf8mb4",
             "collate": "utf8mb4_unicode_ci"
         }
         db_name = f"{prefix['db']}{name}"
-        self._mariadbs_at(namespace, mariadb_min_name).setdefault("databases", []).append(
+        self._mariadbs_at(namespace, least_populated_mariadb).setdefault("databases", []).append(
             {'name': db_name, 'namespace': namespace, 'spec': db_spec})
         body = {
             "apiVersion": "k8s.mariadb.com/v1alpha1",
@@ -224,7 +224,7 @@ class MariaDBPlacer:
 
             # TODO get the correct placement from k8s
 
-        return mariadb_min_name
+        return least_populated_mariadb
 
     def _least_populated_mariadb(self, namespace):
         db_count_by_mariadb = []
