@@ -114,6 +114,13 @@ spec:
               mountPath: /wp-data-ro-openshift3/
             - name: wp-secrets
               mountPath: /wp-secrets
+          resources:
+            limits:
+              cpu: 100m
+              memory: 256Mi
+            requests:
+              cpu: 10m
+              memory: 32Mi
       restartPolicy: Always
       volumes:
         - name: wp-data
