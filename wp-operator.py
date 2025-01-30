@@ -259,8 +259,8 @@ class WordPressSiteOperator:
           "user": "wp-db-user-",
           "grant": "wp-db-grant-",
           "password": "wp-db-password-",
-      "route": "wp-route-"
-    }
+          "route": "wp-route-"
+      }
 
   def create_site(self, spec):
       logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
