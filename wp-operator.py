@@ -139,43 +139,47 @@ class KubernetesAPI:
   def networking(cls):
     return cls.__get()._networking
 
+
 class MariaDBPlacer:
     def __init__(self):
-      self._mariadbs_by_namespace = {}
-      # TODO wait for KOPF to be done sending us the initial updates
+        self._mariadbs_by_namespace = {}
 
-      @kopf.on.event('databases')
-      def on_event_database(event, spec, name, namespace, patch, **kwargs):
-        if (event['type'] in [None, 'ADDED', 'MODIFIED']) :
-          databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", [])
-          db_exist = False
-          for db in databases:
-            if (db['name'] == name and db['namespace'] == namespace):
-              db_exist = True
-          if not db_exist:
-            self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", []).append({'name': name, 'namespace': namespace, 'spec': spec})
-        elif (event['type'] == 'DELETED') :
-          previous_databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", [])
-          self._mariadbs_at(namespace, spec['mariaDbRef']['name'])["databases"] = [
-            db for db in previous_databases
-            if not (db['name'] == name and db['namespace'] == namespace)
-          ]
-        self._log_mariadbs()
+        # TODO wait for KOPF to be done sending us the initial updates
 
-      @kopf.on.event('mariadbs')
-      def on_event_mariadb(event, spec, name, namespace, patch, **kwargs):
-        if (event['type'] in [None, 'ADDED', 'MODIFIED']) :
-          self._mariadbs_at(namespace, name)["spec"] = spec
-        elif (event['type'] == 'DELETED') :
-          if namespace in self._mariadbs_by_namespace:
-            if name in self._mariadbs_by_namespace[namespace]:
-              del self._mariadbs_by_namespace[namespace][name]
-        self._log_mariadbs()
+        @kopf.on.event('databases')
+        def on_event_database(event, spec, name, namespace, patch, **kwargs):
+            if (event['type'] in [None, 'ADDED', 'MODIFIED']):
+                databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", [])
+                db_exist = False
+                for db in databases:
+                    if (db['name'] == name and db['namespace'] == namespace):
+                        db_exist = True
+                if not db_exist:
+                    self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", []).append(
+                        {'name': name, 'namespace': namespace, 'spec': spec})
+            elif (event['type'] == 'DELETED'):
+                previous_databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases",
+                                                                                                         [])
+                self._mariadbs_at(namespace, spec['mariaDbRef']['name'])["databases"] = [
+                    db for db in previous_databases
+                    if not (db['name'] == name and db['namespace'] == namespace)
+                ]
+            self._log_mariadbs()
 
-    def _mariadbs_at (self, namespace, name):
-      return self._mariadbs_by_namespace.setdefault(namespace, {}).setdefault(name, {})
+        @kopf.on.event('mariadbs')
+        def on_event_mariadb(event, spec, name, namespace, patch, **kwargs):
+            if (event['type'] in [None, 'ADDED', 'MODIFIED']):
+                self._mariadbs_at(namespace, name)["spec"] = spec
+            elif (event['type'] == 'DELETED'):
+                if namespace in self._mariadbs_by_namespace:
+                    if name in self._mariadbs_by_namespace[namespace]:
+                        del self._mariadbs_by_namespace[namespace][name]
+            self._log_mariadbs()
 
-    def _log_mariadbs (self):
+    def _mariadbs_at(self, namespace, name):
+        return self._mariadbs_by_namespace.setdefault(namespace, {}).setdefault(name, {})
+
+    def _log_mariadbs(self):
         for namespace_name, content in self._mariadbs_by_namespace.items():
             # Create a copy to prevent RuntimeError (dictionary changed size during iteration)
             content_copy = content.copy()
@@ -193,7 +197,8 @@ class MariaDBPlacer:
             "collate": "utf8mb4_unicode_ci"
         }
         db_name = f"{prefix['db']}{name}"
-        self._mariadbs_at(namespace, mariadb_min_name).setdefault("databases", []).append({'name': db_name, 'namespace': namespace, 'spec': db_spec})
+        self._mariadbs_at(namespace, mariadb_min_name).setdefault("databases", []).append(
+            {'name': db_name, 'namespace': namespace, 'spec': db_spec})
         body = {
             "apiVersion": "k8s.mariadb.com/v1alpha1",
             "kind": "Database",
@@ -221,39 +226,40 @@ class MariaDBPlacer:
 
         return mariadb_min_name
 
-    def _least_populated_mariadb (self, namespace):
+    def _least_populated_mariadb(self, namespace):
         db_count_by_mariadb = []
         for namespace_name, content in self._mariadbs_by_namespace.items():
-          if namespace_name == namespace:
-            for mariadb_name, mariadb_content in content.items():
-              db_count_by_mariadb.append({'mariadb_name': mariadb_name, 'len': len(mariadb_content.setdefault("databases", []))})
+            if namespace_name == namespace:
+                for mariadb_name, mariadb_content in content.items():
+                    db_count_by_mariadb.append(
+                        {'mariadb_name': mariadb_name, 'len': len(mariadb_content.setdefault("databases", []))})
         mariadb_min = min(db_count_by_mariadb, key=lambda x: x['len'])
         return mariadb_min['mariadb_name']
 
 class WordPressSiteOperator:
 
   @classmethod
-  def go (cls):
-    placer = MariaDBPlacer()
+  def go(cls):
+      placer = MariaDBPlacer()
 
-    @kopf.on.delete('wordpresssites')
-    def on_delete_wordpresssite(spec, name, namespace, **kwargs):
-      WordPressSiteOperator(name, namespace, placer).delete_site(spec)
+      @kopf.on.delete('wordpresssites')
+      def on_delete_wordpresssite(spec, name, namespace, **kwargs):
+          WordPressSiteOperator(name, namespace, placer).delete_site(spec)
 
-    @kopf.on.create('wordpresssites')
-    def on_create_wordpresssite(spec, name, namespace, **kwargs):
-      WordPressSiteOperator(name, namespace, placer).create_site(spec)
+      @kopf.on.create('wordpresssites')
+      def on_create_wordpresssite(spec, name, namespace, **kwargs):
+          WordPressSiteOperator(name, namespace, placer).create_site(spec)
 
   def __init__(self, name, namespace, placer):
-    self.name = name
-    self.namespace = namespace
-    self.placer = placer
-    self.prefix = {
-        "db": "wp-db-",
-        "user": "wp-db-user-",
-        "grant": "wp-db-grant-",
-        "password": "wp-db-password-",
-        "route": "wp-route-"
+      self.name = name
+      self.namespace = namespace
+      self.placer = placer
+      self.prefix = {
+          "db": "wp-db-",
+          "user": "wp-db-user-",
+          "grant": "wp-db-grant-",
+          "password": "wp-db-password-",
+      "route": "wp-route-"
     }
 
   def create_site(self, spec):
