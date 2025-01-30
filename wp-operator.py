@@ -220,7 +220,13 @@ class MariaDBPlacer:
         except ApiException as e:
             if e.status != 409:
                 raise e
-            logging.info(f" ↳ [{namespace}/{name}] Database {prefix['db']}{name} already exists")
+            database = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
+                                                            version="v1alpha1",
+                                                            namespace=namespace,
+                                                            plural="databases",
+                                                            name=db_name)
+            mariadb_ref = database.get("spec", {}).get("mariaDbRef", {}).get("name", '')
+            logging.info(f" ↳ [{namespace}/{name}] Database {db_name} already exists in {mariadb_ref}")
 
         return mariadb_ref
 
