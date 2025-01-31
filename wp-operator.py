@@ -244,24 +244,60 @@ class MariaDBPlacer:
         mariadb_min = min(db_count_by_mariadb, key=lambda x: x['len'])
         return mariadb_min['mariadb_name']
 
+class RouteController:
+    def __init__(self):
+        self._routes_by_namespace = {}
+
+        @kopf.on.event('routes')
+        def on_event_routes(event, spec, name, namespace, **kwargs):
+            # Convert kopf Spec object to a dictionary (especially for the `update`)
+            spec_dict = dict(spec)
+            if (event['type'] in [None, 'ADDED', 'MODIFIED']):
+                if name in self._routes_at(namespace):
+                    self._routes_at(namespace)[name]['spec'].update(spec_dict)
+                else:
+                    self._routes_at(namespace)[name] = {'spec': spec_dict}
+            elif (event['type'] == 'DELETED'):
+                if namespace in self._routes_by_namespace:
+                    if name in self._routes_by_namespace[namespace]:
+                        del self._routes_by_namespace[namespace][name]
+            self._log_routes(namespace)
+
+    def _routes_at(self, namespace):
+        return self._routes_by_namespace.setdefault(namespace, {}) 
+
+    def _log_routes(self, namespace):
+        # Create a copy to prevent RuntimeError (dictionary changed size during iteration)
+        routes_copy = self._routes_at(namespace).copy()
+        for name, val in routes_copy.items():
+            spec = val.get('spec', {})
+            host = spec.get('host', '')
+            path = spec.get('path', '')
+            service_name = spec.get('to', {}).get('name', 'N/A')
+            logging.info(f"ROUTE: {name} -- host:{host} / path:{path} / service:{service_name}")
+        logging.info(f"Route count: {len(routes_copy)}")
+
+
 class WordPressSiteOperator:
 
   @classmethod
   def go(cls):
       placer = MariaDBPlacer()
+      route_controller = RouteController()
 
       @kopf.on.delete('wordpresssites')
       def on_delete_wordpresssite(spec, name, namespace, **kwargs):
-          WordPressSiteOperator(name, namespace, placer).delete_site(spec)
+          WordPressSiteOperator(name, namespace, placer, route_controller).delete_site(spec)
 
       @kopf.on.create('wordpresssites')
       def on_create_wordpresssite(spec, name, namespace, **kwargs):
-          WordPressSiteOperator(name, namespace, placer).create_site(spec)
+          WordPressSiteOperator(name, namespace, placer, route_controller).create_site(spec)
 
-  def __init__(self, name, namespace, placer):
+  def __init__(self, name, namespace, placer, route_controller):
       self.name = name
       self.namespace = namespace
       self.placer = placer
+      self.route_controller = route_controller
       self.prefix = {
           "db": "wp-db-",
           "user": "wp-db-user-",
