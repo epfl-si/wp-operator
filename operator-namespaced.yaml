@@ -63,6 +63,9 @@ rules:
   - apiGroups: ['']
     resources: ['configmaps']
     verbs: ["create"]
+  - apiGroups: ['route.openshift.io']
+    resources: ['routes']
+    verbs: ["*"]
 
 ---
 # RoleBinding/wp-operator
