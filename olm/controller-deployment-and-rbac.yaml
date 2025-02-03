@@ -58,7 +58,7 @@ rules:
   - route.openshift.io/v1
   resources:
   - routes
-  verbs: ["create", "get", "list", "watch"]
+  verbs: ["*"]
 # Likewise, the controller needs to create and delete all
 # objects in  ../operator-namespaced.yaml:
 - apiGroups:
