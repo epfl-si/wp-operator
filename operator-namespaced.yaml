@@ -17,6 +17,11 @@ automountServiceAccountToken: false
 
 ---
 # Role/wp-operator
+#
+# ⚠ Each time you add permissions here, you need to also update the
+# OLM controller's permissions (in the `ClusterRoleBinding` object in
+# olm/controller-deployment-and-rbac.yaml); see comments there to
+# explain why.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -156,6 +161,11 @@ automountServiceAccountToken: false
 ---
 
 # Role/wp-nginx
+#
+# ⚠ Each time you add permissions here, you need to also update the
+# OLM controller's permissions (in the `ClusterRoleBinding` object in
+# olm/controller-deployment-and-rbac.yaml); see comments there to
+# explain why.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
