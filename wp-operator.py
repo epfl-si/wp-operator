@@ -3,6 +3,7 @@
 # Run with `python3 wp-operator.py run --`
 #
 import argparse
+from functools import cached_property
 import kopf
 import kopf.cli
 import logging
@@ -268,8 +269,10 @@ class WordPressSiteOperator:
 
   def create_site(self, spec):
       logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
-      path = spec.get('path')
+
       hostname = spec.get('hostname')
+      path = spec.get('path')
+
       site_url = hostname + path
       wordpress = spec.get("wordpress")
       unit_id = spec.get("owner", {}).get("epfl", {}).get("unitId")
@@ -280,8 +283,9 @@ class WordPressSiteOperator:
       languages = wordpress["languages"]
 
       self.mariadb_name = self.placer.place_and_create_database(self.namespace, self.prefix, self.name)
+      self.database_name = f"{self.prefix['db']}{self.name}"
 
-      self._waitMariaDBObjectReady("databases", f"{self.prefix['db']}{self.name}")
+      self._waitMariaDBObjectReady("databases", self.database_name)
 
       self.create_secret()
       self.create_user()
@@ -296,13 +300,11 @@ class WordPressSiteOperator:
       if (path.split("/")[1] == "labs"):
           self.create_route(path, hostname)
 
-      if (not import_object):
-          self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname)
-      else:
-          import_os3_backup_source = import_object.get("openshift3BackupSource")
-          environment = import_os3_backup_source["environment"]
-          ansible_host = import_os3_backup_source["ansibleHost"]
-          self.restore_wordpress_from_os3(path, environment, ansible_host, hostname, plugins, title, tagline, mariadb_password, unit_id, ','.join(languages))
+      if import_object:
+          MigrationOperator(self.namespace, self.name, self.mariadb_name, self.database_name, spec, import_object).run()
+
+      self.install_wordpress_via_php(title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname, path,
+                                     1 if import_object else 0)
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
@@ -319,7 +321,7 @@ class WordPressSiteOperator:
       self.delete_ingress()
       self.delete_route()
 
-  def install_wordpress_via_php(self, path, title, tagline, plugins, unit_id, languages, secret, hostname, restored_site = 0):
+  def install_wordpress_via_php(self, title, tagline, plugins, unit_id, languages, secret, hostname, path, restored_site = 0):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
 
       cmdline = [Config.php, "ensure-wordpress-and-theme.php",
@@ -646,6 +648,32 @@ fastcgi_param WP_DB_PASSWORD     {secret};
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Route object {route_name} does not exist")
 
+
+class MigrationOperator:
+  def __init__ (self, namespace, name, mariadb_name, database_name, spec, import_object):
+      self.namespace = namespace
+      self.name = name
+      self.mariadb_name = mariadb_name
+      self.database_name = database_name
+      self.spec = spec
+
+      import_os3_backup_source = import_object.get("openshift3BackupSource")
+      self.environment = import_os3_backup_source["environment"]
+      self.ansible_host = import_os3_backup_source["ansibleHost"]
+
+  def run (self):
+      restore = self.start_mariadb_restore (*self.migrate_sql_from_os3())
+      self.restore_uploads_directory()
+      self.wait_for_restore(restore)
+
+  @property
+  def hostname (self):
+      return self.spec.get('hostname')
+
+  @property
+  def path (self):
+      return self.spec.get('path')
+
   def parse_awscli_credentials(self, profile_name):
       logging.info(f"   ↳ [{self.namespace}/{self.name}] Get Restic and S3 secrets")
 
@@ -659,57 +687,54 @@ fastcgi_param WP_DB_PASSWORD     {secret};
 
       profile_content = profile_content.group(1)
 
-      return {
+      env = {
           "AWS_SECRET_ACCESS_KEY": re.search(r'aws_secret_access_key\s*=\s*(\S+)', profile_content).group(1),
           "AWS_ACCESS_KEY_ID": re.search(r'aws_access_key_id\s*=\s*(\S+)', profile_content).group(1),
-          "RESTIC_PASSWORD": re.search(r'restic_password\s*=\s*(\S+)', profile_content).group(1),
           "BUCKET_NAME": re.search(r'bucket_name\s*=\s*(\S+)', profile_content).group(1),
           "AWS_SHARED_CREDENTIALS_FILE": file_path
       }
 
-  def restore_wordpress_from_os3(self, path, environment, ansible_host, hostname, plugins, title, tagline, mariadb_password, unit_id, languages):
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Restoring WordPress from OS3")
+      # TODO: the Restic password should not piggy-back with the AWS
+      # credentials.
+      matched_restic_password = re.search(r'restic_password\s*=\s*(\S+)', profile_content)
+      if matched_restic_password:
+          env["RESTIC_PASSWORD"] = matched_restic_password.group(1)
+
+      return env
+
+  def migrate_sql_from_os3 (self):
+      logging.info(f" ↳ [{self.namespace}/{self.name}] Migrating database backup from OS3")
 
       target = f"/tmp/backup/{self.name}"
-      profile_name = "backup-wwp"
-      backup_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-7] + 'Z'
 
+      profile_name = "backup-wwp"
       try:
           migration_credentials = self.parse_awscli_credentials(profile_name)
           # Execute the Restic command to restore the backup
-          restic_command = f"restic -r s3:https://s3.epfl.ch/{migration_credentials['BUCKET_NAME']}/backup/wordpresses/{ansible_host}/sql restore latest --target {target}"
+          restic_command = f"restic -r s3:https://s3.epfl.ch/{migration_credentials['BUCKET_NAME']}/backup/wordpresses/{self.ansible_host}/sql restore latest --target {target}"
           logging.info(f"   Running: {restic_command}")
           restic_restore = subprocess.run(restic_command, env=migration_credentials, shell=True, check=True, text=True)
           logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup restored from OpenShift 3's S3")
 
           # Open file to write the modified SQL
-          backup_file_path = f"/tmp/backup/{self.name}/backup.{backup_time}.sql"
+          backup_file_path = f"/tmp/backup/{self.name}/backup.{self.now}.sql"
 
           with open(backup_file_path, "w") as backup_file:
-              logging.info(f"   ↳ [{self.namespace}/{self.name}] Replacing www.epfl.ch with {hostname} in SQL backup")
-              sed_command = ["sed", rf"s/www\.epfl\.ch/{hostname}/g", f"{target}/db-backup.sql"]
+              logging.info(f"   ↳ [{self.namespace}/{self.name}] Replacing www.epfl.ch with {self.hostname} in SQL backup")
+              sed_command = ["sed", rf"s/www\.epfl\.ch/{self.hostname}/g", f"{target}/db-backup.sql"]
 
               subprocess.run(sed_command, stdout=backup_file, check=True)
 
-          # TODO: We really want to use a separate secret for the first backup,
-          # rather than (ab)using INI sections in this way.
-          first_backup_profile_name = "backup-wwp 2025"
-          first_backup_credentials = self.parse_awscli_credentials(first_backup_profile_name)
+          # TODO: we should read these from the `s3-backup-credentials` secret,
+          # rather than piggybacking on an INI section like this.
+          backup_bucket_name = self.first_backup_credentials['BUCKET_NAME']
+          path_in_bucket = f"backup/k8s/{self.name}"
 
-          backup_prefix = f"backup/k8s/{self.name}"
-          backup_bucket_name = first_backup_credentials['BUCKET_NAME']
-          s3_uri = f"s3://{backup_bucket_name}/{backup_prefix}/"
-          subprocess.run(f"aws --endpoint-url=https://s3.epfl.ch --profile={first_backup_profile_name} s3 cp --recursive {backup_file_path} {s3_uri}, env=first_backup_credentials, shell=True, check=True)
+          s3_uri = f"s3://{backup_bucket_name}/{path_in_bucket}/"
+
+          subprocess.run(f"aws --endpoint-url=https://s3.epfl.ch --profile={self.first_backup_profile_name} s3 cp {backup_file_path} {s3_uri}", env=self.first_backup_credentials, shell=True, check=True)
           logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup copied to {s3_uri}")
-
-          logging.info(f"   ↳ [{self.namespace}/{self.name}] Initiating restore on MariaDB")
-          self.do_mariadb_restore(backup_bucket_name, backup_prefix)
-
-          logging.info(f"   ↳ [{self.namespace}/{self.name}] Restoring media from OS3")
-          self.restore_uploads_directory(
-              f"{environment}/www.epfl.ch/htdocs{path}/wp-content/uploads",
-              f"{self.name}/uploads"
-          )
+          return (backup_bucket_name, path_in_bucket)
 
       except subprocess.CalledProcessError as e:
           logging.error(f"Subprocess error in backup restoration: {e}")
@@ -721,33 +746,27 @@ fastcgi_param WP_DB_PASSWORD     {secret};
           logging.error(f"Unexpected error: {e}")
           raise e
 
-      restore_name = restore["metadata"]["name"]
-      # Wait until the restore completes (either in error or successfully)
-      while(True):
-          restored = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
-            version="v1alpha1",
-            namespace=self.namespace,
-            plural="restores",
-            name=restore_name)
-          for condition in restored.get("status", {}).get("conditions", []):
-              if condition.get("type") == "Complete":
-                  message = condition.get("message")
-                  if message == "Success":
-                      self.install_wordpress_via_php(path, title, tagline, ','.join(plugins), unit_id, languages, mariadb_password, hostname, 1)
-                      return
-                  elif message == "Running":
-                      pass  # Fall through to the time.sleep() below
-                  else:
-                      raise kopf.PermanentError(f"restore {restore_name} failed, message: f{message}")
-          time.sleep(10)
+  # TODO: We really want to use a separate secret for the first backup,
+  # rather than (ab)using INI sections in this way.
+  @property
+  def first_backup_profile_name (self):
+      return "backup-wwp"
 
-  def do_mariadb_restore (self, backup_bucket_name, backup_prefix):
+  @property
+  def first_backup_credentials (self):
+      return self.parse_awscli_credentials(self.first_backup_profile_name)
+
+  def start_mariadb_restore (self, backup_bucket_name, path_in_bucket):
+      # TODO: this should be read from the `s3-backup-credentials` secret,
+      # rather than like this.
+      logging.info(f"   ↳ [{self.namespace}/{self.name}] Initiating restore on MariaDB")
+
       # Initiate the restore process in MariaDB
       restore_spec = {
           "apiVersion": "k8s.mariadb.com/v1alpha1",
           "kind": "Restore",
           "metadata": {
-              "name": f"restore-{self.name}-{round(time.time())}",
+              "name": f"migrate-{self.name}-{round(time.time())}",
               "namespace": self.namespace
           },
           "spec": {
@@ -762,7 +781,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
               },
               "s3": {
                   "bucket": backup_bucket_name,
-                  "prefix": backup_prefix,
+                  "prefix": path_in_bucket,
                   "endpoint": "s3.epfl.ch",
                   "accessKeyIdSecretKeyRef": {
                       "name": "s3-backup-credentials",
@@ -776,16 +795,16 @@ fastcgi_param WP_DB_PASSWORD     {secret};
                       "enabled": True
                   }
               },
-              "targetRecoveryTime": "",
+              "targetRecoveryTime": self.now,
               "args": [
                   "--verbose",
-                  f"--database={self.prefix['db']}{self.name}"
+                  f"--database={self.database_name}"
               ]
           }
       }
 
       logging.info(f"   ↳ [{self.namespace}/{self.name}] Creating restore object in Kubernetes")
-      restore = KubernetesAPI.custom.create_namespaced_custom_object(
+      return KubernetesAPI.custom.create_namespaced_custom_object(
           group="k8s.mariadb.com",
           version="v1alpha1",
           namespace=self.namespace,
@@ -793,7 +812,32 @@ fastcgi_param WP_DB_PASSWORD     {secret};
           body=restore_spec
       )
 
-  def restore_uploads_directory (self, src, dst):
+  def wait_for_restore (self, restore):
+      restore_name = restore["metadata"]["name"]
+      # Wait until the restore completes (either in error or successfully)
+      while(True):
+          logging.info(f"   ↳ [{self.namespace}/{self.name}] Waiting for MariaDB restore to complete")
+
+          restored = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
+            version="v1alpha1",
+            namespace=self.namespace,
+            plural="restores",
+            name=restore_name)
+          for condition in restored.get("status", {}).get("conditions", []):
+              if condition.get("type") == "Complete":
+                  message = condition.get("message")
+                  if message == "Success":
+                      return True
+                  elif message == "Running":
+                      pass  # Fall through to the time.sleep() below
+                  else:
+                      raise kopf.PermanentError(f"restore {restore_name} failed, message: f{message}")
+          time.sleep(10)
+
+  def restore_uploads_directory (self):
+      src = f"{self.environment}/www.epfl.ch/htdocs{self.path}/wp-content/uploads"
+      dst = f"{self.name}/uploads"
+
       if os.path.exists("/wp-data-ro-openshift3") and os.path.exists("/wp-data"):
           # For production: the operator pod has both these volumes mounted.
           mounted_dst = f"/wp-data/{dst}/"
@@ -809,6 +853,11 @@ fastcgi_param WP_DB_PASSWORD     {secret};
           subprocess.run([f"ssh -t root@itswbhst0020.xaas.epfl.ch 'set -e -x; rsync -av /mnt/data-prod-ro/wordpress/{src} {remote_dst}'"],
                          shell=True, text=True)
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Restored media from OS3")
+
+  @cached_property
+  def now (self):
+      return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-7] + 'Z'
+
 
 class NamespaceFromEnv:
     @classmethod
