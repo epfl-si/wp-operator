@@ -832,7 +832,7 @@ class MigrationOperator:
                   if message == "Success":
                       return True
                   elif message == "Running":
-                      pass  # Fall through to the time.sleep() below
+                      pass  # Fall through to next `for` iteration, and ultimately the time.sleep() below
                   else:
                       raise kopf.PermanentError(f"restore {restore_name} failed, message: f{message}")
           time.sleep(10)
