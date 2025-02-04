@@ -277,6 +277,74 @@ class RouteController:
             logging.info(f"ROUTE: {name} -- host:{host} / path:{path} / service:{service_name}")
         logging.info(f"Route count: {len(routes_copy)}")
 
+    def _get_parent_service(self, namespace, hostname, path):
+        site_url = f"{hostname}{path}"
+        service_name = ''
+        max_path_len = 0
+        for route, val in self._routes_at(namespace).items():
+            spec = val.get('spec', {})
+            host = spec.get('host', '')
+            path = spec.get('path', '')
+            route_full_path = f"{host}{path}"
+            if site_url.startswith(route_full_path) and len(route_full_path) > max_path_len:
+                max_path_len = len(route_full_path)
+                service_name = spec.get('to', {}).get('name', 'N/A')
+        logging.info(f"#### _get_parent_service for site_url ({site_url}): {service_name}")
+        return service_name
+
+    def create_route(self, namespace, site_name, route_name, hostname, path, service_name):
+        if service_name == self._get_parent_service(namespace, hostname, path):
+            logging.info(f" ↳ [{namespace}/{site_name}] A route already exists pointing to the same service for '{hostname}{path}'.")
+            return
+        
+        logging.info(f" ↳ [{namespace}/{site_name}] Create Route {route_name}")
+        
+        spec = {
+            "to": {
+                "kind": "Service",
+                "name": service_name
+            },
+            "tls": {
+                "termination": "edge",
+                "insecureEdgeTerminationPolicy": "Redirect",
+                "destinationCACertificate": ""
+            },
+            "host": hostname,
+            "path": path,
+            "port": {
+                "targetPort": "80"
+            },
+            "alternateBackends": []
+        }
+        self._routes_at(namespace)[route_name] = {'spec': spec}
+        
+        body = {
+            "apiVersion": "route.openshift.io/v1",
+            "kind": "Route",
+            "metadata": {
+                "name": route_name,
+                "namespace": namespace,
+                "labels": {
+                    "app": "wp-nginx",
+                    "route": "public"
+                },
+            },
+            "spec": spec
+        }
+
+        try:
+            KubernetesAPI.custom.create_namespaced_custom_object(
+                group="route.openshift.io",
+                version="v1",
+                namespace=namespace,
+                plural="routes",
+                body=body
+            )
+
+        except ApiException as e:
+            logging.error(f" ↳ [{namespace}/{site_name}] Error creating route '{route_name}': {e}")
+            raise e
+
 
 class WordPressSiteOperator:
 
@@ -334,16 +402,15 @@ class WordPressSiteOperator:
       mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
 
       self.create_ingress(path, mariadb_password, hostname)
-
       if import_object:
           MigrationOperator(self.namespace, self.name, self.mariadb_name, self.database_name, spec, import_object).run()
 
       self.install_wordpress_via_php(title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname, path,
                                      1 if import_object else 0)
 
-      # TODO: to be adapted during OS4 migration and removed at the end.
-      if (path.split("/")[1] == "labs"):
-          self.create_route(path, hostname)
+      route_name = f"{self.prefix['route']}{self.name}"
+      service_name = 'wp-nginx'
+      self.route_controller.create_route(self.namespace, self.name, route_name, hostname, path, service_name)
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
@@ -624,52 +691,6 @@ fastcgi_param WP_DB_PASSWORD     {secret};
           if e.status != 404:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} does not exist")
-
-  def create_route(self, path, hostname):
-    route_name = self.prefix['route'] + self.name
-    logging.info(f" ↳ [{self.namespace}/{self.name}] Create Route {route_name}")
-    body = {
-        "apiVersion": "route.openshift.io/v1",
-        "kind": "Route",
-        "metadata": {
-            "name": route_name,
-            "namespace": self.namespace,
-            "labels": {
-                "app": "wp-nginx",
-                "route": "public"
-            },
-        },
-        "spec": {
-            "to": {
-                "kind": "Service",
-                "name": "wp-nginx"
-            },
-            "tls": {
-                "termination": "edge",
-                "insecureEdgeTerminationPolicy": "Redirect",
-                "destinationCACertificate": ""
-            },
-            "host": hostname,
-            "path": path,
-            "port": {
-                "targetPort": "80"
-            },
-            "alternateBackends": []
-        }
-    }
-
-    try:
-        KubernetesAPI.custom.create_namespaced_custom_object(
-            group="route.openshift.io",
-            version="v1",
-            namespace=self.namespace,
-            plural="routes",
-            body=body
-        )
-    except ApiException as e:
-        if e.status != 409:
-            raise e
-        logging.info(f" ↳ [{self.namespace}/{self.name}] Route {route_name} already exists")
 
   def delete_route(self):
       route_name = self.prefix['route'] + self.name
