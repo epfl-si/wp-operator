@@ -708,6 +708,12 @@ fastcgi_param WP_DB_PASSWORD     {secret};
                   "mariaDbRef": {
                       "name": self.mariadb_name
                   },
+                  "resources": {
+                      "requests": {
+                          "cpu": "100m",
+                          "memory": "256Mi"
+                      }
+                  },
                   "s3": {
                       "bucket": credentials["BUCKET_NAME"],
                       "prefix": f"backup/k8s/{self.name}",
