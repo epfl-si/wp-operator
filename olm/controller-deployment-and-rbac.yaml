@@ -46,13 +46,15 @@ rules:
   resourceNames:
   - wordpress
   verbs: ["*"]
-- apiGroups:
-  - networking.k8s.io
-  resources:
-  - ingressclasses
-  # ⚠ `resourceNames` doesn't work on the "create" verb;
+- # ⚠ `resourceNames` doesn't work on the "create" verb;
   # see https://stackoverflow.com/a/65219397 . Bummer
-  verbs: ["create", "get", "list", "watch"]
+  apiGroups: ["networking.k8s.io"]
+  resources: ["ingressclasses"]
+  verbs: ["create"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingressclasses"]
+  resourceNames: ["wordpress"]
+  verbs: ["get", "list", "watch"]
 # Likewise, the controller needs to create and delete all
 # objects in  ../operator-namespaced.yaml:
 - apiGroups:
@@ -151,7 +153,7 @@ rules:
 - apiGroups: ['networking.k8s.io']
   resources:
   - ingressclasses
-  verbs: ['get', 'list', 'watch']
+  verbs: ['*']
 - apiGroups: ['networking.k8s.io']
   resources:
   - ingresses/status
