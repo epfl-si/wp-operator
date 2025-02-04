@@ -33,10 +33,9 @@ delete:
 .PHONY: build
 ## Build the image as `WP_OPERATOR_IMAGE_NAME`
 build:
-	docker build -t $(WP_OPERATOR_IMAGE_NAME) .
+	docker build -t $(WP_OPERATOR_IMAGE_NAME):$(WP_OPERATOR_IMAGE_TAG) .
 
 .PHONY: push
 ## Push the image using `REGISTRY` and `WP_OPERATOR_IMAGE_TAG`
 push:
-	docker push $(WP_OPERATOR_IMAGE_NAME):latest
 	docker push $(WP_OPERATOR_IMAGE_NAME):$(WP_OPERATOR_IMAGE_TAG)
