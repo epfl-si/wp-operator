@@ -379,8 +379,6 @@ class WordPressSiteOperator:
 
       hostname = spec.get('hostname')
       path = spec.get('path')
-
-      site_url = hostname + path
       wordpress = spec.get("wordpress")
       unit_id = spec.get("owner", {}).get("epfl", {}).get("unitId")
       import_object = spec.get("epfl", {}).get("import")
