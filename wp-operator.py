@@ -711,9 +711,10 @@ class MigrationOperator:
       try:
           migration_credentials = self.parse_awscli_credentials(profile_name)
           # Execute the Restic command to restore the backup
-          restic_command = f"restic -r s3:https://s3.epfl.ch/{migration_credentials['BUCKET_NAME']}/backup/wordpresses/{self.ansible_host}/sql restore latest --target {target}"
-          logging.info(f"   Running: {restic_command}")
-          restic_restore = subprocess.run(restic_command, env=migration_credentials, shell=True, check=True, text=True)
+          restic_command = ["restic", "-r", f"s3:https://s3.epfl.ch/{migration_credentials['BUCKET_NAME']}/backup/wordpresses/{self.ansible_host}/sql",
+                            "restore", "latest", "--target", target]
+          logging.info(f"   Running: {' '.join(restic_command)}")
+          restic_restore = subprocess.run(restic_command, env=migration_credentials, check=True, text=True)
           logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup restored from OpenShift 3's S3")
 
           # Open file to write the modified SQL
@@ -732,7 +733,9 @@ class MigrationOperator:
 
           s3_uri = f"s3://{backup_bucket_name}/{path_in_bucket}/"
 
-          subprocess.run(f"aws --endpoint-url=https://s3.epfl.ch --profile={self.first_backup_profile_name} s3 cp {backup_file_path} {s3_uri}", env=self.first_backup_credentials, shell=True, check=True)
+          subprocess.run(["aws", "--endpoint-url=https://s3.epfl.ch", f"--profile={self.first_backup_profile_name}",
+                          "s3", "cp", backup_file_path, s3_uri],
+                         env=self.first_backup_credentials, check=True)
           logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup copied to {s3_uri}")
           return (backup_bucket_name, path_in_bucket)
 
@@ -850,8 +853,8 @@ class MigrationOperator:
           # For developmnent only - Assume we have ssh access to itswbhst0020 which is rigged for this purpose:
           # remote_dst = "/mnt/data_new_nas_4_prod/wordpress-data/svc0041p-wordpress-wordpress-data-pvc-b8385080-dd08-47a7-9363-c11bf55be7a7/{dst}"
           remote_dst = "/mnt/data/wordpress-data/svc0041t-wordpress-wordpress-data-pvc-239b8f80-f867-4268-9a36-ec03c91ac981/{dst}"
-          subprocess.run([f"ssh -t root@itswbhst0020.xaas.epfl.ch 'set -e -x; rsync -av /mnt/data-prod-ro/wordpress/{src} {remote_dst}'"],
-                         shell=True, text=True)
+          subprocess.run(["ssh", "-t", "root@itswbhst0020.xaas.epfl.ch", f'set -e -x; rsync -av /mnt/data-prod-ro/wordpress/{src} {remote_dst}'],
+                         text=True)
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Restored media from OS3")
 
   @cached_property
