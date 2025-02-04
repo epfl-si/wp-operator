@@ -139,7 +139,7 @@ rules:
   resources: ['configmaps']
   verbs: ["create"]
 - apiGroups: ['route.openshift.io']
-  resources: ['routes']
+  resources: ['routes', "routes/custom-host"]
   verbs: ["*"]
 # Same as above for the permissions to be granted to
 # `ServiceAccount/wp-nginx` (the one for the `Deployment/` of the same
