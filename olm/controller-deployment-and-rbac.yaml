@@ -54,7 +54,7 @@ rules:
 - apiGroups: ["networking.k8s.io"]
   resources: ["ingressclasses"]
   resourceNames: ["wordpress"]
-  verbs: ["get", "list", "watch"]
+  verbs: ["*"]
 # Likewise, the controller needs to create and delete all
 # objects in  ../operator-namespaced.yaml:
 - apiGroups:
@@ -68,14 +68,14 @@ rules:
   - apps
   resources:
   - deployments
-  verbs: ["create", "get", "list", "watch"]
+  verbs: ["*"]
 - apiGroups: [""]
   resources: ["serviceaccounts"]
   resourceNames: ["wp-operator"]
   verbs: ["*"]
 - apiGroups: [""]
   resources: ["serviceaccounts"]
-  verbs: ["create", "get", "list", "watch"]
+  verbs: ["*"]
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
