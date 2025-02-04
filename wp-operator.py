@@ -646,7 +646,7 @@ fastcgi_param WP_DB_PASSWORD     {secret};
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Route object {route_name} does not exist")
 
-  def get_os3_credentials(self, profile_name):
+  def parse_awscli_credentials(self, profile_name):
       logging.info(f"   ↳ [{self.namespace}/{self.name}] Get Restic and S3 secrets")
 
       file_path = Config.restore_secrets_file
@@ -674,15 +674,13 @@ fastcgi_param WP_DB_PASSWORD     {secret};
       profile_name = "backup-wwp"
       backup_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-7] + 'Z'
 
-      # Retrieve S3 credentials
-      credentials = self.get_os3_credentials(profile_name)
-
       try:
+          migration_credentials = self.parse_awscli_credentials(profile_name)
           # Execute the Restic command to restore the backup
-          restic_command = f"restic -r s3:https://s3.epfl.ch/{credentials['BUCKET_NAME']}/backup/wordpresses/{ansible_host}/sql restore latest --target {target}"
+          restic_command = f"restic -r s3:https://s3.epfl.ch/{migration_credentials['BUCKET_NAME']}/backup/wordpresses/{ansible_host}/sql restore latest --target {target}"
           logging.info(f"   Running: {restic_command}")
-          restic_restore = subprocess.run(restic_command, env=credentials, shell=True, check=True, text=True)
-          logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup restored from S3")
+          restic_restore = subprocess.run(restic_command, env=migration_credentials, shell=True, check=True, text=True)
+          logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup restored from OpenShift 3's S3")
 
           # Open file to write the modified SQL
           backup_file_path = f"/tmp/backup/{self.name}/backup.{backup_time}.sql"
@@ -693,60 +691,19 @@ fastcgi_param WP_DB_PASSWORD     {secret};
 
               subprocess.run(sed_command, stdout=backup_file, check=True)
 
-          subprocess.run([f"aws --endpoint-url=https://s3.epfl.ch --profile={profile_name} s3 cp {backup_file_path} s3://{credentials['BUCKET_NAME']}/backup/k8s/{self.name}/"], env=credentials, shell=True, check=True)
-          logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup copied to S3")
+          # TODO: We really want to use a separate secret for the first backup,
+          # rather than (ab)using INI sections in this way.
+          first_backup_profile_name = "backup-wwp 2025"
+          first_backup_credentials = self.parse_awscli_credentials(first_backup_profile_name)
 
-          # Initiate the restore process in MariaDB
-          restore_spec = {
-              "apiVersion": "k8s.mariadb.com/v1alpha1",
-              "kind": "Restore",
-              "metadata": {
-                  "name": f"restore-{self.name}-{round(time.time())}",
-                  "namespace": self.namespace
-              },
-              "spec": {
-                  "mariaDbRef": {
-                      "name": self.mariadb_name
-                  },
-                  "resources": {
-                      "requests": {
-                          "cpu": "100m",
-                          "memory": "256Mi"
-                      }
-                  },
-                  "s3": {
-                      "bucket": credentials["BUCKET_NAME"],
-                      "prefix": f"backup/k8s/{self.name}",
-                      "endpoint": "s3.epfl.ch",
-                      "accessKeyIdSecretKeyRef": {
-                          "name": "s3-backup-credentials",
-                          "key": "keyId"
-                      },
-                      "secretAccessKeySecretKeyRef": {
-                          "name": "s3-backup-credentials",
-                          "key": "accessSecret"
-                      },
-                      "tls": {
-                          "enabled": True
-                      }
-                  },
-                  "targetRecoveryTime": backup_time,
-                  "args": [
-                      "--verbose",
-                      f"--database={self.prefix['db']}{self.name}"
-                  ]
-              }
-          }
+          backup_prefix = f"backup/k8s/{self.name}"
+          backup_bucket_name = first_backup_credentials['BUCKET_NAME']
+          s3_uri = f"s3://{backup_bucket_name}/{backup_prefix}/"
+          subprocess.run(f"aws --endpoint-url=https://s3.epfl.ch --profile={first_backup_profile_name} s3 cp --recursive {backup_file_path} {s3_uri}, env=first_backup_credentials, shell=True, check=True)
+          logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup copied to {s3_uri}")
 
-          logging.info(f"   ↳ [{self.namespace}/{self.name}] Creating restore object in Kubernetes")
-          restore = KubernetesAPI.custom.create_namespaced_custom_object(
-              group="k8s.mariadb.com",
-              version="v1alpha1",
-              namespace=self.namespace,
-              plural="restores",
-              body=restore_spec
-          )
-          logging.info(f"   ↳ [{self.namespace}/{self.name}] Restore initiated on MariaDB")
+          logging.info(f"   ↳ [{self.namespace}/{self.name}] Initiating restore on MariaDB")
+          self.do_mariadb_restore(backup_bucket_name, backup_prefix)
 
           logging.info(f"   ↳ [{self.namespace}/{self.name}] Restoring media from OS3")
           self.restore_uploads_directory(
@@ -783,6 +740,58 @@ fastcgi_param WP_DB_PASSWORD     {secret};
                   else:
                       raise kopf.PermanentError(f"restore {restore_name} failed, message: f{message}")
           time.sleep(10)
+
+  def do_mariadb_restore (self, backup_bucket_name, backup_prefix):
+      # Initiate the restore process in MariaDB
+      restore_spec = {
+          "apiVersion": "k8s.mariadb.com/v1alpha1",
+          "kind": "Restore",
+          "metadata": {
+              "name": f"restore-{self.name}-{round(time.time())}",
+              "namespace": self.namespace
+          },
+          "spec": {
+              "mariaDbRef": {
+                  "name": self.mariadb_name
+              },
+              "resources": {
+                  "requests": {
+                      "cpu": "100m",
+                      "memory": "256Mi"
+                  }
+              },
+              "s3": {
+                  "bucket": backup_bucket_name,
+                  "prefix": backup_prefix,
+                  "endpoint": "s3.epfl.ch",
+                  "accessKeyIdSecretKeyRef": {
+                      "name": "s3-backup-credentials",
+                      "key": "keyId"
+                  },
+                  "secretAccessKeySecretKeyRef": {
+                      "name": "s3-backup-credentials",
+                      "key": "accessSecret"
+                  },
+                  "tls": {
+                      "enabled": True
+                  }
+              },
+              "targetRecoveryTime": "",
+              "args": [
+                  "--verbose",
+                  f"--database={self.prefix['db']}{self.name}"
+              ]
+          }
+      }
+
+      logging.info(f"   ↳ [{self.namespace}/{self.name}] Creating restore object in Kubernetes")
+      restore = KubernetesAPI.custom.create_namespaced_custom_object(
+          group="k8s.mariadb.com",
+          version="v1alpha1",
+          namespace=self.namespace,
+          plural="restores",
+          body=restore_spec
+      )
 
   def restore_uploads_directory (self, src, dst):
       if os.path.exists("/wp-data-ro-openshift3") and os.path.exists("/wp-data"):
