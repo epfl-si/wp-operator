@@ -750,7 +750,7 @@ class MigrationOperator:
   # rather than (ab)using INI sections in this way.
   @property
   def first_backup_profile_name (self):
-      return "backup-wwp"
+      return "backup-wwp 2025"
 
   @property
   def first_backup_credentials (self):
