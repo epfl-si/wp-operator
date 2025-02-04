@@ -26,11 +26,11 @@ spec:
         imagePullPolicy: Always
         resources:
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 100m
+            memory: 1Gi
           requests:
             cpu: 10m
-            memory: 128Mi
+            memory: 256Mi
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
