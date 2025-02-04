@@ -296,15 +296,15 @@ class WordPressSiteOperator:
 
       self.create_ingress(path, mariadb_password, hostname)
 
-      # TODO: to be adapted during OS4 migration and removed at the end.
-      if (path.split("/")[1] == "labs"):
-          self.create_route(path, hostname)
-
       if import_object:
           MigrationOperator(self.namespace, self.name, self.mariadb_name, self.database_name, spec, import_object).run()
 
       self.install_wordpress_via_php(title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname, path,
                                      1 if import_object else 0)
+
+      # TODO: to be adapted during OS4 migration and removed at the end.
+      if (path.split("/")[1] == "labs"):
+          self.create_route(path, hostname)
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
