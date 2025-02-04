@@ -705,38 +705,57 @@ class MigrationOperator:
   def migrate_sql_from_os3 (self):
       logging.info(f" ↳ [{self.namespace}/{self.name}] Migrating database backup from OS3")
 
-      target = f"/tmp/backup/{self.name}"
-
       profile_name = "backup-wwp"
       try:
           migration_credentials = self.parse_awscli_credentials(profile_name)
           # Execute the Restic command to restore the backup
-          restic_command = ["restic", "-r", f"s3:https://s3.epfl.ch/{migration_credentials['BUCKET_NAME']}/backup/wordpresses/{self.ansible_host}/sql",
-                            "restore", "latest", "--target", target]
+          restic_command = ["restic", "-r",
+                            f"s3:https://s3.epfl.ch/{migration_credentials['BUCKET_NAME']}/backup/wordpresses/{self.ansible_host}/sql",
+                            "dump", "latest", "db-backup.sql"]
           logging.info(f"   Running: {' '.join(restic_command)}")
-          restic_restore = subprocess.run(restic_command, env=migration_credentials, check=True, text=True)
-          logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup restored from OpenShift 3's S3")
+          restic_process = subprocess.Popen(restic_command, env=migration_credentials,
+                                            stdout=subprocess.PIPE)
 
-          # Open file to write the modified SQL
-          backup_file_path = f"/tmp/backup/{self.name}/backup.{self.now}.sql"
+          hostname_in_restic = "www.epfl.ch"   # TODO: fix this
 
-          with open(backup_file_path, "w") as backup_file:
-              logging.info(f"   ↳ [{self.namespace}/{self.name}] Replacing www.epfl.ch with {self.hostname} in SQL backup")
-              sed_command = ["sed", rf"s/www\.epfl\.ch/{self.hostname}/g", f"{target}/db-backup.sql"]
-
-              subprocess.run(sed_command, stdout=backup_file, check=True)
+          sed_command = ["sed", rf"s/{re.escape(hostname_in_restic)}/{self.hostname}/g"]
+          logging.info(f"   Running: {' '.join(sed_command)}")
+          sed_process = subprocess.Popen(sed_command,
+                                         stdin=restic_process.stdout, stdout=subprocess.PIPE)
+          # Don't hold on to the pipe end in the parent process (i.e. this process):
+          restic_process.stdout.close()
 
           # TODO: we should read these from the `s3-backup-credentials` secret,
           # rather than piggybacking on an INI section like this.
           backup_bucket_name = self.first_backup_credentials['BUCKET_NAME']
           path_in_bucket = f"backup/k8s/{self.name}"
 
-          s3_uri = f"s3://{backup_bucket_name}/{path_in_bucket}/"
+          backup_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-7] + 'Z'
+          s3_uri = f"s3://{backup_bucket_name}/{path_in_bucket}/backup.{backup_time}.sql"
 
-          subprocess.run(["aws", "--endpoint-url=https://s3.epfl.ch", f"--profile={self.first_backup_profile_name}",
-                          "s3", "cp", backup_file_path, s3_uri],
-                         env=self.first_backup_credentials, check=True)
-          logging.info(f"   ↳ [{self.namespace}/{self.name}] SQL backup copied to {s3_uri}")
+          aws_command = ["aws", "--endpoint-url=https://s3.epfl.ch",
+                         f"--profile={self.first_backup_profile_name}",
+                          "s3", "cp", "-", s3_uri]
+          logging.info(f"   Running: {' '.join(aws_command)}")
+          aws_process = subprocess.Popen(aws_command,
+                                         env=self.first_backup_credentials,
+                                         stdin=sed_process.stdout)
+          sed_process.stdout.close()
+
+          # We are more interested in the actual errors from
+          # “down-pipe” than the `died with <Signals.SIGPIPE: 13>`
+          # from “up-pipe”; therefore, check error codes in reverse
+          # order.
+          for (p, name, cmd) in ((aws_process, "aws", aws_command),
+                                 (sed_process, "sed", sed_command),
+                                 (restic_process, "restic", restic_command)):
+              return_code = p.wait()
+              logging.info(f"   {' '.join(cmd)} exited with status {return_code}")
+              if return_code != 0:
+                  raise subprocess.CalledProcessError(
+                      return_code,
+                      " ".join(cmd))
+
           return (backup_bucket_name, path_in_bucket)
 
       except subprocess.CalledProcessError as e:
