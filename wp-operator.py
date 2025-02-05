@@ -261,21 +261,9 @@ class RouteController:
                 if namespace in self._routes_by_namespace:
                     if name in self._routes_by_namespace[namespace]:
                         del self._routes_by_namespace[namespace][name]
-            self._log_routes(namespace)
 
     def _routes_at(self, namespace):
         return self._routes_by_namespace.setdefault(namespace, {}) 
-
-    def _log_routes(self, namespace):
-        # Create a copy to prevent RuntimeError (dictionary changed size during iteration)
-        routes_copy = self._routes_at(namespace).copy()
-        for name, val in routes_copy.items():
-            spec = val.get('spec', {})
-            host = spec.get('host', '')
-            path = spec.get('path', '')
-            service_name = spec.get('to', {}).get('name', 'N/A')
-            logging.info(f"ROUTE: {name} -- host:{host} / path:{path} / service:{service_name}")
-        logging.info(f"Route count: {len(routes_copy)}")
 
     def _get_parent_service(self, namespace, hostname, path):
         site_url = f"{hostname}{path}"
@@ -289,12 +277,11 @@ class RouteController:
             if site_url.startswith(route_full_path) and len(route_full_path) > max_path_len:
                 max_path_len = len(route_full_path)
                 service_name = spec.get('to', {}).get('name', 'N/A')
-        logging.info(f"#### _get_parent_service for site_url ({site_url}): {service_name}")
         return service_name
 
     def create_route(self, namespace, site_name, route_name, hostname, path, service_name):
         if service_name == self._get_parent_service(namespace, hostname, path):
-            logging.info(f" ↳ [{namespace}/{site_name}] A route already exists pointing to the same service for '{hostname}{path}'.")
+            logging.info(f" ↳ [{namespace}/{site_name}] A route already exists pointing to the same service ({service_name}) for '{hostname}{path}'.")
             return
         
         logging.info(f" ↳ [{namespace}/{site_name}] Create Route {route_name}")
