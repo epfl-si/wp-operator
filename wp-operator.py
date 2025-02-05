@@ -96,6 +96,7 @@ class Config:
 @kopf.on.startup()
 def on_kopf_startup (settings, **_):
     settings.scanning.disabled = True
+    settings.execution.max_workers = 10
 
 class classproperty:
     def __init__(self, func):
