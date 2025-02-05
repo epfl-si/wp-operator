@@ -261,6 +261,8 @@ class RouteController:
                 if namespace in self._routes_by_namespace:
                     if name in self._routes_by_namespace[namespace]:
                         del self._routes_by_namespace[namespace][name]
+            else:
+                logging.error(f"[ERROR] @kopf.on.event('routes'): Unknown event.type '{event['type']}' for route '{name}'")
 
     def _routes_at(self, namespace):
         return self._routes_by_namespace.setdefault(namespace, {}) 
