@@ -3,28 +3,30 @@
 # Run with `python3 wp-operator.py run --`
 #
 import argparse
+import base64
+from datetime import datetime, timezone
 from functools import cached_property
+import logging
+import os
+import re
+import secrets
+import shlex
+import subprocess
+import sys
+import threading
+import time
+import uuid
+import yaml
+
 import kopf
 import kopf.cli
-import logging
+
 from kubernetes import client, config
 from kubernetes.dynamic import DynamicClient
 from kubernetes.client.exceptions import ApiException
 from kubernetes.leaderelection import leaderelection
 from kubernetes.leaderelection.resourcelock.configmaplock import ConfigMapLock
 from kubernetes.leaderelection import electionconfig
-import base64
-import os
-import subprocess
-import sys
-import yaml
-import re
-from datetime import datetime, timezone
-import threading
-import time
-import shlex
-import secrets
-import uuid
 
 # Remove warning: InsecureRequestWarning (Unverified HTTPS request is being made to host 'api.okd-test.fsd.team'.
 # Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings)
