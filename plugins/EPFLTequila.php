@@ -9,6 +9,6 @@ class EPFLTequilaPlugin extends Plugin
   public function updateOptions()
   {
     update_option( 'plugin:epfl_tequila:has_dual_auth', $this->plugin_epfl_tequila_has_dual_auth);
-	update_option( 'plugin:epfl:tequila_allowed_request_hosts', $this->plugin_epfl_tequila_allowed_request_hosts);
+    update_option( 'plugin:epfl:tequila_allowed_request_hosts', $this->plugin_epfl_tequila_allowed_request_hosts);
   }
 }
