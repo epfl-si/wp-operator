@@ -4,7 +4,7 @@ class EPFLTequilaPlugin extends Plugin
 {
   protected $pluginPath = "tequila/EPFL-Tequila.php";
   private $plugin_epfl_tequila_has_dual_auth = 0;
-  private $plugin_epfl_tequila_allowed_request_hosts = '10.0.0.0/8';
+  private $plugin_epfl_tequila_allowed_request_hosts = '10.0.0.0/255.0.0.0';
 
   public function updateOptions()
   {
