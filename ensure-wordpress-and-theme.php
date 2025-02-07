@@ -282,9 +282,40 @@ function ensure_plugins_for_restore () {
     update_option("active_plugins", $pluginPath);
 }
 
+function delete_footer_post ()
+{
+    $pages = get_posts([
+        'post_type' => ['epfl-external-menu'],
+        'posts_per_page' => -1, // get all
+        'post_status' => array_keys(get_post_statuses()), // all post statuses (publish, draft, private etc...)
+    ]);
+
+    foreach ($pages as $page) {
+        if (strpos($page->post_title, 'Footer[') > -1 or strpos($page->post_title, 'Pied de page[') > -1) {
+            echo $page->post_title;
+            #wp_delete_post($page->ID, true);
+        }
+    }
+    /*$conn = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME);
+// Check connection
+    if ($conn->connect_error) {
+        die("Connection failed: " . $conn->connect_error);
+    }
+    // sql to delete a record
+        $sql = "delete FROM wp_posts where post_title like 'Footer[%' and post_type='epfl-external-menu'";
+
+        if ($conn->query($sql) === TRUE) {
+            echo "Record deleted successfully";
+        } else {
+            echo "Error deleting record: " . $conn->error;
+        }
+
+    $conn->close();*/
+}
+
 if (RESTORED_SITE == 1) {
     ensure_plugins_for_restore();
-
+    delete_footer_post();
     echo "Plugins successfully configured\n";
 } else {
     echo "DB schema\n";
