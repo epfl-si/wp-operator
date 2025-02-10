@@ -313,6 +313,10 @@ class RouteController:
             "metadata": {
                 "name": route_name,
                 "namespace": namespace,
+                "annotations": {
+                    "haproxy.router.openshift.io/balance": "roundrobin",
+                    "haproxy.router.openshift.io/disable_cookies": "true"
+                },
                 "labels": {
                     "app": "wp-nginx",
                     "route": "public"
