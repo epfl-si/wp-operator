@@ -267,25 +267,7 @@ class RouteController:
     def _routes_at(self, namespace):
         return self._routes_by_namespace.setdefault(namespace, {}) 
 
-    def _get_parent_service(self, namespace, hostname, path):
-        site_url = f"{hostname}{path}"
-        service_name = ''
-        max_path_len = 0
-        for route, val in self._routes_at(namespace).items():
-            spec = val.get('spec', {})
-            host = spec.get('host', '')
-            path = spec.get('path', '')
-            route_full_path = f"{host}{path}"
-            if site_url.startswith(route_full_path) and len(route_full_path) > max_path_len:
-                max_path_len = len(route_full_path)
-                service_name = spec.get('to', {}).get('name', 'N/A')
-        return service_name
-
     def create_route(self, namespace, site_name, route_name, hostname, path, service_name):
-        if service_name == self._get_parent_service(namespace, hostname, path):
-            logging.info(f" ↳ [{namespace}/{site_name}] A route already exists pointing to the same service ({service_name}) for '{hostname}{path}'.")
-            return
-        
         logging.info(f" ↳ [{namespace}/{site_name}] Create Route {route_name}")
         
         spec = {
