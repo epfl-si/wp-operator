@@ -912,6 +912,9 @@ class MigrationOperator:
 
   def restore_uploads_directory (self):
       src = f"{self.environment}/www.epfl.ch/htdocs{self.path}/wp-content/uploads"
+
+      src = re.sub('campus/associations', 'campus/associations/list', src)
+
       dst = f"{self.name}/uploads"
 
       if os.path.exists("/wp-data-ro-openshift3") and os.path.exists("/wp-data"):
