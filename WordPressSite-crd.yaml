@@ -59,7 +59,7 @@ spec:
                       unitId:
                         description: EPFL unit ID of the owner
                         type: integer
-                        # TODO : Valider le pattern officiel avec ISCS-IAM.
+                        # TODO : Obtain the “official” regex with ISCS-IAM team.
               wordpress:
                 description: WordpressSite's own specs
                 type: object
