@@ -267,7 +267,39 @@ class RouteController:
     def _routes_at(self, namespace):
         return self._routes_by_namespace.setdefault(namespace, {}) 
 
+    def _is_a_parent_route(self, site_url, route_full_path):
+        s = [part for part in site_url.split('/') if part]
+        r = [part for part in route_full_path.split('/') if part]
+        if len(r) > len(s):
+            return False
+        for i in range(len(r)):
+            if s[i] != r[i]:
+                return False
+        return True
+
+    def _get_closest_parent_route(self, namespace, hostname, path):
+        site_url = f"{hostname}{path}"
+        closest_parent_route = None
+        parent_route_max_len = 0
+        for route, val in self._routes_at(namespace).items():
+            spec = val.get('spec')
+            host = spec.get('host')
+            path = spec.get('path', '')
+            route_full_path = f"{host}{path}"
+            if self._is_a_parent_route(site_url, route_full_path) and len(route_full_path) > parent_route_max_len:
+                parent_route_max_len = len(route_full_path)
+                closest_parent_route = {'name': route, 'spec': spec}
+        return closest_parent_route
+
     def create_route(self, namespace, site_name, route_name, hostname, path, service_name):
+        parent_route = self._get_closest_parent_route(namespace, hostname, path)
+        if parent_route and service_name == parent_route.get('spec').get('to').get('name'):
+            logging.info(
+                f" ↳ [{namespace}/{site_name}] The closest parent route '{parent_route.get('name')}' already points to "
+                f"the same service '{service_name}' for the site url '{hostname}{path}' → route spec: {parent_route.get('spec')}"
+            )
+            return
+        
         logging.info(f" ↳ [{namespace}/{site_name}] Create Route {route_name}")
         
         spec = {
