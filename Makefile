@@ -14,6 +14,10 @@ help:
 operator:
 	python3 wp_operator.py run -n $(NAMESPACE)
 
+.PHONY: test
+test:
+	@python3 -m unittest discover -s test
+
 .PHONY: image
 ## Build, tag and push the image
 image: build push
