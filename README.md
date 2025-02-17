@@ -38,6 +38,7 @@ To make it work on your device, follow these steps:
 1. Install all the dependencies using `pip install -r requirements.txt`
 1. If outside the EPFL network, check additional steps
 1. Run the operator using `make operator`
+1. Run unit tests using `make test`
 
 #### Additional steps
 
