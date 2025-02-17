@@ -39,4 +39,4 @@ COPY . .
 COPY --from=wp-base /wp /wp
 COPY --from=wp-base /usr/local/bin/wp /usr/local/bin/wp
 
-ENTRYPOINT [ "python3", "wp-operator.py", "run"]
+ENTRYPOINT [ "python3", "wp_operator.py", "run"]

@@ -12,7 +12,7 @@ help:
 .PHONY: operator
 ## Launch the WordPress operator (locally)
 operator:
-	python3 wp-operator.py run -n $(NAMESPACE)
+	python3 wp_operator.py run -n $(NAMESPACE)
 
 .PHONY: image
 ## Build, tag and push the image
