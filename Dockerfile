@@ -14,6 +14,7 @@ RUN apt-get --no-install-recommends -qy install \
         curl \
         git \
         jq \
+        less \
         patch \
         php-cli \
         php-mysql \
