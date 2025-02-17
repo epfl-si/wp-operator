@@ -1,6 +1,6 @@
 # Kopf documentation : https://kopf.readthedocs.io/
 #
-# Run with `python3 wp-operator.py run --`
+# Run with `python3 wp_operator.py run --`
 #
 import argparse
 import base64
@@ -73,7 +73,7 @@ class Config:
     @classmethod
     def script_dir(cls):
         for arg in cls.saved_argv:
-            if "wp-operator.py" in arg:
+            if "wp_operator.py" in arg:
                 script_full_path = os.path.join(os.getcwd(), arg)
                 return os.path.dirname(script_full_path)
         return "."  # Take a guess
@@ -85,7 +85,7 @@ class Config:
     @classmethod
     def splice_our_argv(cls):
         if "--" in sys.argv:
-            # E.g.   python3 ./wp-operator.py run -n wordpress-toto -- --php=/usr/local/bin/php --wp-dir=yadda/yadda
+            # E.g.   python3 ./wp_operator.py run -n wordpress-toto -- --php=/usr/local/bin/php --wp-dir=yadda/yadda
             end_of_kopf = sys.argv.index("--")
             ret = sys.argv[end_of_kopf + 1:]
             sys.argv[end_of_kopf:] = []
