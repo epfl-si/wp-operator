@@ -37,4 +37,4 @@ COPY . .
 # `wp-base` below means the image built from https://github.com/epfl-si/wp-ops/tree/WPN/docker/wp-base
 COPY --from=wp-base /wp /wp
 
-ENTRYPOINT [ "python3", "wp-operator.py", "run"]
+ENTRYPOINT [ "python3", "wp_operator.py", "run"]
