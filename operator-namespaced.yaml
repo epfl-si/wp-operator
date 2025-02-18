@@ -112,12 +112,52 @@ spec:
           - --
           - --wp-dir=/wp/6
           - --secret-dir=/wp-secrets
-          - --restore-secrets-file=/restore-credentials/aws-cli-credentials.ini
+          env:
+            - name: s3-destination-keyId
+              valueFrom:
+                secretKeyRef:
+                  name: s3-credentials-for-os4
+                  key: keyId
+            - name: s3-destination-accessSecret
+              valueFrom:
+                secretKeyRef:
+                  name: s3-credentials-for-os4
+                  key: accessSecret
+            - name: s3-source-keyId
+              valueFrom:
+                secretKeyRef:
+                  name: s3-backup-credentials
+                  key: keyId
+            - name: s3-source-accessSecret
+              valueFrom:
+                secretKeyRef:
+                  name: s3-backup-credentials
+                  key: accessSecret
+            - name: s3-source-bucket
+              valueFrom:
+                configMapKeyRef:
+                  name: s3-configmap-for-os3
+                  key: s3_bucket_name
+            - name: s3-destination-bucket
+              valueFrom:
+                configMapKeyRef:
+                  name: s3-configmap-for-os4
+                  key: s3_bucket_name
+            - name: restic_secret
+              valueFrom:
+                secretKeyRef:
+                  name: restic-for-os3
+                  key: resticPassword
+            - name: restic_hostname
+              valueFrom:
+                secretKeyRef:
+                  name: restic-for-os3
+                  key: hostname
+            - name: s3-destination-secretName
+              value: s3-credentials-for-os4
           volumeMounts:
             - name: wp-data
               mountPath: /wp-data/
-            - name: restore-credentials
-              mountPath: /restore-credentials/
             - name: wp-data-ro-openshift3
               mountPath: /wp-data-ro-openshift3/
             - name: wp-secrets
@@ -137,9 +177,6 @@ spec:
         - name: wp-secrets
           secret:
             secretName: wp-plugin-secrets
-        - name: restore-credentials
-          secret:
-            secretName: restore-credentials
         - name: wp-data-ro-openshift3
           persistentVolumeClaim:
             claimName: wp-data-ro-openshift3
