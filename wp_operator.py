@@ -774,7 +774,6 @@ class MigrationOperator:
           hostname_in_restic = "www.epfl.ch"   # TODO: fix this
 
           sed_command = ["sed", "-e", rf"s/{re.escape(hostname_in_restic)}/{self.hostname}/g",
-                         "-e",  rf"s/{re.escape(hostname_in_restic)}/{self.hostname}/g",
                          "-e",  rf"s|www.epfl.ch/campus/associations/list/|www.epfl.ch/campus/associations/|g",
                          ]
           logging.info(f"   Running: {' '.join(sed_command)}")
