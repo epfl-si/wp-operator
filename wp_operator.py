@@ -189,7 +189,7 @@ class MariaDBPlacer:
             content_copy = content.copy()
             if content_copy.items():
                 for mariadb_name, mariadb_content in content_copy.items():
-                    logging.info(f"YY: mariadb_name: {mariadb_name}, db_count: {len(mariadb_content.get('databases', []))}")
+                    logging.info(f"[MariaDBPlacer] mariadb_name: {mariadb_name}, db_count: {len(mariadb_content.get('databases', []))}")
 
     def place_and_create_database(self, namespace, prefix, name):
         mariadb_ref = self._least_populated_mariadb(namespace)
