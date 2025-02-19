@@ -738,20 +738,25 @@ class MigrationOperator:
       return self.spec.get('path')
 
   @property
-  def source_credentials(self):
+  def epfl_source_aws_credentials(self):
       return {
-          "AWS_SECRET_ACCESS_KEY": os.getenv("s3-source-accessSecret"),
-          "AWS_ACCESS_KEY_ID": os.getenv("s3-source-keyId"),
-          "BUCKET_NAME": os.getenv("s3-source-bucket"),
-          "RESTIC_PASSWORD": os.getenv("restic_secret")
+          "AWS_SECRET_ACCESS_KEY": os.getenv("EPFL_S3_SOURCE_ACCESSSECRET"),
+          "AWS_ACCESS_KEY_ID": os.getenv("EPFL_S3_SOURCE_KEYID"),
+          "BUCKET_NAME": os.getenv("EPFL_S3_SOURCE_BUCKET")
+      }
+
+  @property
+  def epfl_source_restic_credentials(self):
+      return {
+          "RESTIC_PASSWORD": os.getenv("EPFL_RESTIC_SECRET")
       }
 
   @property
   def destination_credentials (self):
       return {
-          "AWS_SECRET_ACCESS_KEY": os.getenv("s3-destination-accessSecret"),
-          "AWS_ACCESS_KEY_ID": os.getenv("s3-destination-keyId"),
-          "BUCKET_NAME": os.getenv("s3-destination-bucket")
+          "AWS_SECRET_ACCESS_KEY": os.getenv("S3_DESTINATION_ACCESSSECRET"),
+          "AWS_ACCESS_KEY_ID": os.getenv("S3_DESTINATION_KEYID"),
+          "BUCKET_NAME": os.getenv("S3_DESTINATION_BUCKET")
       }
 
   def migrate_sql_from_os3 (self):
@@ -760,10 +765,10 @@ class MigrationOperator:
       try:
           # Execute the Restic command to restore the backup
           restic_command = ["restic", "-r",
-                            f"s3:https://s3.epfl.ch/{self.source_credentials['BUCKET_NAME']}/backup/wordpresses/{self.ansible_host}/sql",
+                            f"s3:https://s3.epfl.ch/{self.epfl_source_aws_credentials['BUCKET_NAME']}/backup/wordpresses/{self.ansible_host}/sql",
                             "dump", "latest", "db-backup.sql"]
           logging.info(f"   Running: {' '.join(restic_command)}")
-          restic_process = subprocess.Popen(restic_command, env=self.source_credentials,
+          restic_process = subprocess.Popen(restic_command, env={**self.epfl_source_aws_credentials, **self.epfl_source_restic_credentials},
                                             stdout=subprocess.PIPE)
 
           hostname_in_restic = os.getenv("restic_hostname")
@@ -778,7 +783,7 @@ class MigrationOperator:
           # Don't hold on to the pipe end in the parent process (i.e. this process):
           restic_process.stdout.close()
 
-          destination_bucket_name = os.getenv("s3-destination-bucket")
+          destination_bucket_name = os.getenv("S3_DESTINATION_BUCKET")
           path_in_destination_bucket = f"backup/k8s/{self.name}"
 
           backup_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-7] + 'Z'
@@ -844,11 +849,11 @@ class MigrationOperator:
                   "prefix": path_in_destination_bucket,
                   "endpoint": "s3.epfl.ch",
                   "accessKeyIdSecretKeyRef": {
-                      "name": os.getenv("s3-destination-secretName"),
+                      "name": os.getenv("S3_DESTINATION_SECRETNAME"),
                       "key": "keyId"
                   },
                   "secretAccessKeySecretKeyRef": {
-                      "name": os.getenv("s3-destination-secretName"),
+                      "name": os.getenv("S3_DESTINATION_SECRETNAME"),
                       "key": "accessSecret"
                   },
                   "tls": {
