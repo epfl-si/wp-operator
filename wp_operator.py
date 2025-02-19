@@ -771,7 +771,7 @@ class MigrationOperator:
           restic_process = subprocess.Popen(restic_command, env={**self.epfl_source_aws_credentials, **self.epfl_source_restic_credentials},
                                             stdout=subprocess.PIPE)
 
-          hostname_in_restic = os.getenv("restic_hostname")
+          hostname_in_restic = "www.epfl.ch"   # TODO: fix this
 
           sed_command = ["sed", "-e", rf"s/{re.escape(hostname_in_restic)}/{self.hostname}/g",
                          "-e",  rf"s/{re.escape(hostname_in_restic)}/{self.hostname}/g",
