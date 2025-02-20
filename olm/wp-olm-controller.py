@@ -165,20 +165,23 @@ class PerNamespaceObjectCounter:
         self.kind = kind
         self.on_namespace_populated_callbacks = []
         self.on_namespace_emptied_callbacks = []
-        self._previous_by_namespace = {}
+        self._previous_objects_by_namespace = {}
+        self._previous_objects_by_namespace_mutex = threading.Lock()
 
     def hook (self):
-        id = f'{self.kind}_by_namespace'
-        @kopf.index(self.kind, id=id)
+        index_name = f'{self.kind}_by_namespace'
+        @kopf.index(self.kind, id=index_name)
         def by_namespace(name, namespace, **_):
             return { namespace: name }
 
         @kopf.on.event(self.kind)
         async def reconcile_by_namespace(event, **kwargs):
-            by_namespace = kwargs[id]
+            new_objects_by_namespace = kwargs[index_name]   # Provided by the `@kopf.index` thing, above
 
-            before = set(self._previous_by_namespace.keys())
-            after = set(by_namespace.keys())
+            with self._previous_objects_by_namespace_mutex:
+                before = set(self._previous_objects_by_namespace.keys())
+                after = set(new_objects_by_namespace.keys())
+                self._previous_objects_by_namespace = copy.deepcopy(new_objects_by_namespace)
 
             for emptied_namespace in before - after:
                 logging.info(f"Namespace {emptied_namespace} is now empty of {self.kind}s")
@@ -197,8 +200,6 @@ class PerNamespaceObjectCounter:
                         await callback(populated_namespace)
                     except BaseException as e:
                         logging.error(e)
-
-            self._previous_by_namespace = copy.deepcopy(by_namespace)
 
     def on_namespace_populated (self, f):
         self.on_namespace_populated_callbacks.append(f)
