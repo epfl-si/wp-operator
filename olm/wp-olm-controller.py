@@ -55,7 +55,11 @@ class KubernetesObjectData:
 
     @property
     def moniker (self):
-        return f"{self.kind}/{self.name}"
+        moniker = f"{self.kind}/{self.name}"
+        namespace = self.namespace
+        if namespace:
+            moniker = f"{moniker} in namespace {namespace}"
+        return moniker
 
 
 def raise_if_status_failed(resource_instance):
@@ -177,6 +181,7 @@ class PerNamespaceObjectCounter:
             after = set(by_namespace.keys())
 
             for emptied_namespace in before - after:
+                logging.info(f"Namespace {emptied_namespace} is now empty of {self.kind}s")
                 for callback in reversed(self.on_namespace_emptied_callbacks):
                     # TODO: should feed as a kopf sub-task, rather than this try/catch.
                     try:
@@ -185,6 +190,7 @@ class PerNamespaceObjectCounter:
                         logging.error(e)
 
             for populated_namespace in after - before:
+                logging.info(f"Namespace {populated_namespace} now contains at least one {self.kind}")
                 for callback in self.on_namespace_populated_callbacks:
                     # TODO: should feed as a kopf sub-task, rather than this try/catch.
                     try:
