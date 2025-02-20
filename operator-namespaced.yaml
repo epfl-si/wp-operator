@@ -113,43 +113,43 @@ spec:
           - --wp-dir=/wp/6
           - --secret-dir=/wp-secrets
           env:
-            - name: S3_DESTINATION_KEYID
-              valueFrom:
-                secretKeyRef:
-                  name: s3-credentials-for-os4
-                  key: keyId
-            - name: S3_DESTINATION_ACCESSSECRET
-              valueFrom:
-                secretKeyRef:
-                  name: s3-credentials-for-os4
-                  key: accessSecret
-            - name: EPFL_S3_SOURCE_KEYID
+            - name: S3_BACKUP_KEYID
               valueFrom:
                 secretKeyRef:
                   name: s3-backup-credentials
                   key: keyId
-            - name: EPFL_S3_SOURCE_ACCESSSECRET
+            - name: S3_BACKUP_ACCESSSECRET
               valueFrom:
                 secretKeyRef:
                   name: s3-backup-credentials
                   key: accessSecret
-            - name: EPFL_S3_SOURCE_BUCKET
+            - name: EPFL_S3_MIGRATION_KEYID
+              valueFrom:
+                secretKeyRef:
+                  name: epfl-s3-migrations-credentials
+                  key: keyId
+            - name: EPFL_S3_MIGRATION_ACCESSSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: epfl-s3-migrations-credentials
+                  key: accessSecret
+            - name: EPFL_S3_MIGRATION_BUCKET
               valueFrom:
                 configMapKeyRef:
-                  name: s3-configmap-for-os3
+                  name: epfl-s3-migrations
                   key: s3_bucket_name
-            - name: S3_DESTINATION_BUCKET
+            - name: S3_BACKUP_BUCKET
               valueFrom:
                 configMapKeyRef:
-                  name: s3-configmap-for-os4
+                  name: wp-backups
                   key: s3_bucket_name
             - name: EPFL_RESTIC_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: restic-for-os3
+                  name: epfl-restic
                   key: resticPassword
-            - name: S3_DESTINATION_SECRETNAME
-              value: s3-credentials-for-os4
+            - name: S3_BACKUP_SECRETNAME
+              value: s3-backup-credentials
           volumeMounts:
             - name: wp-data
               mountPath: /wp-data/

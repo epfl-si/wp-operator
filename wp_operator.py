@@ -740,9 +740,9 @@ class MigrationOperator:
   @property
   def epfl_source_aws_credentials(self):
       return {
-          "AWS_SECRET_ACCESS_KEY": os.getenv("EPFL_S3_SOURCE_ACCESSSECRET"),
-          "AWS_ACCESS_KEY_ID": os.getenv("EPFL_S3_SOURCE_KEYID"),
-          "BUCKET_NAME": os.getenv("EPFL_S3_SOURCE_BUCKET")
+          "AWS_SECRET_ACCESS_KEY": os.getenv("EPFL_S3_MIGRATION_ACCESSSECRET"),
+          "AWS_ACCESS_KEY_ID": os.getenv("EPFL_S3_MIGRATION_KEYID"),
+          "BUCKET_NAME": os.getenv("EPFL_S3_MIGRATION_BUCKET")
       }
 
   @property
@@ -754,26 +754,42 @@ class MigrationOperator:
   @property
   def destination_credentials (self):
       return {
-          "AWS_SECRET_ACCESS_KEY": os.getenv("S3_DESTINATION_ACCESSSECRET"),
-          "AWS_ACCESS_KEY_ID": os.getenv("S3_DESTINATION_KEYID"),
-          "BUCKET_NAME": os.getenv("S3_DESTINATION_BUCKET")
+          "AWS_SECRET_ACCESS_KEY": os.getenv("S3_BACKUP_ACCESSSECRET"),
+          "AWS_ACCESS_KEY_ID": os.getenv("S3_BACKUP_KEYID"),
+          "BUCKET_NAME": os.getenv("S3_BACKUP_BUCKET")
       }
+
+  def run_epfl_os3_restic(self):
+      """Execute the Restic command to restore the backup"""
+      restic_command = ["restic", "-r",
+                        f"s3:https://s3.epfl.ch/{self.epfl_source_aws_credentials['BUCKET_NAME']}/backup/wordpresses/{self.ansible_host}/sql",
+                        "dump", "latest", "db-backup.sql"]
+      logging.info(f"   Running: {' '.join(restic_command)}")
+      return subprocess.Popen(restic_command, env={**self.epfl_source_aws_credentials, **self.epfl_source_restic_credentials},
+                                        stdout=subprocess.PIPE)
+
+  def read_siteurl_from_sql_dump(self, restic_process_for_siteurl_stdout):
+      try:
+          for line in restic_process_for_siteurl_stdout:
+              matched = re.match(r"""INSERT INTO `wp_options` VALUES \(.*[0-9]+,'siteurl','(.*?)'""", line.decode('iso-8859-15'))
+              if matched:
+                  return matched[1]
+          raise ValueError("Could not find WordPress siteurl in Restic dump!")
+      finally:
+          restic_process_for_siteurl_stdout.close()
 
   def migrate_sql_from_os3 (self):
       logging.info(f" ↳ [{self.namespace}/{self.name}] Migrating database backup from OS3")
 
       try:
-          # Execute the Restic command to restore the backup
-          restic_command = ["restic", "-r",
-                            f"s3:https://s3.epfl.ch/{self.epfl_source_aws_credentials['BUCKET_NAME']}/backup/wordpresses/{self.ansible_host}/sql",
-                            "dump", "latest", "db-backup.sql"]
-          logging.info(f"   Running: {' '.join(restic_command)}")
-          restic_process = subprocess.Popen(restic_command, env={**self.epfl_source_aws_credentials, **self.epfl_source_restic_credentials},
-                                            stdout=subprocess.PIPE)
+          restic_process_for_siteurl = self.run_epfl_os3_restic()
+          siteurl_in_restic = self.read_siteurl_from_sql_dump(restic_process_for_siteurl.stdout)
+          restic_process_for_siteurl.wait()
 
-          hostname_in_restic = "www.epfl.ch"   # TODO: fix this
-
-          sed_command = ["sed", "-e", rf"s/{re.escape(hostname_in_restic)}/{self.hostname}/g",
+          # we can't rewind a pipe so we run restic again
+          restic_process = self.run_epfl_os3_restic()
+          migrated_url = f"https://{self.hostname}{self.path}"
+          sed_command = ["sed", "-e", rf"s|{re.escape(siteurl_in_restic)}|{re.escape(migrated_url)}|g",
                          "-e",  rf"s|www.epfl.ch/campus/associations/list/|www.epfl.ch/campus/associations/|g",
                          ]
           logging.info(f"   Running: {' '.join(sed_command)}")
@@ -782,7 +798,7 @@ class MigrationOperator:
           # Don't hold on to the pipe end in the parent process (i.e. this process):
           restic_process.stdout.close()
 
-          destination_bucket_name = os.getenv("S3_DESTINATION_BUCKET")
+          destination_bucket_name = os.getenv("S3_BACKUP_BUCKET")
           path_in_destination_bucket = f"backup/k8s/{self.name}"
 
           backup_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-7] + 'Z'
@@ -802,7 +818,7 @@ class MigrationOperator:
           # order.
           for (p, name, cmd) in ((aws_process, "aws", aws_command),
                                  (sed_process, "sed", sed_command),
-                                 (restic_process, "restic", restic_command)):
+                                 (restic_process, "restic", "restic")):
               return_code = p.wait()
               logging.info(f"   {' '.join(cmd)} exited with status {return_code}")
               if return_code != 0:
@@ -848,11 +864,11 @@ class MigrationOperator:
                   "prefix": path_in_destination_bucket,
                   "endpoint": "s3.epfl.ch",
                   "accessKeyIdSecretKeyRef": {
-                      "name": os.getenv("S3_DESTINATION_SECRETNAME"),
+                      "name": os.getenv("S3_BACKUP_SECRETNAME"),
                       "key": "keyId"
                   },
                   "secretAccessKeySecretKeyRef": {
-                      "name": os.getenv("S3_DESTINATION_SECRETNAME"),
+                      "name": os.getenv("S3_BACKUP_SECRETNAME"),
                       "key": "accessSecret"
                   },
                   "tls": {
