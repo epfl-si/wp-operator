@@ -738,10 +738,11 @@ class MigrationOperator:
       return self.spec.get('path')
 
   @property
-  def epfl_source_aws_credentials_env (self):
+  def epfl_restic_env (self):
       return {
           "AWS_SECRET_ACCESS_KEY": os.getenv("EPFL_MIGRATION_ACCESSSECRET"),
-          "AWS_ACCESS_KEY_ID": os.getenv("EPFL_MIGRATION_KEYID")
+          "AWS_ACCESS_KEY_ID": os.getenv("EPFL_MIGRATION_KEYID"),
+          "RESTIC_PASSWORD": os.getenv("RESTIC_PASSWORD")
       }
 
   @property
@@ -757,7 +758,7 @@ class MigrationOperator:
                         f"s3:https://s3.epfl.ch/{os.getenv('EPFL_MIGRATION_BUCKET')}/backup/wordpresses/{self.ansible_host}/sql",
                         "dump", "latest", "db-backup.sql"]
       logging.info(f"   Running: {' '.join(restic_command)}")
-      return subprocess.Popen(restic_command, env=self.epfl_source_aws_credentials_env,
+      return subprocess.Popen(restic_command, env=self.epfl_restic_env,
                                         stdout=subprocess.PIPE)
 
   def read_siteurl_from_sql_dump(self, restic_process_for_siteurl_stdout):
