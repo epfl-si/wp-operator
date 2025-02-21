@@ -613,6 +613,7 @@ class WordPressSiteOperator:
           logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} does not exist")
 
   def create_ingress(self, path, secret, hostname):
+    path_slash = ensure_final_slash(path)
     body = client.V1Ingress(
         api_version="networking.k8s.io/v1",
         kind="Ingress",
@@ -623,8 +624,8 @@ class WordPressSiteOperator:
             "nginx.ingress.kubernetes.io/configuration-snippet": f"""
 include "/etc/nginx/template/wordpress_fastcgi.conf";
 
-location = {path}/wp-admin {{
-    return 301 https://{hostname}{path}/wp-admin/;
+location = {path_slash}wp-admin {{
+    return 301 https://{hostname}{path_slash}wp-admin/;
 }}
 
 location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {{
@@ -644,7 +645,7 @@ location ~ (wp-content/uploads)/ {{
 }}
 
 fastcgi_param WP_DEBUG           true;
-fastcgi_param WP_ROOT_URI        {ensure_final_slash(path)};
+fastcgi_param WP_ROOT_URI        {path_slash};
 fastcgi_param WP_SITE_NAME       {self.name};
 fastcgi_param WP_ABSPATH         /wp/6/;
 fastcgi_param WP_DB_HOST         {self.mariadb_name};
