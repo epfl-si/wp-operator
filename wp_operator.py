@@ -738,28 +738,26 @@ class MigrationOperator:
       return self.spec.get('path')
 
   @property
-  def epfl_source_aws_credentials(self):
+  def epfl_source_aws_credentials_env (self):
       return {
           "AWS_SECRET_ACCESS_KEY": os.getenv("EPFL_MIGRATION_ACCESSSECRET"),
-          "AWS_ACCESS_KEY_ID": os.getenv("EPFL_MIGRATION_KEYID"),
-          "BUCKET_NAME": os.getenv("EPFL_MIGRATION_BUCKET")
+          "AWS_ACCESS_KEY_ID": os.getenv("EPFL_MIGRATION_KEYID")
       }
 
   @property
-  def destination_credentials (self):
+  def destination_credentials_env (self):
       return {
           "AWS_SECRET_ACCESS_KEY": os.getenv("S3_BACKUP_ACCESSSECRET"),
-          "AWS_ACCESS_KEY_ID": os.getenv("S3_BACKUP_KEYID"),
-          "BUCKET_NAME": os.getenv("S3_BACKUP_BUCKET")
+          "AWS_ACCESS_KEY_ID": os.getenv("S3_BACKUP_KEYID")
       }
 
   def run_epfl_os3_restic(self):
       """Execute the Restic command to restore the backup"""
       restic_command = ["restic", "-r",
-                        f"s3:https://s3.epfl.ch/{self.epfl_source_aws_credentials['BUCKET_NAME']}/backup/wordpresses/{self.ansible_host}/sql",
+                        f"s3:https://s3.epfl.ch/{os.getenv('EPFL_MIGRATION_BUCKET')}/backup/wordpresses/{self.ansible_host}/sql",
                         "dump", "latest", "db-backup.sql"]
       logging.info(f"   Running: {' '.join(restic_command)}")
-      return subprocess.Popen(restic_command, env=self.epfl_source_aws_credentials,
+      return subprocess.Popen(restic_command, env=self.epfl_source_aws_credentials_env,
                                         stdout=subprocess.PIPE)
 
   def read_siteurl_from_sql_dump(self, restic_process_for_siteurl_stdout):
@@ -802,7 +800,7 @@ class MigrationOperator:
                           "s3", "cp", "-", s3_uri]
           logging.info(f"   Running: {' '.join(aws_command)}")
           aws_process = subprocess.Popen(aws_command,
-                                         env=self.destination_credentials,
+                                         env=self.destination_credentials_env,
                                          stdin=sed_process.stdout)
           sed_process.stdout.close()
 
