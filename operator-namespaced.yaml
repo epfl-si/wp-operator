@@ -112,12 +112,39 @@ spec:
           - --
           - --wp-dir=/wp/6
           - --secret-dir=/wp-secrets
-          - --restore-secrets-file=/restore-credentials/aws-cli-credentials.ini
+          envFrom:
+            - configMapRef:
+                  name: epfl-migrations-s3
+            - configMapRef:
+                  name: wp-backups
+            - secretRef:
+                  name: epfl-migration-restic
+          env:
+            - name: S3_BACKUP_KEYID
+              valueFrom:
+                secretKeyRef:
+                  name: s3-backup-credentials
+                  key: keyId
+            - name: S3_BACKUP_ACCESSSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: s3-backup-credentials
+                  key: accessSecret
+            - name: EPFL_MIGRATION_KEYID
+              valueFrom:
+                secretKeyRef:
+                  name: epfl-migrations-s3-credentials
+                  key: keyId
+            - name: EPFL_MIGRATION_ACCESSSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: epfl-migrations-s3-credentials
+                  key: accessSecret
+            - name: S3_BACKUP_SECRETNAME
+              value: s3-backup-credentials
           volumeMounts:
             - name: wp-data
               mountPath: /wp-data/
-            - name: restore-credentials
-              mountPath: /restore-credentials/
             - name: wp-data-ro-openshift3
               mountPath: /wp-data-ro-openshift3/
             - name: wp-secrets
@@ -137,9 +164,6 @@ spec:
         - name: wp-secrets
           secret:
             secretName: wp-plugin-secrets
-        - name: restore-credentials
-          secret:
-            secretName: restore-credentials
         - name: wp-data-ro-openshift3
           persistentVolumeClaim:
             claimName: wp-data-ro-openshift3

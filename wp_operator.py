@@ -53,8 +53,6 @@ class Config:
                             default=cls.file_in_script_dir("ensure-wordpress-and-theme.php"))
         parser.add_argument('--secret-dir', help='Secret file\'s directory.',
                             default="secretFiles")
-        parser.add_argument('--restore-secrets-file', help='Path to a .ini file that contains AWS credentials to read backups from',
-                            default="/keybase/team/epfl_wp_prod/aws-cli-credentials")
         return parser
 
     @classmethod
@@ -68,7 +66,6 @@ class Config:
         cls.php = cmdline.php
         cls.wp_dir = os.path.join(cmdline.wp_dir, '')
         cls.secret_dir = cmdline.secret_dir
-        cls.restore_secrets_file = cmdline.restore_secrets_file
 
     @classmethod
     def script_dir(cls):
@@ -265,7 +262,7 @@ class RouteController:
                 logging.error(f"[ERROR] @kopf.on.event('routes'): Unknown event.type '{event['type']}' for route '{name}'")
 
     def _routes_at(self, namespace):
-        return self._routes_by_namespace.setdefault(namespace, {}) 
+        return self._routes_by_namespace.setdefault(namespace, {})
 
     def _is_a_parent_route(self, site_url, route_full_path):
         s = [part for part in site_url.split('/') if part]
@@ -299,9 +296,9 @@ class RouteController:
                 f"the same service '{service_name}' for the site url '{hostname}{path}' → route spec: {parent_route.get('spec')}"
             )
             return
-        
+
         logging.info(f" ↳ [{namespace}/{site_name}] Create Route {route_name}")
-        
+
         spec = {
             "to": {
                 "kind": "Service",
@@ -320,7 +317,7 @@ class RouteController:
             "alternateBackends": []
         }
         self._routes_at(namespace)[route_name] = {'spec': spec}
-        
+
         body = {
             "apiVersion": "route.openshift.io/v1",
             "kind": "Route",
@@ -613,6 +610,7 @@ class WordPressSiteOperator:
           logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} does not exist")
 
   def create_ingress(self, path, secret, hostname):
+    path_slash = ensure_final_slash(path)
     body = client.V1Ingress(
         api_version="networking.k8s.io/v1",
         kind="Ingress",
@@ -623,8 +621,8 @@ class WordPressSiteOperator:
             "nginx.ingress.kubernetes.io/configuration-snippet": f"""
 include "/etc/nginx/template/wordpress_fastcgi.conf";
 
-location = {path}/wp-admin {{
-    return 301 https://{hostname}{path}/wp-admin/;
+location = {path_slash}wp-admin {{
+    return 301 https://{hostname}{path_slash}wp-admin/;
 }}
 
 location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {{
@@ -644,7 +642,7 @@ location ~ (wp-content/uploads)/ {{
 }}
 
 fastcgi_param WP_DEBUG           true;
-fastcgi_param WP_ROOT_URI        {ensure_final_slash(path)};
+fastcgi_param WP_ROOT_URI        {path_slash};
 fastcgi_param WP_SITE_NAME       {self.name};
 fastcgi_param WP_ABSPATH         /wp/6/;
 fastcgi_param WP_DB_HOST         {self.mariadb_name};
@@ -739,52 +737,52 @@ class MigrationOperator:
   def path (self):
       return self.spec.get('path')
 
-  def parse_awscli_credentials(self, profile_name):
-      logging.info(f"   ↳ [{self.namespace}/{self.name}] Get Restic and S3 secrets")
-
-      file_path = Config.restore_secrets_file
-
-      with open(file_path, 'r') as file:
-          content = file.read()
-
-      profile_pattern = re.compile(rf'\[{profile_name}\](.*?)(?=\[|$)', re.DOTALL)
-      profile_content = profile_pattern.search(content)
-
-      profile_content = profile_content.group(1)
-
-      env = {
-          "AWS_SECRET_ACCESS_KEY": re.search(r'aws_secret_access_key\s*=\s*(\S+)', profile_content).group(1),
-          "AWS_ACCESS_KEY_ID": re.search(r'aws_access_key_id\s*=\s*(\S+)', profile_content).group(1),
-          "BUCKET_NAME": re.search(r'bucket_name\s*=\s*(\S+)', profile_content).group(1),
-          "AWS_SHARED_CREDENTIALS_FILE": file_path
+  @property
+  def epfl_restic_env (self):
+      return {
+          "AWS_SECRET_ACCESS_KEY": os.getenv("EPFL_MIGRATION_ACCESSSECRET"),
+          "AWS_ACCESS_KEY_ID": os.getenv("EPFL_MIGRATION_KEYID"),
+          "RESTIC_PASSWORD": os.getenv("RESTIC_PASSWORD")
       }
 
-      # TODO: the Restic password should not piggy-back with the AWS
-      # credentials.
-      matched_restic_password = re.search(r'restic_password\s*=\s*(\S+)', profile_content)
-      if matched_restic_password:
-          env["RESTIC_PASSWORD"] = matched_restic_password.group(1)
+  @property
+  def destination_credentials_env (self):
+      return {
+          "AWS_SECRET_ACCESS_KEY": os.getenv("S3_BACKUP_ACCESSSECRET"),
+          "AWS_ACCESS_KEY_ID": os.getenv("S3_BACKUP_KEYID")
+      }
 
-      return env
+  def run_epfl_os3_restic(self):
+      """Execute the Restic command to restore the backup"""
+      restic_command = ["restic", "-r",
+                        f"s3:https://s3.epfl.ch/{os.getenv('EPFL_MIGRATION_BUCKET')}/backup/wordpresses/{self.ansible_host}/sql",
+                        "dump", "latest", "db-backup.sql"]
+      logging.info(f"   Running: {' '.join(restic_command)}")
+      return subprocess.Popen(restic_command, env=self.epfl_restic_env,
+                                        stdout=subprocess.PIPE)
+
+  def read_siteurl_from_sql_dump(self, restic_process_for_siteurl_stdout):
+      try:
+          for line in restic_process_for_siteurl_stdout:
+              matched = re.match(r"""INSERT INTO `wp_options` VALUES \(.*[0-9]+,'siteurl','(.*?)'""", line.decode('iso-8859-15'))
+              if matched:
+                  return matched[1]
+          raise ValueError("Could not find WordPress siteurl in Restic dump!")
+      finally:
+          restic_process_for_siteurl_stdout.close()
 
   def migrate_sql_from_os3 (self):
       logging.info(f" ↳ [{self.namespace}/{self.name}] Migrating database backup from OS3")
 
-      profile_name = "backup-wwp"
       try:
-          migration_credentials = self.parse_awscli_credentials(profile_name)
-          # Execute the Restic command to restore the backup
-          restic_command = ["restic", "-r",
-                            f"s3:https://s3.epfl.ch/{migration_credentials['BUCKET_NAME']}/backup/wordpresses/{self.ansible_host}/sql",
-                            "dump", "latest", "db-backup.sql"]
-          logging.info(f"   Running: {' '.join(restic_command)}")
-          restic_process = subprocess.Popen(restic_command, env=migration_credentials,
-                                            stdout=subprocess.PIPE)
+          restic_process_for_siteurl = self.run_epfl_os3_restic()
+          siteurl_in_restic = self.read_siteurl_from_sql_dump(restic_process_for_siteurl.stdout)
+          restic_process_for_siteurl.wait()
 
-          hostname_in_restic = "www.epfl.ch"   # TODO: fix this
-
-          sed_command = ["sed", "-e", rf"s/{re.escape(hostname_in_restic)}/{self.hostname}/g",
-                         "-e",  rf"s/{re.escape(hostname_in_restic)}/{self.hostname}/g",
+          # we can't rewind a pipe so we run restic again
+          restic_process = self.run_epfl_os3_restic()
+          migrated_url = f"https://{self.hostname}{self.path}"
+          sed_command = ["sed", "-e", rf"s|{re.escape(siteurl_in_restic)}|{re.escape(migrated_url)}|g",
                          "-e",  rf"s|www.epfl.ch/campus/associations/list/|www.epfl.ch/campus/associations/|g",
                          ]
           logging.info(f"   Running: {' '.join(sed_command)}")
@@ -793,20 +791,17 @@ class MigrationOperator:
           # Don't hold on to the pipe end in the parent process (i.e. this process):
           restic_process.stdout.close()
 
-          # TODO: we should read these from the `s3-backup-credentials` secret,
-          # rather than piggybacking on an INI section like this.
-          backup_bucket_name = self.first_backup_credentials['BUCKET_NAME']
-          path_in_bucket = f"backup/k8s/{self.name}"
+          destination_bucket_name = os.getenv("S3_BACKUP_BUCKET")
+          path_in_destination_bucket = f"backup/k8s/{self.name}"
 
           backup_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-7] + 'Z'
-          s3_uri = f"s3://{backup_bucket_name}/{path_in_bucket}/backup.{backup_time}.sql"
+          s3_uri = f"s3://{destination_bucket_name}/{path_in_destination_bucket}/backup.{backup_time}.sql"
 
           aws_command = ["aws", "--endpoint-url=https://s3.epfl.ch",
-                         f"--profile={self.first_backup_profile_name}",
                           "s3", "cp", "-", s3_uri]
           logging.info(f"   Running: {' '.join(aws_command)}")
           aws_process = subprocess.Popen(aws_command,
-                                         env=self.first_backup_credentials,
+                                         env=self.destination_credentials_env,
                                          stdin=sed_process.stdout)
           sed_process.stdout.close()
 
@@ -816,7 +811,7 @@ class MigrationOperator:
           # order.
           for (p, name, cmd) in ((aws_process, "aws", aws_command),
                                  (sed_process, "sed", sed_command),
-                                 (restic_process, "restic", restic_command)):
+                                 (restic_process, "restic", "restic")):
               return_code = p.wait()
               logging.info(f"   {' '.join(cmd)} exited with status {return_code}")
               if return_code != 0:
@@ -824,7 +819,7 @@ class MigrationOperator:
                       return_code,
                       " ".join(cmd))
 
-          return (backup_bucket_name, path_in_bucket)
+          return (destination_bucket_name, path_in_destination_bucket)
 
       except subprocess.CalledProcessError as e:
           logging.error(f"Subprocess error in backup restoration: {e}")
@@ -836,19 +831,7 @@ class MigrationOperator:
           logging.error(f"Unexpected error: {e}")
           raise e
 
-  # TODO: We really want to use a separate secret for the first backup,
-  # rather than (ab)using INI sections in this way.
-  @property
-  def first_backup_profile_name (self):
-      return "backup-wwp 2025"
-
-  @property
-  def first_backup_credentials (self):
-      return self.parse_awscli_credentials(self.first_backup_profile_name)
-
-  def start_mariadb_restore (self, backup_bucket_name, path_in_bucket):
-      # TODO: this should be read from the `s3-backup-credentials` secret,
-      # rather than like this.
+  def start_mariadb_restore (self, destination_bucket_name, path_in_destination_bucket):
       logging.info(f"   ↳ [{self.namespace}/{self.name}] Initiating restore on MariaDB")
 
       # Initiate the restore process in MariaDB
@@ -870,15 +853,15 @@ class MigrationOperator:
                   }
               },
               "s3": {
-                  "bucket": backup_bucket_name,
-                  "prefix": path_in_bucket,
+                  "bucket": destination_bucket_name,
+                  "prefix": path_in_destination_bucket,
                   "endpoint": "s3.epfl.ch",
                   "accessKeyIdSecretKeyRef": {
-                      "name": "s3-backup-credentials",
+                      "name": os.getenv("S3_BACKUP_SECRETNAME"),
                       "key": "keyId"
                   },
                   "secretAccessKeySecretKeyRef": {
-                      "name": "s3-backup-credentials",
+                      "name": os.getenv("S3_BACKUP_SECRETNAME"),
                       "key": "accessSecret"
                   },
                   "tls": {
@@ -980,7 +963,7 @@ class NamespaceFromEnv:
     @classmethod
     def setup (cls):
         namespace = cls.get()
-        logging.info(f'WP-Operator v0.0.1 | codename: tippelskirchi')
+        logging.info(f'WP-Operator v1.0.0 | codename: camelopardalis')
         logging.info(f'Running in namespace {namespace}')
         os.environ['KUBERNETES_NAMESPACE'] = namespace
         try:
