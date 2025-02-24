@@ -282,7 +282,7 @@ function ensure_plugins_for_restore () {
     update_option("active_plugins", $pluginPath);
 }
 
-function delete_footer_post ()
+function delete_footer_menus ()
 {
     $pages = get_posts([
         'post_type' => ['epfl-external-menu'],
@@ -299,7 +299,7 @@ function delete_footer_post ()
 
 if (RESTORED_SITE == 1) {
     ensure_plugins_for_restore();
-    delete_footer_post();
+	delete_footer_menus();
     echo "Plugins successfully configured\n";
 } else {
     echo "DB schema\n";
