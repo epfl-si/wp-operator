@@ -114,11 +114,11 @@ spec:
           - --secret-dir=/wp-secrets
           envFrom:
             - configMapRef:
-                  name: epfl-migrations
+                  name: epfl-migration
             - configMapRef:
                   name: wp-backups
             - secretRef:
-                  name: epfl-migrations
+                  name: epfl-migration
           env:
             - name: S3_BACKUP_KEYID
               valueFrom:
