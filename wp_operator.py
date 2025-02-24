@@ -1,5 +1,15 @@
 # Kopf documentation : https://kopf.readthedocs.io/
 #
+# The operator consume the following environment variables:
+# S3_BACKUP_BUCKET: OpenShift 4' S3 bucket name used to paste the backup file for initial restores
+# S3_BACKUP_KEYID: S3 keyid
+# S3_BACKUP_ACCESSSECRET: S3 accessSecret
+# S3_BACKUP_SECRETNAME: OpenShift 4 secret name containing keyId and accessSecret.
+# The operator need 'S3_BACKUP_SECRETNAME' so he can pass the secret to the MariaDB operator for initial restores.
+# EPFL_MIGRATION_BUCKET: S3 bucket name for the old platform used to copy the backup file for initial restores
+# EPFL_MIGRATION_KEYID: S3 keyid for the old platform
+# EPFL_MIGRATION_ACCESSSECRET: S3 accesssecret for the old platform
+# RESTIC_PASSWORD: Extract the old platform's backup from EPFL_MIGRATION_BUCKET and copy the sql dump file into the S3_BACKUP_BUCKET
 # Run with `python3 wp_operator.py run --`
 #
 import argparse
