@@ -64,6 +64,7 @@ class Config:
         parser.add_argument('--secret-dir', help='Secret file\'s directory.',
                             default="secretFiles")
         parser.add_argument('--max-workers', help='Max number of `WordPressSite`s to operate on at the same time',
+                            type=int,
                             default=10)
         return parser
 
@@ -977,7 +978,7 @@ class NamespaceFromEnv:
     @classmethod
     def setup (cls):
         namespace = cls.get()
-        logging.info(f'WP-Operator v1.1.1 | codename: reticulata')
+        logging.info(f'WP-Operator v1.1.2 | codename: reticulata')
         logging.info(f'Running in namespace {namespace}')
         os.environ['KUBERNETES_NAMESPACE'] = namespace
         try:
