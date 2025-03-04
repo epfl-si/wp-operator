@@ -849,7 +849,7 @@ class MigrationOperator:
           "apiVersion": "k8s.mariadb.com/v1alpha1",
           "kind": "Restore",
           "metadata": {
-              "name": f"migrate-{self.name}-{round(time.time())}",
+              "name": f"m-{self.name[-50:]}-{round(time.time())}",
               "namespace": self.namespace
           },
           "spec": {
