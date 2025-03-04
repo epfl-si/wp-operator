@@ -63,6 +63,8 @@ class Config:
                             default=cls.file_in_script_dir("ensure-wordpress-and-theme.php"))
         parser.add_argument('--secret-dir', help='Secret file\'s directory.',
                             default="secretFiles")
+        parser.add_argument('--max-workers', help='Max number of `WordPressSite`s to operate on at the same time',
+                            default=10)
         return parser
 
     @classmethod
@@ -76,6 +78,7 @@ class Config:
         cls.php = cmdline.php
         cls.wp_dir = os.path.join(cmdline.wp_dir, '')
         cls.secret_dir = cmdline.secret_dir
+        cls.max_workers = cmdline.max_workers
 
     @classmethod
     def script_dir(cls):
@@ -103,7 +106,7 @@ class Config:
 @kopf.on.startup()
 def on_kopf_startup (settings, **_):
     settings.scanning.disabled = True
-    settings.execution.max_workers = 10
+    settings.execution.max_workers = Config.max_workers
 
 class classproperty:
     def __init__(self, func):
