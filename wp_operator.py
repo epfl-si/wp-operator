@@ -413,12 +413,13 @@ class WordPressSiteOperator:
       mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.namespace).data['password'])
       mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
 
-      self.create_ingress(path, mariadb_password, hostname)
       if import_object:
           MigrationOperator(self.namespace, self.name, self.mariadb_name, self.database_name, spec, import_object).run()
 
       self.install_wordpress_via_php(title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname, path,
                                      1 if import_object else 0)
+
+      self.create_ingress(path, mariadb_password, hostname)
 
       route_name = f"{self.prefix['route']}{self.name}"
       service_name = 'wp-nginx'
