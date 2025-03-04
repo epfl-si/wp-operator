@@ -157,7 +157,7 @@ class MariaDBPlacer:
 
         # TODO wait for KOPF to be done sending us the initial updates
 
-        @kopf.on.event('databases')
+        @kopf.on.event('databases.k8s.mariadb.com')
         def on_event_database(event, spec, name, namespace, patch, **kwargs):
             if (event['type'] in [None, 'ADDED', 'MODIFIED']):
                 databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", [])
