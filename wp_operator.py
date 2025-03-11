@@ -27,6 +27,8 @@ import threading
 import time
 import uuid
 import yaml
+import requests
+import mysql
 
 import kopf
 import kopf.cli
@@ -417,7 +419,7 @@ class WordPressSiteOperator:
       mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.namespace).data['password'])
       mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
 
-      if import_object:
+      if import_object: #add function to import redirect
           MigrationOperator(self.namespace, self.name, self.mariadb_name, self.database_name, spec, import_object).run()
 
       self.install_wordpress_via_php(title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname, path,
@@ -728,29 +730,140 @@ fastcgi_param WP_DB_PASSWORD     {secret};
 
 
 class MigrationOperator:
-  def __init__ (self, namespace, name, mariadb_name, database_name, spec, import_object):
+  def __init__(self, namespace, name, mariadb_name, database_name, spec, import_object):
       self.namespace = namespace
       self.name = name
       self.mariadb_name = mariadb_name
       self.database_name = database_name
+      self._hostname = spec.get('hostname')
+      self._path = spec.get('path', '/')
       self.spec = spec
+      
+      import_os3_backup_source = import_object.get("openshift3BackupSource", {})
+      self.environment = import_os3_backup_source.get("environment", "")
+      self.ansible_host = import_os3_backup_source.get("ansibleHost", "")
+      self.htaccess_path = self.find_htaccess_path()
 
-      import_os3_backup_source = import_object.get("openshift3BackupSource")
-      self.environment = import_os3_backup_source["environment"]
-      self.ansible_host = import_os3_backup_source["ansibleHost"]
+  def find_htaccess_path(self):
+      base_path = "/wp-data-ro-openshift3/"
+      environment = self.environment  
+      domain_name = "www.epfl.ch"
+      htdocs = "htdocs"  
+      site_path = self._path.lstrip("/").replace("-", "/")  
+      htaccess_path = os.path.join(base_path, environment, domain_name, htdocs, site_path, ".htaccess")  
+      if os.path.isfile(htaccess_path):
+          logging.info(f"`.htaccess` found: {htaccess_path}")
+          return htaccess_path
+      else:
+          logging.warning(f"No `.htaccess` file found for {self._hostname} at {htaccess_path}.")
+          return None
 
-  def run (self):
-      restore = self.start_mariadb_restore (*self.migrate_sql_from_os3())
+  def run(self):
+      restore = self.start_mariadb_restore(*self.migrate_sql_from_os3())
       self.restore_uploads_directory()
       self.wait_for_restore(restore)
+      self.import_redirections()
+
+  def import_redirections(self):
+      if not self.htaccess_path or not os.path.exists(self.htaccess_path):
+          logging.warning(f"[{self.namespace}/{self.name}] No `.htaccess` file found for this site.")
+          return
+
+      logging.info(f"[{self.namespace}/{self.name}] Extracting redirections from {self.htaccess_path}")
+
+      redirections = []
+      with open(self.htaccess_path, "r") as file:
+          for line in file:
+              match = re.match(r'^\s*Redirect\s+(\d{3})?\s+(\S+)\s+(\S+)', line)
+              if match:
+                  status_code = match.group(1) or "301"
+                  old_url = match.group(2)
+                  new_url = match.group(3)
+
+              if not re.match(r'^https?://', old_url):
+                  old_url = f"https://{self._hostname}{old_url}"
+
+              if old_url.startswith(self._path) or old_url.startswith(f"https://{self._hostname}"):
+                  redirections.append((status_code, old_url, new_url))
+              else:
+                  logging.info(f"Ignored: {old_url} → {new_url} (not part of {self._hostname})")
+
+      if not redirections:
+          logging.info(f"[{self.namespace}/{self.name}] No applicable Redirects found.")
+          return
+
+      valid_redirections = self.validate_redirections(redirections)
+      self.insert_redirections_in_db(valid_redirections)
+
+  def validate_redirections(self, redirections):
+      valid_redirections = []
+      for status_code, old_url, new_url in redirections:
+          try:
+              response = requests.head(old_url, allow_redirects=True, timeout=5)
+              if response.status_code < 400:
+                  valid_redirections.append((status_code, old_url, new_url))
+              else:
+                  logging.warning(f"[{self.namespace}/{self.name}] Ignored redirection: {old_url} → {new_url} (HTTP {response.status_code})")
+          except requests.RequestException as e:
+              logging.warning(f"[{self.namespace}/{self.name}] Could not verify {old_url} → {new_url} ({e})")
+      return valid_redirections
+
+  def insert_redirections_in_db(self, redirections):
+      if not redirections:
+          logging.info(f"[{self.namespace}/{self.name}] No valid redirections to insert.")
+          return
+
+      db_host = self.mariadb_name
+      db_user = "wp-user"
+      db_password_path = "/run/secrets/wp-db-password"
+      db_name = self.database_name
+
+      if not os.path.exists(db_password_path):
+          logging.error(f"[{self.namespace}/{self.name}] MySQL password file not found at {db_password_path}.")
+          return
+
+      try:
+          with open(db_password_path, "r") as f:
+              db_password = f.read().strip()
+      except Exception as e:
+          logging.error(f"[{self.namespace}/{self.name}] Failed to read MySQL password: {e}")
+          return
+
+      try:
+          conn = mysql.connector.connect(
+              host=db_host,
+              user=db_user,
+              password=db_password,
+              database=db_name
+          )
+          cursor = conn.cursor()
+
+          sql = """
+          INSERT INTO wp_redirection_items (url, action_data, action_type, match_type, created)
+          VALUES (%s, %s, 'url', 'url', NOW())
+          """
+          values = [(old_url, new_url) for _, old_url, new_url in redirections]
+
+          cursor.executemany(sql, values)
+          conn.commit()
+
+          logging.info(f"[{self.namespace}/{self.name}] {cursor.rowcount} redirections successfully inserted.")
+
+      except mysql.connector.Error as e:
+          logging.error(f"[{self.namespace}/{self.name}] Error inserting redirections: {e}")
+      finally:
+          if conn.is_connected():
+              cursor.close()
+              conn.close()
 
   @property
-  def hostname (self):
-      return self.spec.get('hostname')
-
+  def hostname(self):
+      return self._hostname
+    
   @property
-  def path (self):
-      return self.spec.get('path')
+  def path(self):
+      return self._path
+
 
   @property
   def epfl_restic_env (self):
@@ -978,7 +1091,7 @@ class NamespaceFromEnv:
     @classmethod
     def setup (cls):
         namespace = cls.get()
-        logging.info(f'WP-Operator v1.1.2 | codename: reticulata')
+        logging.info(f'WP-Operator v1.4.2 | codename: reticulata')
         logging.info(f'Running in namespace {namespace}')
         os.environ['KUBERNETES_NAMESPACE'] = namespace
         try:

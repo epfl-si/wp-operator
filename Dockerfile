@@ -23,6 +23,7 @@ RUN apt-get --no-install-recommends -qy install \
         restic \
         rsync \
         unzip \
+        mysql-client \
      && rm -rf /var/lib/apt/lists/*; # from 1.12GB to 869MB
 
 ## Uncomment the following line if you want to test out your RBAC live:
