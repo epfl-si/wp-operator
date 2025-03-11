@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 NAMESPACE = wordpress-test
 WP_OPERATOR_IMAGE_NAME = quay-its.epfl.ch/svc0041/wp-operator
-WP_OPERATOR_IMAGE_TAG ?= latest
+WP_OPERATOR_IMAGE_TAG ?= redirects
 
 .PHONY: help
 ## Print this help
