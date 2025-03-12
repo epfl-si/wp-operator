@@ -44,10 +44,16 @@ spec:
                 type: string
                 pattern: ^((?:[a-zA-Z0-9-]+\.)+)([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$  # The end '/' is not permitted
                 default: www.epfl.ch
+                x-kubernetes-validations:
+                  - message: Field 'hostname' is immutable
+                    rule: self == oldSelf
               path:
                 description: Path to the WordpressSite
                 type: string
                 pattern: ^/(.*)
+                x-kubernetes-validations:
+                  - message: Field 'path' is immutable
+                    rule: self == oldSelf
               owner:
                 description: Owner of the WordpressSite
                 type: object
@@ -59,6 +65,9 @@ spec:
                       unitId:
                         description: EPFL unit ID of the owner
                         type: integer
+                        x-kubernetes-validations:
+                          - message: Field 'owner.epfl.unitId' is immutable
+                            rule: self == oldSelf
                         # TODO : Obtain the “official” regex with ISCS-IAM team.
               wordpress:
                 description: WordpressSite's own specs
@@ -68,26 +77,41 @@ spec:
                     description: WordpressSite's title
                     type: string
                     pattern: ^[\w\p{L}\p{M}\p{N}\p{P}\p{S}@._\- ]{1,}$
+                    x-kubernetes-validations:
+                      - message: Field 'wordpress.title' is immutable
+                        rule: self == oldSelf
                   tagline:
                     description: WordpressSite's tagline
                     type: string
                     pattern: ^[\w\p{L}\p{M}\p{N}\p{P}\p{S}@._\- ]{1,}$
+                    x-kubernetes-validations:
+                      - message: Field 'wordpress.tagline' is immutable
+                        rule: self == oldSelf
                   theme:
                     description: WordpressSite's theme
                     type: string
                     pattern: ^(wp-theme-2018|wp-theme-light|epfl-master|epfl-blank)$
+                    x-kubernetes-validations:
+                      - message: Field 'wordpress.theme' is immutable
+                        rule: self == oldSelf
                   languages:
                     description: WordpressSite's languages
                     type: array
                     items:
                       type: string
                       pattern: ^[a-z]{2}$
+                    x-kubernetes-validations:
+                      - message: Field 'wordpress.language' is immutable
+                        rule: self == oldSelf
                   plugins:
                     description: WordpressSite's plugins
                     type: object
                     additionalProperties:
                       type: object
                     default: {}
+                    x-kubernetes-validations:
+                      - message: Field 'wordpress.plugins' is immutable
+                        rule: self == oldSelf
                   debug:
                     description: Whether or not activate the WP_DEBUG
                     type: boolean
@@ -121,6 +145,9 @@ spec:
                             description: Current host used by Ansible
                             type: string
                             pattern: ^[a-z0-9_]+$
+                    x-kubernetes-validations:
+                      - message: Field 'epfl.import' is immutable
+                        rule: self == oldSelf
             required:
               - hostname
               - path
