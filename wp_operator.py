@@ -923,7 +923,7 @@ class MigrationOperator:
           time.sleep(10)
 
   def restore_uploads_directory (self):
-      src = f"{self.environment}/www.epfl.ch/htdocs{self.path}/wp-content/uploads"
+      src = f"{self.environment}/{self.hostname}/htdocs{self.path if self.path != '/' else ''}/wp-content/uploads"
 
       src = re.sub('campus/associations', 'campus/associations/list', src)
 
@@ -978,7 +978,7 @@ class NamespaceFromEnv:
     @classmethod
     def setup (cls):
         namespace = cls.get()
-        logging.info(f'WP-Operator v1.1.2 | codename: reticulata')
+        logging.info(f'WP-Operator v1.1.3 | codename: reticulata')
         logging.info(f'Running in namespace {namespace}')
         os.environ['KUBERNETES_NAMESPACE'] = namespace
         try:
