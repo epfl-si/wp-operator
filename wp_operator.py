@@ -606,7 +606,7 @@ class WordPressSiteOperator:
               time.sleep(5)
               iteration = iteration + 1
           else:
-              raise kopf.PermanentError(f"create {customObjectName} failed, message: {message}")
+              raise kopf.PermanentError(f"create {customObjectName} timed out or failed, last condition message: {message}")
 
   def delete_custom_object_mariadb(self, prefix, plural):
       mariadb_name = prefix + self.name
