@@ -131,27 +131,38 @@ spec:
             type: object
             x-kubernetes-preserve-unknown-fields: true
     additionalPrinterColumns:
+      - name: Hostname
+        type: string
+        description: "Hostname of the WordpressSite"
+        jsonPath: ".spec.hostname"
       - name: Path
         type: string
         description: "URL path of the site"
         jsonPath: ".spec.path"
-      - name: Unit
+      - name: Title
         type: string
-        description: "WordPress site's unit"
-        jsonPath: ".spec.owner.epfl.unitId"
-      - name: Languages
-        type: string
-        description: "Initial languages for the site"
-        jsonPath: ".spec.wordpress.languages"
-      - name: Plugins
-        type: string
-        description: "Initial plugins for the site"
-        jsonPath: ".spec.wordpress.plugins"
+        description: "Initial title"
+        jsonPath: ".spec.wordpress.title"
         priority: 1
       - name: Tagline
         type: string
         description: "Initial tagline"
         jsonPath: ".spec.wordpress.tagline"
+        priority: 1
+      - name: Unit
+        type: string
+        description: "WordPress site's unit"
+        jsonPath: ".spec.owner.epfl.unitId"
+        priority: 1
+      - name: Languages
+        type: string
+        description: "Initial languages for the site"
+        jsonPath: ".spec.wordpress.languages"
+        priority: 1
+      - name: Plugins
+        type: string
+        description: "Initial plugins for the site"
+        jsonPath: ".spec.wordpress.plugins"
         priority: 1
     served: true
     storage: true
