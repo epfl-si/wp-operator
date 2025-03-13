@@ -34,7 +34,7 @@ abstract class Plugin {
       'PartnerUniversities' => new PartnerUniversitiesPlugin(),
       'Polylang' => new PolylangPlugin($languagesList, $wpDirPath),
       'Payonline' => new PayonlinePlugin(),
-      'Redirection' => new RedirectionPlugin(),
+      'Redirection' => new RedirectionPlugin( $wpDirPath),
       'Restauration' => new EPFLRestaurationPlugin(),
       'Surveys' => new SurveysPlugin(),
       'tinymce-advanced' => new TinymceAdvancedPlugin(),
@@ -53,6 +53,8 @@ abstract class Plugin {
   }
 
   public function addSpecialConfiguration() {}
+
+  public function addSpecialConfigurationForRestore() {}
 
   public function updateOptions()
   {

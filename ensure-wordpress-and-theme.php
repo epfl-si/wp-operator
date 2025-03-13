@@ -279,6 +279,7 @@ function ensure_plugins_for_restore () {
     foreach ($pluginList as $pluginName) {
         $plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR, $languagesList, ABSPATH);
         $pluginPath[] = $plugin->getPluginPath();
+        $plugin->addSpecialConfigurationForRestore();
     }
     update_option("active_plugins", $pluginPath);
 }

@@ -3,6 +3,11 @@
 class RedirectionPlugin extends Plugin
 {
     protected $pluginPath = "redirection/redirection.php";
+    private $wpDirPath;
+    function __construct($wpDirPath) {
+        $this->wpDirPath = $wpDirPath;
+      }
+
 
     private $redirectionOptions = array(
         'monitor_post_changes' => false,
@@ -21,7 +26,7 @@ class RedirectionPlugin extends Plugin
     private $redirection_items_per_page = 100;
     private $redirection_404_logs = false;
 
-    public function addSpecialConfiguration()
+    public function addSpecialConfigurationForRestore()
     {
         global $wpdb;
 
@@ -36,10 +41,12 @@ class RedirectionPlugin extends Plugin
         }
 
         error_log("[RedirectionPlugin] Plugin activated successfully.");
-
         $this->createRedirectionTables($wpdb);
         $this->updateOptions();
-        $this->importRedirectionsFromOperator($wpdb);
+        // $this->importRedirectionsFromOperator($wpdb);
+
+        // require_once $this->wpDirPath . 'wp-content/plugins/redirection/redirection.php';
+        // do_action('rest_api_init');
     }
 
     public function updateOptions()
@@ -73,11 +80,11 @@ class RedirectionPlugin extends Plugin
             url MEDIUMTEXT NOT NULL,
             match_url VARCHAR(2000) DEFAULT NULL,
             match_data TEXT,
-            regex INT(11) UNSIGNED NOT NULL DEFAULT '0',
-            position INT(11) UNSIGNED NOT NULL DEFAULT '0',
-            last_count INT(10) UNSIGNED NOT NULL DEFAULT '0',
+            regex INT(11) UNSIGNED NOT NULL DEFAULT 0,
+            position INT(11) UNSIGNED NOT NULL DEFAULT 0,
+            last_count INT(10) UNSIGNED NOT NULL DEFAULT 0,
             last_access DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
-            group_id INT(11) NOT NULL DEFAULT '0',
+            group_id INT(11) NOT NULL DEFAULT 0,
             status ENUM('enabled','disabled') NOT NULL DEFAULT 'enabled',
             action_type VARCHAR(20) NOT NULL,
             action_code INT(11) UNSIGNED NOT NULL,
