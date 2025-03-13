@@ -402,7 +402,11 @@ class WordPressSiteOperator:
       import_object = spec.get("epfl", {}).get("import")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
-      plugins = wordpress.get("plugins", [])
+
+      plugins = wordpress.get("plugins", {})
+      if type(plugins) is list:
+        plugins = dict((p, {}) for p in plugins)
+
       languages = wordpress["languages"]
 
       self.mariadb_name = self.placer.place_and_create_database(self.namespace, self.prefix, self.name)
@@ -420,7 +424,7 @@ class WordPressSiteOperator:
       if import_object:
           MigrationOperator(self.namespace, self.name, self.mariadb_name, self.database_name, spec, import_object).run()
 
-      self.install_wordpress_via_php(title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname, path,
+      self.install_wordpress_via_php(title, tagline, ','.join(plugins.keys()), unit_id, ','.join(languages), mariadb_password, hostname, path,
                                      1 if import_object else 0)
 
       self.create_ingress(path, mariadb_password, hostname)
