@@ -202,7 +202,7 @@ class MariaDBPlacer:
                 for mariadb_name, mariadb_content in content_copy.items():
                     logging.info(f"[MariaDBPlacer] mariadb_name: {mariadb_name}, db_count: {len(mariadb_content.get('databases', []))}")
 
-    def place_and_create_database(self, namespace, prefix, name):
+    def place_and_create_database(self, namespace, prefix, name, wpn_uid):
         mariadb_ref = self._least_populated_mariadb(namespace)
         db_spec = {
             "mariaDbRef": {
@@ -219,7 +219,14 @@ class MariaDBPlacer:
             "kind": "Database",
             "metadata": {
                 "name": db_name,
-                "namespace": namespace
+                "namespace": namespace,
+                "ownerReferences": {
+                    "blockOwnerDeletion": "true",
+                    "apiVersion": "wordpress.epfl.ch/v1",
+                    "kind": "wordpresssites",
+                    "name": name,
+                    "uid": wpn_uid
+                }
             },
             "spec": db_spec
         }
@@ -302,7 +309,7 @@ class RouteController:
                 closest_parent_route = {'name': route, 'spec': spec}
         return closest_parent_route
 
-    def create_route(self, namespace, site_name, route_name, hostname, path, service_name):
+    def create_route(self, namespace, site_name, route_name, hostname, path, service_name, wpn_uid):
         parent_route = self._get_closest_parent_route(namespace, hostname, path)
         if parent_route and service_name == parent_route.get('spec').get('to').get('name'):
             logging.info(
@@ -338,6 +345,13 @@ class RouteController:
             "metadata": {
                 "name": route_name,
                 "namespace": namespace,
+                "ownerReferences": {
+                    "blockOwnerDeletion": "true",
+                    "apiVersion": "wordpress.epfl.ch/v1",
+                    "kind": "wordpresssites",
+                    "name": site_name,
+                    "uid": wpn_uid
+                },
                 "annotations": {
                     "haproxy.router.openshift.io/balance": "roundrobin",
                     "haproxy.router.openshift.io/disable_cookies": "true"
@@ -376,14 +390,16 @@ class WordPressSiteOperator:
           WordPressSiteOperator(name, namespace, placer, route_controller).delete_site(spec)
 
       @kopf.on.create('wordpresssites')
-      def on_create_wordpresssite(spec, name, namespace, **kwargs):
-          WordPressSiteOperator(name, namespace, placer, route_controller).create_site(spec)
+      def on_create_wordpresssite(spec, name, namespace, meta, **kwargs):
+          wps_uid = meta.get('uid')
+          WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).create_site(spec)
 
-  def __init__(self, name, namespace, placer, route_controller):
+  def __init__(self, name, namespace, placer, route_controller, wps_uid):
       self.name = name
       self.namespace = namespace
       self.placer = placer
       self.route_controller = route_controller
+      self.wpn_uid = wps_uid
       self.prefix = {
           "db": "wp-db-",
           "user": "wp-db-user-",
@@ -409,7 +425,7 @@ class WordPressSiteOperator:
 
       languages = wordpress["languages"]
 
-      self.mariadb_name = self.placer.place_and_create_database(self.namespace, self.prefix, self.name)
+      self.mariadb_name = self.placer.place_and_create_database(self.namespace, self.prefix, self.name, self.wpn_uid)
       self.database_name = f"{self.prefix['db']}{self.name}"
 
       self._waitMariaDBObjectReady("databases", self.database_name)
@@ -517,7 +533,13 @@ class WordPressSiteOperator:
           "kind": "User",
           "metadata": {
               "name": user_name,
-              "namespace": self.namespace
+              "namespace": self.namespace,
+              "ownerReferences": {
+                  "apiVersion": "wordpress.epfl.ch/v1",
+                  "kind": "wordpresssites",
+                  "name": self.name,
+                  "uid": self.wpn_uid
+              }
           },
           "spec": {
               "mariaDbRef": {
@@ -555,7 +577,13 @@ class WordPressSiteOperator:
           "kind": "Grant",
           "metadata": {
               "name": grant_name,
-              "namespace": self.namespace
+              "namespace": self.namespace,
+              "ownerReferences": {
+                  "apiVersion": "wordpress.epfl.ch/v1",
+                  "kind": "wordpresssites",
+                  "name": self.name,
+                  "uid": self.wpn_uid
+              }
           },
           "spec": {
               "mariaDbRef": {
@@ -636,6 +664,13 @@ class WordPressSiteOperator:
         metadata=client.V1ObjectMeta(
             name=self.name,
             namespace=self.namespace,
+            owner_references={
+                "block_owner_deletion": "true",
+                "api_version": "wordpress.epfl.ch/v1",
+                "kind": "wordpresssites",
+                "name": {self.name},
+                "uid": {self.wpn_uid}
+            },
             annotations={
             "nginx.ingress.kubernetes.io/configuration-snippet": f"""
 include "/etc/nginx/template/wordpress_fastcgi.conf";
