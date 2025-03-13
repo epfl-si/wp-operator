@@ -109,9 +109,6 @@ spec:
                     additionalProperties:
                       type: object
                     default: {}
-                    x-kubernetes-validations:
-                      - message: Field 'wordpress.plugins' is immutable
-                        rule: self == oldSelf
                   debug:
                     description: Whether or not activate the WP_DEBUG
                     type: boolean
