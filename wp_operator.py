@@ -606,7 +606,7 @@ class WordPressSiteOperator:
               time.sleep(5)
               iteration = iteration + 1
           else:
-              raise kopf.PermanentError(f"create {customObjectName} failed, message: f{message}")
+              raise kopf.PermanentError(f"create {customObjectName} failed, message: {message}")
 
   def delete_custom_object_mariadb(self, prefix, plural):
       mariadb_name = prefix + self.name
@@ -919,7 +919,7 @@ class MigrationOperator:
                   elif message == "Running":
                       pass  # Fall through to next `for` iteration, and ultimately the time.sleep() below
                   else:
-                      raise kopf.PermanentError(f"restore {restore_name} failed, message: f{message}")
+                      raise kopf.PermanentError(f"restore {restore_name} failed, message: {message}")
           time.sleep(10)
 
   def restore_uploads_directory (self):
