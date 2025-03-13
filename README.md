@@ -1,6 +1,6 @@
 # EPFL Kubernetes WordPress Operator
 
-![EKWO Logo](https://github.com/epfl-si/wp-operator/blob/main/images/WPO-no-bg.png?raw=true)
+![EPFL WordPress Operator Logo](https://github.com/epfl-si/wp-operator/blob/main/images/EPFL-WP-Operator-logo-small.png?raw=true)
 
 This is the code for the Kubernetes WordPress Operator used at [EPFL].
 
