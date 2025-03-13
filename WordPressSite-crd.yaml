@@ -139,6 +139,10 @@ spec:
         type: string
         description: "URL path of the site"
         jsonPath: ".spec.path"
+      - name: Age
+        type: date
+        jsonPath: .metadata.creationTimestamp
+      # Additional columns (-o wide to get them):
       - name: Title
         type: string
         description: "Initial title"
