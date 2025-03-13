@@ -84,11 +84,10 @@ spec:
                       pattern: ^[a-z]{2}$
                   plugins:
                     description: WordpressSite's plugins
-                    type: array
-                    items:
-                      type: string
-                      pattern: ^[\w -_.]{3,}$
-                    default: []
+                    type: object
+                    additionalProperties:
+                      type: object
+                    default: {}
                   debug:
                     description: Whether or not activate the WP_DEBUG
                     type: boolean
