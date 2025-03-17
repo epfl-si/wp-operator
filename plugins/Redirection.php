@@ -3,10 +3,6 @@
 class RedirectionPlugin extends Plugin
 {
     protected $pluginPath = "redirection/redirection.php";
-    private $wpDirPath;
-    function __construct($wpDirPath) {
-        $this->wpDirPath = $wpDirPath;
-    }
 
     private $redirectionOptions = array (
         'support' => false,

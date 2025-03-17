@@ -34,7 +34,7 @@ abstract class Plugin {
       'PartnerUniversities' => new PartnerUniversitiesPlugin(),
       'Polylang' => new PolylangPlugin($languagesList, $wpDirPath),
       'Payonline' => new PayonlinePlugin(),
-      'Redirection' => new RedirectionPlugin($wpDirPath),
+      'Redirection' => new RedirectionPlugin(),
       'Restauration' => new EPFLRestaurationPlugin(),
       'Surveys' => new SurveysPlugin(),
       'tinymce-advanced' => new TinymceAdvancedPlugin(),
