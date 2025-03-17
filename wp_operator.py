@@ -220,7 +220,7 @@ class MariaDBPlacer:
             "metadata": {
                 "name": db_name,
                 "namespace": namespace,
-                "ownerReferences": ownerReferences
+                "ownerReferences": [ownerReferences]
             },
             "spec": db_spec
         }
@@ -339,7 +339,7 @@ class RouteController:
             "metadata": {
                 "name": route_name,
                 "namespace": namespace,
-                "ownerReferences": ownerReferences,
+                "ownerReferences": [ownerReferences],
                 "annotations": {
                     "haproxy.router.openshift.io/balance": "roundrobin",
                     "haproxy.router.openshift.io/disable_cookies": "true"
@@ -396,9 +396,8 @@ class WordPressSiteOperator:
           "route": "wp-route-"
       }
       self.ownerReferences = {
-          "blockOwnerDeletion": "true",
           "apiVersion": "wordpress.epfl.ch/v1",
-          "kind": "wordpresssites",
+          "kind": "WordpressSite",
           "name": self.name,
           "uid": self.wpn_uid
       }
@@ -501,7 +500,7 @@ class WordPressSiteOperator:
           metadata=client.V1ObjectMeta(
               name=self.secret_name,
               namespace=self.namespace,
-              owner_references=self.ownerReferences
+              owner_references=[self.ownerReferences]
           ),
           string_data={"password": secret}
       )
@@ -533,7 +532,7 @@ class WordPressSiteOperator:
           "metadata": {
               "name": user_name,
               "namespace": self.namespace,
-              "ownerReferences": self.ownerReferences
+              "ownerReferences": [self.ownerReferences]
           },
           "spec": {
               "mariaDbRef": {
@@ -572,7 +571,7 @@ class WordPressSiteOperator:
           "metadata": {
               "name": grant_name,
               "namespace": self.namespace,
-              "ownerReferences": self.ownerReferences
+              "ownerReferences": [self.ownerReferences]
           },
           "spec": {
               "mariaDbRef": {
@@ -653,7 +652,7 @@ class WordPressSiteOperator:
         metadata=client.V1ObjectMeta(
             name=self.name,
             namespace=self.namespace,
-            owner_references=self.ownerReferences,
+            owner_references=[self.ownerReferences],
             annotations={
             "nginx.ingress.kubernetes.io/configuration-snippet": f"""
 include "/etc/nginx/template/wordpress_fastcgi.conf";
@@ -879,7 +878,7 @@ class MigrationOperator:
           "metadata": {
               "name": f"m-{self.name[-50:]}-{round(time.time())}",
               "namespace": self.namespace,
-              "ownerReferences": self.ownerReferences
+              "ownerReferences": [self.ownerReferences]
           },
           "spec": {
               "mariaDbRef": {
