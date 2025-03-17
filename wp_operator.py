@@ -373,10 +373,6 @@ class WordPressSiteOperator:
       placer = MariaDBPlacer()
       route_controller = RouteController()
 
-      @kopf.on.delete('wordpresssites')
-      def on_delete_wordpresssite(spec, name, namespace, **kwargs):
-          WordPressSiteOperator(name, namespace, placer, route_controller).delete_site(spec)
-
       @kopf.on.create('wordpresssites')
       def on_create_wordpresssite(spec, name, namespace, meta, **kwargs):
           wps_uid = meta.get('uid')
@@ -445,19 +441,6 @@ class WordPressSiteOperator:
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
-  def delete_site(self, spec):
-      logging.info(f"Delete WordPressSite {self.name=} in {self.namespace=}")
-
-      # Deleting database
-      self.delete_custom_object_mariadb(self.prefix['db'], "databases")
-      self.delete_secret()
-      # Deleting user
-      self.delete_custom_object_mariadb(self.prefix['user'], "users")
-      # Deleting grant
-      self.delete_custom_object_mariadb(self.prefix['grant'], "grants")
-      self.delete_ingress()
-      self.delete_route()
-
   def install_wordpress_via_php(self, title, tagline, plugins, unit_id, languages, secret, hostname, path, restored_site = 0):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
 
@@ -511,16 +494,6 @@ class WordPressSiteOperator:
           if e.status != 409:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {self.secret_name} already exists")
-
-  def delete_secret(self):
-      try:
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Delete Secret {self.secret_name}")
-
-          KubernetesAPI.core.delete_namespaced_secret(namespace=self.namespace, name=self.secret_name)
-      except ApiException as e:
-          if e.status != 404:
-              raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {self.secret_name} does not exist")
 
   def create_user(self):
       user_name = f"{self.prefix['user']}{self.name}"
@@ -628,22 +601,6 @@ class WordPressSiteOperator:
           else:
               raise kopf.PermanentError(f"create {customObjectName} timed out or failed, last condition message: {message}")
 
-  def delete_custom_object_mariadb(self, prefix, plural):
-      mariadb_name = prefix + self.name
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Delete MariaDB object {mariadb_name}")
-      try:
-          KubernetesAPI.custom.delete_namespaced_custom_object(
-              group="k8s.mariadb.com",
-              version="v1alpha1",
-              plural=plural,
-              namespace=self.namespace,
-              name=mariadb_name
-          )
-      except ApiException as e:
-          if e.status != 404:
-              raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} does not exist")
-
   def create_ingress(self, path, secret, hostname):
     path_slash = ensure_final_slash(path)
     body = client.V1Ingress(
@@ -719,33 +676,6 @@ fastcgi_param WP_DB_PASSWORD     {secret};
         if e.status != 409:
             raise e
         logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} already exists")
-
-  def delete_ingress(self):
-      try:
-        KubernetesAPI.networking.delete_namespaced_ingress(
-            namespace=self.namespace,
-            name=self.name
-        )
-      except ApiException as e:
-          if e.status != 404:
-              raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} does not exist")
-
-  def delete_route(self):
-      route_name = self.prefix['route'] + self.name
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Delete Route object {route_name}")
-      try:
-          KubernetesAPI.custom.delete_namespaced_custom_object(
-              group="route.openshift.io",
-              version="v1",
-              plural="routes",
-              namespace=self.namespace,
-              name=route_name
-          )
-      except ApiException as e:
-          if e.status != 404:
-              raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Route object {route_name} does not exist")
 
 
 class MigrationOperator:
