@@ -25,8 +25,9 @@ RUN apt-get --no-install-recommends -qy install \
         unzip \
      && rm -rf /var/lib/apt/lists/*; # from 1.12GB to 869MB
 
-## Uncomment the following line if you want to test out your RBAC live:
-# COPY --from=bitnami/kubectl:latest /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
+RUN set -e -x; cd /usr/local/bin/ ; \
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" ; \
+    chmod +x kubectl
 
 RUN mkdir -p /srv/wp-operator
 ENV HOME=/srv/wp-operator
