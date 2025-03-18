@@ -15,6 +15,7 @@ RUN set -e -x; apt-get -qy update; \
         git \
         jq \
         less \
+        mariadb-client \
         patch \
         php-cli \
         php-mysql \
