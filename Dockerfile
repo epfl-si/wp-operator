@@ -8,8 +8,8 @@ FROM ubuntu:jammy
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get -qy update
-RUN apt-get --no-install-recommends -qy install \
+RUN set -e -x; apt-get -qy update; \
+    apt-get --no-install-recommends -qy install \
         awscli \
         curl \
         git \
