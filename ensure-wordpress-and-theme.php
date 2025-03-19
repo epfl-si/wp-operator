@@ -212,6 +212,7 @@ function get_plugin_list () {
         "find-my-blocks",
         "flowpaper",
         "Polylang",
+        "Redirection",
         "tinymce-advanced",
         "vsmd",
         "wp-gutenberg-epfl",

@@ -978,7 +978,7 @@ class NamespaceFromEnv:
     @classmethod
     def setup (cls):
         namespace = cls.get()
-        logging.info(f'WP-Operator v1.1.3 | codename: reticulata')
+        logging.info(f'WP-Operator v1.2.0 | codename: triaenodon')
         logging.info(f'Running in namespace {namespace}')
         os.environ['KUBERNETES_NAMESPACE'] = namespace
         try:
