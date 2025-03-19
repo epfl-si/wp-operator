@@ -402,6 +402,7 @@ class WordPressSiteOperator:
       import_object = spec.get("epfl", {}).get("import")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
+      wp_debug = wordpress.get("debug", False)
       plugins = wordpress.get("plugins", [])
       languages = wordpress["languages"]
 
@@ -423,7 +424,7 @@ class WordPressSiteOperator:
       self.install_wordpress_via_php(title, tagline, ','.join(plugins), unit_id, ','.join(languages), mariadb_password, hostname, path,
                                      1 if import_object else 0)
 
-      self.create_ingress(path, mariadb_password, hostname)
+      self.create_ingress(path, mariadb_password, hostname, wp_debug)
 
       route_name = f"{self.prefix['route']}{self.name}"
       service_name = 'wp-nginx'
@@ -624,7 +625,7 @@ class WordPressSiteOperator:
               raise e
           logging.info(f" ↳ [{self.namespace}/{self.name}] MariaDB object {mariadb_name} does not exist")
 
-  def create_ingress(self, path, secret, hostname):
+  def create_ingress(self, path, secret, hostname, wp_debug):
     path_slash = ensure_final_slash(path)
     body = client.V1Ingress(
         api_version="networking.k8s.io/v1",
@@ -656,7 +657,7 @@ location ~ (wp-content/uploads)/ {{
     add_header Cache-Control "129600, public";
 }}
 
-fastcgi_param WP_DEBUG           true;
+fastcgi_param WP_DEBUG           {wp_debug};
 fastcgi_param WP_ROOT_URI        {path_slash};
 fastcgi_param WP_SITE_NAME       {self.name};
 fastcgi_param WP_ABSPATH         /wp/6/;
@@ -978,7 +979,7 @@ class NamespaceFromEnv:
     @classmethod
     def setup (cls):
         namespace = cls.get()
-        logging.info(f'WP-Operator v1.1.3 | codename: reticulata')
+        logging.info(f'WP-Operator v1.1.4 | codename: reticulata')
         logging.info(f'Running in namespace {namespace}')
         os.environ['KUBERNETES_NAMESPACE'] = namespace
         try:
