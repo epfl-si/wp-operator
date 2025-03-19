@@ -3,7 +3,7 @@ const fs = require('fs');
 const { exec } = require('child_process');
 
 const namespace = "wordpress-test";
-const patchFile = 'data/patch.sh';
+const patchFile = 'scripts/patch.sh';
 
 async function execKubectl(command) {
 	return new Promise((resolve, reject) => {
