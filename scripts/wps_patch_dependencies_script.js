@@ -45,14 +45,6 @@ const run = async () => {
 		write(patchFile,`kubectl patch secret wp-db-password-${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v1","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
 		write(patchFile,`kubectl patch ingress ${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v1","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
 		write(patchFile,`kubectl patch route wp-route-${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v1","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
-
-		const commandRestore = `kubectl get restore -n ${namespace} -o json | jq '[.items[] | {NAME: .metadata.name}]'`; // | grep m-${site.NAME.slice(-50)}
-		const restores = await execKubectl(commandRestore);
-		for (const restore of restores) {
-			if (restore.NAME.indexOf(`m-${site.NAME.slice(-50)}`) > -1) {
-				write(patchFile,`kubectl patch restore ${restore.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v1","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
-			}
-		}
 	}
 	makeFileExecutable();
 }
