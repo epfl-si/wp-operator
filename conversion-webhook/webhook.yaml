@@ -5,6 +5,8 @@ kind: Service
 metadata:
   name: wordpressite-conversion-webhook
   namespace: wordpress-test
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: wordpresssite-conversion-webhook
 spec:
     type: ClusterIP
     selector:
@@ -14,3 +16,40 @@ spec:
       port: 443
       protocol: TCP
       targetPort: 6443
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wordpresssite-conversion-webhook
+  namespace: wordpress-test
+  labels:
+    app: wordpresssite-conversion-webhook
+spec:
+  selector:
+    matchLabels:
+      app: wordpresssite-conversion-webhook
+  template:
+    metadata:
+      labels:
+        app: wordpresssite-conversion-webhook
+    spec:
+      containers:
+        - name: wordpresssite-conversion-webhook
+          image: anonymous.apps.t-ocp-its-01.xaas.epfl.ch/svc0041/wordpresssite-conversion-webhook:latest
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: tls
+              mountPath: /tls
+          env:
+            - name: TLS_DIR
+              value: /tls
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: tls
+          secret:
+            secretName: wordpresssite-conversion-webhook
