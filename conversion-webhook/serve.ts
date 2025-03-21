@@ -40,4 +40,4 @@ app.use("/", function (req, res) {
 
 const tlsDir = process.env["TLS_DIR"] || ".";
 
-createServer({ key: fs.readFileSync(`${ tlsDir }/tls.key`), cert: fs.readFileSync(`${ tlsDir }/tls.crt`)}, app).listen(6443);
+createServer({ key: fs.readFileSync(`${ tlsDir }/tls.key`), cert: fs.readFileSync(`${ tlsDir }/tls.cert`)}, app).listen(6443);
