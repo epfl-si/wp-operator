@@ -71,6 +71,8 @@ def raise_if_status_failed(resource_instance):
     """
     Raises an exception if the ResourceInstance indicates a failure.
     """
+    if getattr(resource_instance, 'kind', None) != 'Status':
+        return   # Something has been returned, e.g. from `get_dynamic_resource()`
     if getattr(resource_instance, 'status', None) == "Failure":
         reason = getattr(resource_instance, 'reason', 'Unknown reason')
         message = getattr(resource_instance, 'message', 'No message provided')
@@ -93,8 +95,9 @@ async def delete_dynamic_resource (api, api_version, kind, **kwargs):
 async def get_dynamic_resource (api, api_version, kind, **kwargs):
         dyn_client = await dynamic.DynamicClient(api)
         resource = await dyn_client.resources.get(api_version=api_version, kind=kind)
-        status = await resource.get(**kwargs)
-        raise_if_status_failed(status)
+        ret = await resource.get(**kwargs)
+        raise_if_status_failed(ret)
+        return ret
 
 
 class ClusterWideExistenceOperator:
