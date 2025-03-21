@@ -35,6 +35,13 @@ class KubernetesObjectData:
     def _load_all_from_stream (cls, f):
         return (cls(o) for o in yaml.safe_load_all(f))
 
+    @classmethod
+    def by_meta (cls, meta):
+        """Returns a “dud” object with only the metadata.
+
+        This object is sufficient for equality checking."""
+        return cls(dict(metadata=meta))
+
     def __init__ (self, deserialized_data):
         self.definition = deserialized_data
 
@@ -62,12 +69,29 @@ class KubernetesObjectData:
         return kopf.daemon(self.api_version, self.kind, when=is_me)(f)
 
     @property
+    def as_get_dynamic_resource_args (self):
+        ret = dict(api_version=self.api_version, kind=self.kind, name=self.name)
+
+        if self.namespace:
+            ret["namespace"] = self.namespace
+
+        return ret
+
+    def move_to_namespace (self, new_namespace):
+        other = copy.deepcopy(self.definition)
+        other["metadata"]["namespace"] = new_namespace
+        return self.__class__(other)
+
+    @property
     def moniker (self):
         moniker = f"{self.kind}/{self.name}"
         namespace = self.namespace
         if namespace:
             moniker = f"{moniker} in namespace {namespace}"
         return moniker
+
+    def __eq__ (self, other):
+        return self.name == other.name and self.namespace == other.namespace
 
 
 def raise_if_status_failed(resource_instance):
@@ -103,17 +127,35 @@ async def get_dynamic_resource (api, api_version, kind, **kwargs):
         return ret
 
 
-class ClusterWideExistenceOperator:
+class ExistenceReconciler:
+    """Enforce that an object exists, and continues doing so.
+
+    Create it on startup, or after it is actually deleted (i.e. is
+    gone from the Kubernetes store; as opposed to just being marked
+    for deletion).
+
+    Works for both namespaced and cluster-wide objects.
+
+    """
     def __init__ (self, k8s_object):
         self.k8s_object = k8s_object
 
+    @property
+    def moniker (self):
+        return f"<{self.__class__.__name__}({self.k8s_object.moniker})>"
+
     def hook (self):
+        logging.info(f"{self.moniker}: starting")
         @kopf.on.startup()
         async def on_kopf_startup (**kwargs):
+            logging.info(f"{self.moniker}: started")
             await self.ensure_exists()
 
         @self.k8s_object.kopf_daemon
         async def watch (stopped, meta, **kwargs):
+            if self.k8s_object != KubernetesObjectData.by_meta(meta):
+                return
+
             while not stopped:
                 # As per https://kopf.readthedocs.io/en/stable/daemons/#safe-sleep
                 # stopped.wait() puts us in a “light sleep”; therefore a long delay is best.
@@ -134,7 +176,7 @@ class ClusterWideExistenceOperator:
         await self._load_config()
         async with ApiClient() as api:
             try:
-                await get_dynamic_resource(api, api_version=self.k8s_object.api_version, kind=self.k8s_object.kind, name=self.k8s_object.name)
+                await get_dynamic_resource(api, **self.k8s_object.as_get_dynamic_resource_args)
                 return True
             except ApiException as e:
                 if not e.reason.startswith('NotFound'):
@@ -314,7 +356,7 @@ def tune_kopf_settings(settings, **_):
 
 if __name__ == '__main__':
     for o in KubernetesObjectData.load_all("operator-non-namespaced.yaml"):
-        ClusterWideExistenceOperator(o).hook()
+        ExistenceReconciler(o).hook()
 
     OperatorController.hook()
 
