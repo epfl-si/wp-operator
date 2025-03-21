@@ -4,6 +4,16 @@ import express from "express"
 import morgan from "morgan"
 import bodyparser from "body-parser"
 
+function convertWordpressSite (wp) {
+  console.log("Converting: " + JSON.stringify(wp))
+  if (wp.apiVersion == "wordpress.epfl.ch/v1") {
+    wp.apiVersion = "wordpress.epfl.ch/v2";
+    wp.spec.wordpress.plugins = Object.fromEntries(
+      wp.spec.wordpress.plugins.map((k) => [k, {}]));
+    console.log("Converted: " + JSON.stringify(wp))
+  }
+  return wp
+}
 
 const app = express();
 app.use(morgan('combined'));
@@ -19,15 +29,7 @@ app.use("/", function (req, res) {
         "status": "Success"
       },
       uid: request.uid,
-      convertedObjects: request.objects.map((o) => {
-        console.log("Converting: " + JSON.stringify(o))
-        if (o.apiVersion == "wordpress.epfl.ch/v1") {
-          o.apiVersion = "wordpress.epfl.ch/v2";
-          o.spec.wordpress.plugins = Object.fromEntries(o.spec.wordpress.plugins.map((k) => [k, {}]));
-          console.log("Converted: " + JSON.stringify(o))
-        }
-        return o
-      }),
+      convertedObjects: request.objects.map(convertWordpressSite),
     }
   });
 })
