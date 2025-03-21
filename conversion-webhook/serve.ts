@@ -24,7 +24,8 @@ app.use(bodyparser.json());
 
 app.use("/", function (req, res) {
   const request = req.body.request;
-  res.json({   // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/
+  /* https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#webhook-conversion */
+  res.json({
     "apiVersion": "apiextensions.k8s.io/v1",
     "kind": "ConversionReview",
     response: {
