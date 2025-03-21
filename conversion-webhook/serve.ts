@@ -37,4 +37,6 @@ app.use("/", function (req, res) {
   });
 })
 
-createServer({ key: fs.readFileSync("server.key"), cert: fs.readFileSync("server.pem")}, app).listen(6443);
+const tlsDir = process.env["TLS_DIR"] || ".";
+
+createServer({ key: fs.readFileSync(`${ tlsDir }/tls.key`), cert: fs.readFileSync(`${ tlsDir }/tls.crt`)}, app).listen(6443);
