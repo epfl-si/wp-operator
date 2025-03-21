@@ -5,6 +5,21 @@ kind: Service
 metadata:
   name: wordpresssite-conversion-webhook
   namespace: wordpress-test
+## Uncomment this annotation (and more similar commented-out sections, below) when you want
+## run the webhook by hand for tests.
+##
+## This one activates OpenShift's “service certificate” PKI as per https://docs.redhat.com/en/documentation/openshift_container_platform/4.8/html/security_and_compliance/configuring-certificates#add-service-certificate_service-serving-certificate
+##
+## ⚠ It is slightly incompatible with OLM's automagic PKI integrations in two, annoying ways:
+##
+## 1. The name of the certificate file is `tls.crt` in the former, versus `tls.cert` in the
+##    latter. This is papered over in `serve.ts` transparently;
+##
+## 2. The API server *doesn't* trust the PKI-as-a-service! You will have to edit the CRD's
+##    `spec.conversion.webhook.clientConfig.caBundle` by hand.
+##
+#   annotations:
+#     service.beta.openshift.io/serving-cert-secret-name: wordpresssite-conversion-webhook
 spec:
     type: ClusterIP
     selector:
@@ -14,3 +29,44 @@ spec:
       port: 443
       protocol: TCP
       targetPort: 6443
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wordpresssite-conversion-webhook
+  namespace: wordpress-test
+  labels:
+    app: wordpresssite-conversion-webhook
+spec:
+  selector:
+    matchLabels:
+      app: wordpresssite-conversion-webhook
+  template:
+    metadata:
+      labels:
+        app: wordpresssite-conversion-webhook
+    spec:
+      containers:
+        - name: wordpresssite-conversion-webhook
+          image: anonymous.apps.t-ocp-its-01.xaas.epfl.ch/svc0041/wordpresssite-conversion-webhook:latest
+          imagePullPolicy: Always
+## Uncomment this volumeMounts section to consume the PKI-as-a-service (see comment above):
+#           volumeMounts:
+#             - name: tls
+#               mountPath: /tmp/k8s-webhook-server/serving-certs
+          env:
+            # Set `TLS_DIR` to mesh with OLM-provided certs in production,
+            # as per https://olm.operatorframework.io/docs/advanced-tasks/adding-admission-and-conversion-webhooks/#certificate-authority-requirements
+            - name: TLS_DIR
+              value: /tmp/k8s-webhook-server/serving-certs
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+## Uncomment this volume to consume the PKI-as-a-service (see comment at the top of the file):
+#       volumes:
+#         - name: tls
+#           secret:
+#             secretName: wordpresssite-conversion-webhook
