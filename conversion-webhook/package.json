@@ -15,5 +15,11 @@
     "selfsigned": "^2.4.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.3"
+  },
+  "devDependencies": {
+    "@types/body-parser": "^1.19.5",
+    "@types/express": "^5.0.1",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^22.13.11"
   }
 }
