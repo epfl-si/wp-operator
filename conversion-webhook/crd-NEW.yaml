@@ -1,0 +1,373 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    operatorframework.io/installed-alongside-1e5fb23a4a7e73ba: openshift-operators/wordpress-operator.v0.0.84
+  creationTimestamp: "2025-03-13T15:51:20Z"
+  generation: 17
+  labels:
+    olm.managed: "true"
+    operators.coreos.com/wordpress-operator-olm.openshift-operators: ""
+  name: wordpresssites.wordpress.epfl.ch
+  resourceVersion: "59505343"
+  uid: f80fddcc-bf9e-4733-863c-01d63f12cc76
+spec:
+  conversion:
+    strategy: Webhook
+    webhook:
+      clientConfig:
+        caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURuRENDQW9TZ0F3SUJBZ0lVQTQ0c3k1RjIxOUF0dktnMDN2QjNobk1ZSkxVd0RRWUpLb1pJaHZjTkFRRUwKQlFBd1BURTdNRGtHQTFVRUF3d3lkMjl5WkhCeVpYTnphWFJsTFdOdmJuWmxjbk5wYjI0dGQyVmlhRzl2YXk1MwpiM0prY0hKbGMzTXRkR1Z6ZEM1emRtTXdIaGNOTWpVd016SXhNVEUwTmpFeVdoY05NalV3TkRJd01URTBOakV5CldqQTlNVHN3T1FZRFZRUUREREozYjNKa2NISmxjM05wZEdVdFkyOXVkbVZ5YzJsdmJpMTNaV0pvYjI5ckxuZHYKY21Sd2NtVnpjeTEwWlhOMExuTjJZekNDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DZ2dFQgpBS2Q4eDFVMXl3dkRIdjlHZHN5cW5Wa2hUYTBJSktIUHN5YWdkWUp2bzA0d3BIQUlNaG5MMTdvYTZodHZTajdmCjdzZjE1d2d5MmJ3NTdTUVRBNDVuUzJUeGY4d0VOdFNFTVM2Y3g0d1J6M2NKeFZkTDF2UHA3cUs2WGFENnFLaFoKY1RpVjRub0s3ZXZZSjJxdk9mbUprQnQwOVBPdi8zQlVycTRGTkZsM0lyS1UyTzFPUWI2RkxHNGVERkVDa3ZmdwozL1dvR1ExSi9CQ3RRdmh1OWNpNWZGNW1mbys2WEhwTVcwVldub2Z2cGhYbVBla3BJdlEvYWRMMDRzMHJDSzlRCkVscFFKMkQrV2pyR3FSMTc4MXpNSTMzNDdQbDhOdkdsTVU0WWVPOEpFM3d5OC9YK0VzMnFmaFd5Q0NablB3cysKVlVrWXBwMzlkdUd0cmR0Qk4yQkRRUjBDQXdFQUFhT0JrekNCa0RBZEJnTlZIUTRFRmdRVURicmUvY2dtbXdWZwpvS2RhMEpsQ3UzUkZ5bTh3SHdZRFZSMGpCQmd3Rm9BVURicmUvY2dtbXdWZ29LZGEwSmxDdTNSRnltOHdEd1lEClZSMFRBUUgvQkFVd0F3RUIvekE5QmdOVkhSRUVOakEwZ2pKM2IzSmtjSEpsYzNOcGRHVXRZMjl1ZG1WeWMybHYKYmkxM1pXSm9iMjlyTG5kdmNtUndjbVZ6Y3kxMFpYTjBMbk4yWXpBTkJna3Foa2lHOXcwQkFRc0ZBQU9DQVFFQQphRmNrZFhsOURXajMxa1NyT1djdjFlQmM4K1BsT2xML3JzTGFiUktwMmdKY3drUjVTS1RhSU1VcHM5VWxCR3JlCmtXMnpQcEVJMjNEUnY5N2xhQ21EaElQMUJBOEZhV1JCRUdUWEhaSktVajNMYjRwM2VDTU94REQwYktxaG5sOG0KUE9JVkFBbkswcTNxQmlOdzZVdTZYNFpTbGd4dE52TzVvZVBkR3JCdXFRK2RGN25wUU93eHVTUFN1ZkRGWUtLZwpzemt6MlZCYmczaDJvRVRqajVINm51eURzQzF6aWtDVzcrejFWbGl2ZnpLQ1lpZ1l1NnhJcWJvbGZ2U0ZuR2RICjkvWmNaSGFodGpDVXEzdEx5YVc0VEtXMlRGNGpQNUJWZzR1VDNKODZONmk4NHRyNjdyNGRTbElKOVJKWHF0czYKTWp3c0hMMTNDcnlGUXRkeGdBc3NPdz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0=
+        service:
+          name: wordpressite-conversion-webhook
+          namespace: wordpress-test
+          port: 443
+      conversionReviewVersions:
+      - v1
+      - v2
+  group: wordpress.epfl.ch
+  names:
+    kind: WordpressSite
+    listKind: WordpressSiteList
+    plural: wordpresssites
+    shortNames:
+    - wp
+    - wps
+    - wordpresses
+    singular: wordpresssite
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Hostname of the WordpressSite
+      jsonPath: .spec.hostname
+      name: Hostname
+      type: string
+    - description: URL path of the site
+      jsonPath: .spec.path
+      name: Path
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - description: Initial title
+      jsonPath: .spec.wordpress.title
+      name: Title
+      priority: 1
+      type: string
+    - description: Initial tagline
+      jsonPath: .spec.wordpress.tagline
+      name: Tagline
+      priority: 1
+      type: string
+    - description: WordPress site's unit
+      jsonPath: .spec.owner.epfl.unitId
+      name: Unit
+      priority: 1
+      type: string
+    - description: Initial languages for the site
+      jsonPath: .spec.wordpress.languages
+      name: Languages
+      priority: 1
+      type: string
+    - description: Initial plugins for the site
+      jsonPath: .spec.wordpress.plugins
+      name: Plugins
+      priority: 1
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: WordpressSite is the Schema for the wordpresssites API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired state of WordpressSite
+            properties:
+              epfl:
+                description: WordpressSite's EPFL related specs
+                properties:
+                  import:
+                    description: Import data from another source
+                    properties:
+                      openshift3BackupSource:
+                        description: Details about the data source in the OpenShift
+                          3 cluster
+                        properties:
+                          ansibleHost:
+                            description: Current host used by Ansible
+                            pattern: ^[a-z0-9_]+$
+                            type: string
+                          environment:
+                            description: OpenShift3 site environment (labs, inside,
+                              www, subdomains-lite)
+                            pattern: ^(labs|inside|www|subdomains-lite)$
+                            type: string
+                        type: object
+                      sourceType:
+                        description: The type of the data source this site is to be
+                          imported from
+                        pattern: ^(openshift3)$
+                        type: string
+                    type: object
+                type: object
+              hostname:
+                default: www.epfl.ch
+                description: Hostname of the desired WordpressSite
+                pattern: ^((?:[a-zA-Z0-9-]+\.)+)([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$
+                type: string
+              owner:
+                description: Owner of the WordpressSite
+                properties:
+                  epfl:
+                    description: EPFL-specific ownership information for this WordPressSite
+                    properties:
+                      unitId:
+                        description: EPFL unit ID of the owner
+                        type: integer
+                    type: object
+                type: object
+              path:
+                description: Path to the WordpressSite
+                pattern: ^/(.*)
+                type: string
+              wordpress:
+                description: WordpressSite's own specs
+                properties:
+                  debug:
+                    default: false
+                    description: Whether or not activate the WP_DEBUG
+                    type: boolean
+                  languages:
+                    description: WordpressSite's languages
+                    items:
+                      pattern: ^[a-z]{2}$
+                      type: string
+                    type: array
+                  plugins:
+                    default: []
+                    description: WordpressSite's plugins
+                    items:
+                      pattern: ^[\w -_.]{3,}$
+                      type: string
+                    type: array
+                  tagline:
+                    description: WordpressSite's tagline
+                    pattern: ^[\w\p{L}\p{M}\p{N}\p{P}\p{S}@._\- ]{1,}$
+                    type: string
+                  theme:
+                    description: WordpressSite's theme
+                    pattern: ^(wp-theme-2018|wp-theme-light|epfl-master|epfl-blank)$
+                    type: string
+                  title:
+                    description: WordpressSite's title
+                    pattern: ^[\w\p{L}\p{M}\p{N}\p{P}\p{S}@._\- ]{1,}$
+                    type: string
+                required:
+                - title
+                - tagline
+                - theme
+                - languages
+                type: object
+            required:
+            - hostname
+            - path
+            - wordpress
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+          status:
+            description: Status defines the observed state of WordpressSite
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+        type: object
+    served: false
+    storage: false
+    subresources:
+      status: {}
+  - additionalPrinterColumns:
+    - description: Hostname of the WordpressSite
+      jsonPath: .spec.hostname
+      name: Hostname
+      type: string
+    - description: URL path of the site
+      jsonPath: .spec.path
+      name: Path
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - description: Initial title
+      jsonPath: .spec.wordpress.title
+      name: Title
+      priority: 1
+      type: string
+    - description: Initial tagline
+      jsonPath: .spec.wordpress.tagline
+      name: Tagline
+      priority: 1
+      type: string
+    - description: WordPress site's unit
+      jsonPath: .spec.owner.epfl.unitId
+      name: Unit
+      priority: 1
+      type: string
+    - description: Initial languages for the site
+      jsonPath: .spec.wordpress.languages
+      name: Languages
+      priority: 1
+      type: string
+    - description: Initial plugins for the site
+      jsonPath: .spec.wordpress.plugins
+      name: Plugins
+      priority: 1
+      type: string
+    name: v2
+    schema:
+      openAPIV3Schema:
+        description: WordpressSite is the Schema for the wordpresssites API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired state of WordpressSite
+            properties:
+              epfl:
+                description: WordpressSite's EPFL related specs
+                properties:
+                  import:
+                    description: Import data from another source
+                    properties:
+                      openshift3BackupSource:
+                        description: Details about the data source in the OpenShift
+                          3 cluster
+                        properties:
+                          ansibleHost:
+                            description: Current host used by Ansible
+                            pattern: ^[a-z0-9_]+$
+                            type: string
+                          environment:
+                            description: OpenShift3 site environment (labs, inside,
+                              www, subdomains-lite)
+                            pattern: ^(labs|inside|www|subdomains-lite)$
+                            type: string
+                        type: object
+                      sourceType:
+                        description: The type of the data source this site is to be
+                          imported from
+                        pattern: ^(openshift3)$
+                        type: string
+                    type: object
+                type: object
+              hostname:
+                default: www.epfl.ch
+                description: Hostname of the desired WordpressSite
+                pattern: ^((?:[a-zA-Z0-9-]+\.)+)([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$
+                type: string
+              owner:
+                description: Owner of the WordpressSite
+                properties:
+                  epfl:
+                    description: EPFL-specific ownership information for this WordPressSite
+                    properties:
+                      unitId:
+                        description: EPFL unit ID of the owner
+                        type: integer
+                    type: object
+                type: object
+              path:
+                description: Path to the WordpressSite
+                pattern: ^/(.*)
+                type: string
+              wordpress:
+                description: WordpressSite's own specs
+                properties:
+                  debug:
+                    default: false
+                    description: Whether or not activate the WP_DEBUG
+                    type: boolean
+                  languages:
+                    description: WordpressSite's languages
+                    items:
+                      pattern: ^[a-z]{2}$
+                      type: string
+                    type: array
+                  plugins:
+                    default: {}
+                    description: WordpressSite's plugins
+                    type: object
+                  tagline:
+                    description: WordpressSite's tagline
+                    pattern: ^[\w\p{L}\p{M}\p{N}\p{P}\p{S}@._\- ]{1,}$
+                    type: string
+                  theme:
+                    description: WordpressSite's theme
+                    pattern: ^(wp-theme-2018|wp-theme-light|epfl-master|epfl-blank)$
+                    type: string
+                  title:
+                    description: WordpressSite's title
+                    pattern: ^[\w\p{L}\p{M}\p{N}\p{P}\p{S}@._\- ]{1,}$
+                    type: string
+                required:
+                - title
+                - tagline
+                - theme
+                - languages
+                type: object
+            required:
+            - hostname
+            - path
+            - wordpress
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+          status:
+            description: Status defines the observed state of WordpressSite
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: WordpressSite
+    listKind: WordpressSiteList
+    plural: wordpresssites
+    shortNames:
+    - wp
+    - wps
+    - wordpresses
+    singular: wordpresssite
+  conditions:
+  - lastTransitionTime: "2025-03-13T15:51:20Z"
+    message: no conflicts found
+    reason: NoConflicts
+    status: "True"
+    type: NamesAccepted
+  - lastTransitionTime: "2025-03-13T15:51:20Z"
+    message: the initial names have been accepted
+    reason: InitialNamesAccepted
+    status: "True"
+    type: Established
+  storedVersions:
+  - v1
+  - v2
