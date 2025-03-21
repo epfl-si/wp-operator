@@ -1,6 +1,5 @@
 import fs from "fs"
 import { createServer } from "https"
-import selfsigned from "selfsigned"
 import express from "express"
 import morgan from "morgan"
 import bodyparser from "body-parser"
