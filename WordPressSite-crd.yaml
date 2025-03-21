@@ -44,6 +44,162 @@ spec:
                 type: string
                 pattern: ^((?:[a-zA-Z0-9-]+\.)+)([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$  # The end '/' is not permitted
                 default: www.epfl.ch
+              path:
+                description: Path to the WordpressSite
+                type: string
+                pattern: ^/(.*)
+              owner:
+                description: Owner of the WordpressSite
+                type: object
+                properties:
+                  epfl:
+                    description: EPFL-specific ownership information for this WordPressSite
+                    type: object
+                    properties:
+                      unitId:
+                        description: EPFL unit ID of the owner
+                        type: integer
+                        # TODO : Obtain the “official” regex with ISCS-IAM team.
+              wordpress:
+                description: WordpressSite's own specs
+                type: object
+                properties:
+                  title:
+                    description: WordpressSite's title
+                    type: string
+                    pattern: ^[\w\p{L}\p{M}\p{N}\p{P}\p{S}@._\- ]{1,}$
+                  tagline:
+                    description: WordpressSite's tagline
+                    type: string
+                    pattern: ^[\w\p{L}\p{M}\p{N}\p{P}\p{S}@._\- ]{1,}$
+                  theme:
+                    description: WordpressSite's theme
+                    type: string
+                    pattern: ^(wp-theme-2018|wp-theme-light|epfl-master|epfl-blank)$
+                  languages:
+                    description: WordpressSite's languages
+                    type: array
+                    items:
+                      type: string
+                      pattern: ^[a-z]{2}$
+                  plugins:
+                    description: WordpressSite's plugins
+                    type: array
+                    items:
+                      type: string
+                      pattern: ^[\w -_.]{3,}$
+                    default: []
+                  debug:
+                    description: Whether or not activate the WP_DEBUG
+                    type: boolean
+                    default: false
+                required:
+                  - title
+                  - tagline
+                  - theme
+                  - languages
+              epfl:
+                description: WordpressSite's EPFL related specs
+                type: object
+                properties:
+                  import:
+                    description: Import data from another source
+                    type: object
+                    properties:
+                      sourceType:
+                        description: The type of the data source this site is to be imported from
+                        type: string
+                        pattern: ^(openshift3)$
+                      openshift3BackupSource:
+                        description: Details about the data source in the OpenShift 3 cluster
+                        type: object
+                        properties:
+                          environment:
+                            description: OpenShift3 site environment (labs, inside, www, subdomains-lite)
+                            type: string
+                            pattern: ^(labs|inside|www|subdomains-lite)$
+                          ansibleHost:
+                            description: Current host used by Ansible
+                            type: string
+                            pattern: ^[a-z0-9_]+$
+            required:
+              - hostname
+              - path
+              - wordpress
+          status:
+            description: Status defines the observed state of WordpressSite
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+    additionalPrinterColumns:
+      - name: Hostname
+        type: string
+        description: "Hostname of the WordpressSite"
+        jsonPath: ".spec.hostname"
+      - name: Path
+        type: string
+        description: "URL path of the site"
+        jsonPath: ".spec.path"
+      - name: Age
+        type: date
+        jsonPath: .metadata.creationTimestamp
+      # Additional columns (-o wide to get them):
+      - name: Title
+        type: string
+        description: "Initial title"
+        jsonPath: ".spec.wordpress.title"
+        priority: 1
+      - name: Tagline
+        type: string
+        description: "Initial tagline"
+        jsonPath: ".spec.wordpress.tagline"
+        priority: 1
+      - name: Unit
+        type: string
+        description: "WordPress site's unit"
+        jsonPath: ".spec.owner.epfl.unitId"
+        priority: 1
+      - name: Languages
+        type: string
+        description: "Initial languages for the site"
+        jsonPath: ".spec.wordpress.languages"
+        priority: 1
+      - name: Plugins
+        type: string
+        description: "Initial plugins for the site"
+        jsonPath: ".spec.wordpress.plugins"
+        priority: 1
+    served: false
+    storage: false
+    subresources:
+      status: {}
+  - name: v2
+    schema:
+      openAPIV3Schema:
+        description: WordpressSite is the Schema for the wordpresssites API
+        type: object
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired state of WordpressSite
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+            properties:
+              hostname:
+                description: Hostname of the desired WordpressSite
+                type: string
+                pattern: ^((?:[a-zA-Z0-9-]+\.)+)([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$  # The end '/' is not permitted
+                default: www.epfl.ch
                 x-kubernetes-validations:
                   - message: Field 'hostname' is immutable
                     rule: self == oldSelf
