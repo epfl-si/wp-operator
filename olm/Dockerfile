@@ -11,6 +11,10 @@ COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 
 COPY olm/wp-olm-controller.py operator-namespaced.yaml operator-non-namespaced.yaml .
+
+# Temporary (until version 1 of the CRD is fully phased out):
+COPY conversion-webhook/webhook-deployment-and-service.yaml conversion-webhook/
+
 RUN set -e -x; \
     ( echo "#!/usr/local/bin/python3"; cat wp-olm-controller.py ) > /usr/local/bin/wp-olm-controller ; \
     chmod 755 /usr/local/bin/wp-olm-controller

@@ -120,6 +120,15 @@ async def get_dynamic_resource (api, api_version, kind, **kwargs):
         raise_if_status_failed(status)
 
 
+def get_controller_namespace ():
+    kubernetes_namespace_file = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+    if os.path.exists(kubernetes_namespace_file):
+        return file(kubernetes_namespace_file).read()
+    else:
+        # For testing (e.g. running the controller from your workstation against
+        # an OKD cluster):
+        return "openshift-operators"
+
 class ExistenceOperator:
     """Enforce that an object exists.
 
@@ -258,6 +267,10 @@ if __name__ == '__main__':
 
     for o in KubernetesObjectData.load_all("operator-non-namespaced.yaml"):
         ExistenceOperator(o).hook()
+
+    our_namespace = get_controller_namespace()
+    for o in KubernetesObjectData.load_all("conversion-webhook/webhook-deployment-and-service.yaml"):
+        ExistenceOperator(o.move_to_namespace(our_namespace)).hook()
 
     def load_namespaced_objects (substitute_namespace):
         with open("operator-namespaced.yaml") as f:
