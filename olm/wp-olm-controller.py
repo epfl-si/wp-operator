@@ -54,6 +54,10 @@ class KubernetesObjectData:
         return self.definition["apiVersion"]
 
     @property
+    def as_kopf_resource_selector (self):
+        return (self.api_version, self.kind)
+
+    @property
     def moniker (self):
         moniker = f"{self.kind}/{self.name}"
         namespace = self.namespace
@@ -101,7 +105,7 @@ class ClusterWideExistenceOperator:
         async def on_kopf_startup (**kwargs):
             await self.ensure_exists()
 
-        @kopf.daemon(self.k8s_object.kind,
+        @kopf.daemon(*self.k8s_object.as_kopf_resource_selector,
                      field='metadata.name', value=self.k8s_object.name)
         async def watch (stopped, meta, **kwargs):
             while not stopped:
