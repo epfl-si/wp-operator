@@ -3,14 +3,17 @@ import { createServer } from "https"
 import express from "express"
 import morgan from "morgan"
 import bodyparser from "body-parser"
+import debug_ from "debug";
+
+const debug = debug_("wordpresssite-conversion-webhook");
 
 function convertWordpressSite (wp) {
-  console.log("Converting: " + JSON.stringify(wp))
+  debug("Converting: " + JSON.stringify(wp))
   if (wp.apiVersion == "wordpress.epfl.ch/v1") {
     wp.apiVersion = "wordpress.epfl.ch/v2";
     wp.spec.wordpress.plugins = Object.fromEntries(
       wp.spec.wordpress.plugins.map((k) => [k, {}]));
-    console.log("Converted: " + JSON.stringify(wp))
+    debug("Converted: " + JSON.stringify(wp))
   }
   return wp
 }
