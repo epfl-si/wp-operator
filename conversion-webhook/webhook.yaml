@@ -3,12 +3,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: wordpressite-conversion-webhook
+  name: wordpresssite-conversion-webhook
   namespace: wordpress-test
 spec:
     type: ClusterIP
     selector:
-      app: wordpressite-conversion-webhook
+      app: wordpresssite-conversion-webhook
     ports:
     - name: https
       port: 443
