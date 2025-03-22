@@ -245,20 +245,6 @@ roleRef:
 
 ---
 
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: wp-nginx
-rules:
-  # wp-nginx needs to get IngressClasses:
-- apiGroups:
-  - networking.k8s.io
-  resources:
-  - ingressclasses
-  verbs: ["get", "list", "watch"]
-
----
-
 # ClusterRoleBinding/wp-nginx
 # 💡 The corresponding ClusterRole is in `operator-non-namespaced.yml`.
 # The reason this one is quote-unquote “namespaced”, is that we need to
