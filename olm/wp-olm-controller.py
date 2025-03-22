@@ -54,9 +54,12 @@ class KubernetesObjectData:
     def api_version (self):
         return self.definition["apiVersion"]
 
-    @property
-    def as_kopf_resource_selector (self):
-        return (self.api_version, self.kind)
+    def kopf_daemon(self, f):
+        def is_me (name, namespace, **_):
+            return (self.name == name and
+                    self.namespace == namespace)
+
+        return kopf.daemon(self.api_version, self.kind, when=is_me)(f)
 
     @property
     def moniker (self):
@@ -109,8 +112,7 @@ class ClusterWideExistenceOperator:
         async def on_kopf_startup (**kwargs):
             await self.ensure_exists()
 
-        @kopf.daemon(*self.k8s_object.as_kopf_resource_selector,
-                     field='metadata.name', value=self.k8s_object.name)
+        @self.k8s_object.kopf_daemon
         async def watch (stopped, meta, **kwargs):
             while not stopped:
                 # As per https://kopf.readthedocs.io/en/stable/daemons/#safe-sleep
