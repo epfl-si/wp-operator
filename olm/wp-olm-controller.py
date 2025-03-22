@@ -61,12 +61,16 @@ class KubernetesObjectData:
     def api_version (self):
         return self.definition["apiVersion"]
 
-    def kopf_daemon(self, f):
-        def is_me (name, namespace, **_):
-            return (self.name == name and
-                    self.namespace == namespace)
+    def kopf_daemon(self, **kwargs):
+        def decorator (f):
+            def is_me (name, namespace, **_):
+                return (self.name == name and
+                        self.namespace == namespace)
 
-        return kopf.daemon(self.api_version, self.kind, when=is_me)(f)
+            return kopf.daemon(self.api_version, self.kind, when=is_me,
+                               **kwargs)(f)
+
+        return decorator
 
     @property
     def as_get_dynamic_resource_args (self):
@@ -143,6 +147,12 @@ class ExistenceReconciler:
         self._idle = asyncio.Event()
         self._idle.set()
 
+    _next_daemon_id = 0
+    @classmethod
+    def next_daemon_id (cls):
+        cls._next_daemon_id = cls._next_daemon_id + 1
+        return f"{cls.__name__}-{cls._next_daemon_id}"
+
     @property
     def moniker (self):
         return f"<{self.__class__.__name__}({self.k8s_object.moniker})>"
@@ -170,7 +180,7 @@ class ExistenceReconciler:
             logging.info(f"{self.moniker}: started")
             await self.ensure_exists()
 
-        @self.k8s_object.kopf_daemon
+        @self.k8s_object.kopf_daemon(id=self.next_daemon_id())
         async def watch (stopped, meta, **kwargs):
             logging.info(f"{self.moniker}: watching")
             while not (stopped or self.stopped):
