@@ -1,5 +1,6 @@
 import asyncio
 import copy
+from functools import cached_property
 import kopf
 import kopf.cli
 from kubernetes_asyncio import client, config, dynamic
@@ -212,32 +213,65 @@ class PerNamespaceObjectCounter:
         self.on_namespace_emptied_callbacks.append(f)
 
 
-@kopf.on.startup()
-def tune_kopf_settings(settings, **_):
-    settings.posting.level = logging.DEBUG
-    # We are never going to set a finalizer in a WordPressSite object...
-    # but we also do *not* want to keep removing the ones that the
-    # operator sets; and cause a causality loop with it!
-    settings.persistence.finalizer = 'epfl.ch/olm-controller-you-should-never-see-this-finalizer'
+class OperatorController:
+    """Ensure that the WordPress operator and its support objects run
+    in every namespace with at least one WordpressSite.
 
-if __name__ == '__main__':
-    sites = PerNamespaceObjectCounter('wordpresssites')
-    sites.hook()
+    Conversely, delete everything once the last `WordpressSite` object
+    in a namespace is deleted.
 
-    for o in KubernetesObjectData.load_all("operator-non-namespaced.yaml"):
-        ClusterWideExistenceOperator(o).hook()
+    The `hook` class method gets everything going (using the
+    `PerNamespaceObjectCounter` class as the watcher). Per-namespace
+    instances are then created on-demand behind the scenes.
+    """
+    controlled_objects_file = "operator-namespaced.yaml"
+    sample_namespace_in_controlled_objects_file = "wordpress-test"
 
-    def load_namespaced_objects (substitute_namespace):
-        with open("operator-namespaced.yaml") as f:
-            namespaced_objects_yaml = f.read()
-            namespaced_objects_yaml = re.sub("wordpress-test", substitute_namespace, namespaced_objects_yaml)
+    @classmethod
+    def hook (cls):
+        sites = PerNamespaceObjectCounter('wordpresssites')
+        sites.hook()
 
-        return KubernetesObjectData.parse_all(namespaced_objects_yaml)
+        @sites.on_namespace_populated
+        async def startup_operator (namespace):
+            await cls.by_namespace(namespace).ensure_objects_created()
 
-    @sites.on_namespace_populated
-    async def startup_operator (namespace):
+        @sites.on_namespace_emptied
+        async def shutdown_operator (namespace):
+            await cls.by_namespace(namespace).ensure_objects_deleted()
+
+    _instances = {}
+    @classmethod
+    def by_namespace (cls, namespace):
+        if namespace not in cls._instances:
+            cls._instances[namespace] = OperatorController(namespace)
+        return cls._instances[namespace]
+
+    def __init__ (self, namespace):
+        """Private constructor, please call `by_namespace()` instead."""
+        self.namespace = namespace
+
+    @cached_property
+    def k8s_objects (self):
+        """Personalize the objects that need controlling for `self.namespace`.
+
+        This involves full-text substitution in the YAML (YUCK!!), so that
+        Kubernetes-style object pointers are updated correctly; and also to maintain a
+        per-namespace copy of non-namespaced objects (such as
+        `ClusterRoleBinding`s).
+
+        Returns a `reversed`-friendly iterable.
+        """
+        with open(self.controlled_objects_file) as f:
+            yaml_substituted = re.sub(self.sample_namespace_in_controlled_objects_file,
+                                      self.namespace,
+                                      f.read())
+
+        return list(KubernetesObjectData.parse_all(yaml_substituted))
+
+    async def ensure_objects_created (self):
         async with ApiClient() as api:
-            for o in load_namespaced_objects(substitute_namespace=namespace):
+            for o in self.k8s_objects:
                 try:
                     await create_dynamic_resource(
                         api,
@@ -248,10 +282,9 @@ if __name__ == '__main__':
                 except BaseException as e:
                     logging.error(f"Error creating {o.moniker}: {e}")
 
-    @sites.on_namespace_emptied
-    async def shutdown_operator (namespace):
+    async def ensure_objects_deleted (self):
         async with ApiClient() as api:
-            for o in reversed(list(load_namespaced_objects(substitute_namespace=namespace))):
+            for o in reversed(self.k8s_objects):
                 try:
                     await delete_dynamic_resource(
                         api,
@@ -262,5 +295,21 @@ if __name__ == '__main__':
                     logging.info(f"{o.moniker}: deleted")
                 except BaseException as e:
                     logging.error(f"Error deleting {o.moniker}: {e}")
+
+
+@kopf.on.startup()
+def tune_kopf_settings(settings, **_):
+    settings.posting.level = logging.DEBUG
+    # We are never going to set a finalizer in a WordPressSite object...
+    # but we also do *not* want to keep removing the ones that the
+    # operator sets; and cause a causality loop with it!
+    settings.persistence.finalizer = 'epfl.ch/olm-controller-you-should-never-see-this-finalizer'
+
+
+if __name__ == '__main__':
+    for o in KubernetesObjectData.load_all("operator-non-namespaced.yaml"):
+        ClusterWideExistenceOperator(o).hook()
+
+    OperatorController.hook()
 
     sys.exit(kopf.cli.main())
