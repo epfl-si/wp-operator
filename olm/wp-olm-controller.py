@@ -139,30 +139,51 @@ class ExistenceReconciler:
     """
     def __init__ (self, k8s_object):
         self.k8s_object = k8s_object
+        self.stopped = False
+        self._idle = asyncio.Event()
+        self._idle.set()
 
     @property
     def moniker (self):
         return f"<{self.__class__.__name__}({self.k8s_object.moniker})>"
 
-    def hook (self):
+    def start (self):
         logging.info(f"{self.moniker}: starting")
-        @kopf.on.startup()
-        async def on_kopf_startup (**kwargs):
+
+        def asap (f):
+            try:
+                asyncio.get_running_loop()
+                # Kopf is started; go to "else:" below
+            except RuntimeError:
+                # Kopf is not yet started
+
+                @kopf.on.startup()
+                def on_startup (**_):
+                    return f()
+
+                return on_startup
+            else:
+                return asyncio.create_task(f())
+
+        @asap
+        async def ensure_exists_at_beginning ():
             logging.info(f"{self.moniker}: started")
             await self.ensure_exists()
 
         @self.k8s_object.kopf_daemon
         async def watch (stopped, meta, **kwargs):
-            if self.k8s_object != KubernetesObjectData.by_meta(meta):
-                return
-
-            while not stopped:
+            logging.info(f"{self.moniker}: watching")
+            while not (stopped or self.stopped):
                 # As per https://kopf.readthedocs.io/en/stable/daemons/#safe-sleep
                 # stopped.wait() puts us in a “light sleep”; therefore a long delay is best.
                 await stopped.wait(3600)
             if "deletionTimestamp" not in meta:
                 return     # We are being stopped because the whole process is terminating
+            if self.stopped:
+                return
 
+            # We need to let the `@kopf.daemon` terminate before the object
+            # actually gets deleted.
             asyncio.create_task(self._recreate_later())
 
     _kube_config_loaded = False
@@ -190,17 +211,25 @@ class ExistenceReconciler:
             return True
 
         logging.info(f"↳ {self.k8s_object.moniker} does not exist, creating it...")
-        async with ApiClient() as api:
-            try:
+        self._idle.clear()
+        try:
+            if self.stopped:
+                return
+            async with ApiClient() as api:
                 await create_dynamic_resource(api, api_version=self.k8s_object.api_version, kind=self.k8s_object.kind, body=self.k8s_object.definition)
                 logging.info(f"↳ {self.k8s_object.moniker}: created")
-            except ApiException as e:
-                logging.error(f"Error trying to create {self.k8s_object.moniker} :", e)
-                raise e
+        except ApiException as e:
+            logging.error(f"Error trying to create {self.k8s_object.moniker} :", e)
+            raise e
+        finally:
+            self._idle.set()
 
     async def _recreate_later (self):
         """Wait for our Kubernetes object to actually go off the books; then recreate it."""
         for _ in range(0, 30):
+            if self.stopped:
+                return   # For efficiency
+
             if not await self.exists():
                 await self.ensure_exists()
                 return
@@ -210,6 +239,16 @@ class ExistenceReconciler:
             logging.error(f"Zombie {self.k8s.moniker} won't die!")
             raise kopf.PermanentError(f"Zombie {self.k8s.moniker} won't die!")
 
+    async def stop (self):
+        """Synchronously stop this operator.
+
+        Wait for any pending `.ensure_exists()` activity to
+        terminate, so that after `stop()` returns, the caller can
+        safely delete the object.
+        """
+        self.stopped = True
+        await self._idle.wait()
+        logging.info(f"{self.moniker}: stopped")
 
 
 class PerNamespaceObjectCounter:
@@ -282,7 +321,7 @@ class OperatorController:
 
         @sites.on_namespace_populated
         async def startup_operator (namespace):
-            await cls.by_namespace(namespace).ensure_objects_created()
+            await cls.by_namespace(namespace).ensure_objects_exist()
 
         @sites.on_namespace_emptied
         async def shutdown_operator (namespace):
@@ -298,6 +337,11 @@ class OperatorController:
     def __init__ (self, namespace):
         """Private constructor, please call `by_namespace()` instead."""
         self.namespace = namespace
+        self.reconcilers = []
+
+    @property
+    def moniker (self):
+        return f"<{self.__class__.__name__}(namespace={self.namespace})>"
 
     @cached_property
     def k8s_objects (self):
@@ -317,22 +361,22 @@ class OperatorController:
 
         return list(KubernetesObjectData.parse_all(yaml_substituted))
 
-    async def ensure_objects_created (self):
-        async with ApiClient() as api:
-            for o in self.k8s_objects:
-                try:
-                    await create_dynamic_resource(
-                        api,
-                        o.api_version,
-                        o.kind,
-                        body=o.definition)
-                    logging.info(f"{o.moniker}: created")
-                except BaseException as e:
-                    logging.error(f"Error creating {o.moniker}: {e}")
+    async def ensure_objects_exist (self):
+        for o in self.k8s_objects:
+            e = ExistenceReconciler(o)
+            self.reconcilers.append(e)
+            e.start()
+        logging.info(f"{self.moniker}: started {len(self.reconcilers)} ExistenceReconciler's for namespace {self.namespace}")
 
     async def ensure_objects_deleted (self):
         async with ApiClient() as api:
-            for o in reversed(self.k8s_objects):
+            stopped_count = 0
+            while len(self.reconcilers):
+                e = self.reconcilers.pop()
+                await e.stop()
+                stopped_count = stopped_count + 1
+
+                o = e.k8s_object
                 try:
                     await delete_dynamic_resource(
                         api,
@@ -343,6 +387,7 @@ class OperatorController:
                     logging.info(f"{o.moniker}: deleted")
                 except BaseException as e:
                     logging.error(f"Error deleting {o.moniker}: {e}")
+        logging.info(f"{self.moniker}: stopped {stopped_count} ExistenceReconciler's for namespace {self.namespace}")
 
 
 @kopf.on.startup()
@@ -356,7 +401,7 @@ def tune_kopf_settings(settings, **_):
 
 if __name__ == '__main__':
     for o in KubernetesObjectData.load_all("operator-non-namespaced.yaml"):
-        ExistenceReconciler(o).hook()
+        ExistenceReconciler(o).start()
 
     OperatorController.hook()
 
