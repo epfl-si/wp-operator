@@ -119,19 +119,7 @@ class ClusterWideExistenceOperator:
             if "deletionTimestamp" not in meta:
                 return     # We are being stopped because the whole process is terminating
 
-            async def recreate_later ():
-                """Wait for our Kubernetes object to actually go off the books; then recreate it."""
-                for _ in range(0, 30):
-                    if not await self.exists():
-                        await self.ensure_exists()
-                        return
-                    else:
-                        await asyncio.sleep(1)
-                else:
-                    logging.error(f"Zombie {self.k8s.moniker} won't die!")
-                    raise kopf.PermanentError(f"Zombie {self.k8s.moniker} won't die!")
-
-            asyncio.create_task(recreate_later())
+            asyncio.create_task(self._recreate_later())
 
     _kube_config_loaded = False
 
@@ -165,6 +153,19 @@ class ClusterWideExistenceOperator:
             except ApiException as e:
                 logging.error(f"Error trying to create {self.k8s_object.moniker} :", e)
                 raise e
+
+    async def _recreate_later (self):
+        """Wait for our Kubernetes object to actually go off the books; then recreate it."""
+        for _ in range(0, 30):
+            if not await self.exists():
+                await self.ensure_exists()
+                return
+            else:
+                await asyncio.sleep(1)
+        else:
+            logging.error(f"Zombie {self.k8s.moniker} won't die!")
+            raise kopf.PermanentError(f"Zombie {self.k8s.moniker} won't die!")
+
 
 
 class PerNamespaceObjectCounter:
