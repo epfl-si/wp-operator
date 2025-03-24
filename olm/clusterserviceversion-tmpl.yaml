@@ -7,6 +7,22 @@
 # in the cluster (only once); and the `ServiceAccount` with RBAC that
 # are necessary and sufficient for said wp-olm-controller.py to do its
 # job.
+#
+#############################
+# ⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠
+# This file is barely source code at all!!
+#
+# When the OLM documentation says you want this and that in your
+# ClusterServiceVersion or CSV, adding the required things in here
+# below will **not** work!!
+#
+# Instead, you want to take a look at Dockerfile.bundle; add a new
+# backstop to § “A few sanity checks”; and twist the arm of
+# `operator-sdk generate bundle` to do your bidding somehow.
+# (Typically by adding more source files; or by adding more fields to
+# the ones that it already consumes.)
+# ⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠
+#############################
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
