@@ -40,4 +40,14 @@ app.use("/", function (req, res) {
 
 const tlsDir = process.env["TLS_DIR"] || ".";
 
-createServer({ key: fs.readFileSync(`${ tlsDir }/tls.key`), cert: fs.readFileSync(`${ tlsDir }/tls.cert`)}, app).listen(6443);
+function startServer () {
+  const key = fs.readFileSync(`${ tlsDir }/tls.key`);
+  // The OLM PKI generates a `tls.cert`, while the
+  // `service.beta.openshift.io/serving-cert-secret-name` (used for
+  // testing) has `tls.crt` 🤦‍♂️
+  const cert = fs.existsSync(`${ tlsDir }/tls.cert`) ? `${ tlsDir }/tls.cert` : 
+    `${ tlsDir }/tls.crt`;
+  createServer({ key, cert }, app).listen(6443);
+}
+
+startServer();
