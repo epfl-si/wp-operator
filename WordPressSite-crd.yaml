@@ -366,9 +366,9 @@ spec:
         # If you want to test out the CRD by hand, see instructions in conversion-webhook/webhook.yaml
         service:
           name: wordpresssite-conversion-webhook
-          ## Uncomment the following to test the CRD by hand; this meshes with
-          ## where conversion-webhook/webhook.yaml deploys the webhook:
-          # namespace: wordpress-test
+          ## The namespace is phony, and OLM will change it as required. However, it meshes with
+          ## conversion-webhook/webhook.yaml if (again) you want to perform manual tests.
+          namespace: wordpress-test
           path: /
           port: 443
       conversionReviewVersions:
