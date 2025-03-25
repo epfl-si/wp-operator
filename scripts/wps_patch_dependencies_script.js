@@ -39,12 +39,12 @@ const run = async () => {
 	const command = `kubectl get wps -n ${namespace} -o json | jq '[.items[] | {NAME: .metadata.name, UID: .metadata.uid}]'`;
 	const wps = await execKubectl(command);
 	for (const site of wps) {
-		write(patchFile,`kubectl patch databases wp-db-${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v1","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
-		write(patchFile,`kubectl patch umdb wp-db-user-${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v1","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
-		write(patchFile,`kubectl patch grant wp-db-grant-${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v1","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
-		write(patchFile,`kubectl patch secret wp-db-password-${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v1","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
-		write(patchFile,`kubectl patch ingress ${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v1","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
-		write(patchFile,`kubectl patch route wp-route-${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v1","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
+		write(patchFile,`kubectl patch databases wp-db-${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v2","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
+		write(patchFile,`kubectl patch umdb wp-db-user-${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v2","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
+		write(patchFile,`kubectl patch grant wp-db-grant-${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v2","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
+		write(patchFile,`kubectl patch secret wp-db-password-${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v2","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
+		write(patchFile,`kubectl patch ingress ${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v2","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
+		write(patchFile,`kubectl patch route wp-route-${site.NAME} -n ${namespace} --type='merge' -p '{"metadata":{"ownerReferences":[{"apiVersion":"wordpress.epfl.ch/v2","kind":"WordpressSite","name":"${site.NAME}","uid":"${site.UID}"}]}}' \n`)
 	}
 	makeFileExecutable();
 }
