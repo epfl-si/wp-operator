@@ -392,7 +392,7 @@ class WordPressSiteOperator:
           "route": "wp-route-"
       }
       self.ownerReferences = {
-          "apiVersion": "wordpress.epfl.ch/v1",
+          "apiVersion": "wordpress.epfl.ch/v2",
           "kind": "WordpressSite",
           "name": self.name,
           "uid": self.wpn_uid
