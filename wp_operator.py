@@ -408,6 +408,7 @@ class WordPressSiteOperator:
       import_object = spec.get("epfl", {}).get("import")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
+      protection_script = wordpress.get("downloadsProtectionScript")
 
       plugins = wordpress.get("plugins", {})
       if type(plugins) is list:
@@ -433,7 +434,7 @@ class WordPressSiteOperator:
       self.install_wordpress_via_php(title, tagline, ','.join(plugins.keys()), unit_id, ','.join(languages), mariadb_password, hostname, path,
                                      1 if import_object else 0)
 
-      self.create_ingress(path, mariadb_password, hostname)
+      self.create_ingress(path, mariadb_password, hostname, protection_script)
 
       route_name = f"{self.prefix['route']}{self.name}"
       service_name = 'wp-nginx'
@@ -601,7 +602,17 @@ class WordPressSiteOperator:
           else:
               raise kopf.PermanentError(f"create {customObjectName} timed out or failed, last condition message: {message}")
 
-  def create_ingress(self, path, secret, hostname):
+  def create_ingress(self, path, secret, hostname, protection_script):
+
+    if protection_script:
+        location_script = f"""fastcgi_pass unix:/run/php-fpm/php-fpm.sock;"""
+        fastcgi_param_protection_script = f"""fastcgi_param DOWNLOADS_PROTECTION_SCRIPT    {protection_script};""" 
+    else:
+        location_script = f"""rewrite .*/(wp-content/uploads/(.*)) /$2 break;
+    root /wp-data/{self.name}/uploads/;
+    add_header Cache-Control "129600, public";"""
+        fastcgi_param_protection_script = f""" """
+
     path_slash = ensure_final_slash(path)
     body = client.V1Ingress(
         api_version="networking.k8s.io/v1",
@@ -629,9 +640,7 @@ location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {{
 }}
 
 location ~ (wp-content/uploads)/ {{
-    rewrite .*/(wp-content/uploads/(.*)) /$2 break;
-    root /wp-data/{self.name}/uploads/;
-    add_header Cache-Control "129600, public";
+    {location_script}
 }}
 
 fastcgi_param WP_DEBUG           true;
@@ -642,6 +651,7 @@ fastcgi_param WP_DB_HOST         {self.mariadb_name};
 fastcgi_param WP_DB_NAME         {self.prefix["db"]}{self.name};
 fastcgi_param WP_DB_USER         {self.prefix["user"]}{self.name};
 fastcgi_param WP_DB_PASSWORD     {secret};
+{fastcgi_param_protection_script}
 """
             }
         ),
@@ -931,7 +941,7 @@ class NamespaceFromEnv:
     @classmethod
     def setup (cls):
         namespace = cls.get()
-        logging.info(f'WP-Operator v1.3.0 | codename: Negaprion')
+        logging.info(f'WP-Operator v1.4.0 | codename: Negaprion')
         logging.info(f'Running in namespace {namespace}')
         os.environ['KUBERNETES_NAMESPACE'] = namespace
         try:
