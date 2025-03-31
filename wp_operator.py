@@ -408,7 +408,7 @@ class WordPressSiteOperator:
       import_object = spec.get("epfl", {}).get("import")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
-      protection_script = wordpress.get("downloadsProtectionScript", "")
+      protection_script = wordpress.get("downloadsProtectionScript")
 
       plugins = wordpress.get("plugins", {})
       if type(plugins) is list:
