@@ -303,6 +303,14 @@ class RouteController:
                 closest_parent_route = {'name': route, 'spec': spec}
         return closest_parent_route
 
+    def _is_cloudflared_route(self, hostname):
+        # TODO: Put this as configmap
+        return hostname in  [
+            'www.epfl.ch',
+            'dcsl.epfl.ch',
+            'ukraine.epfl.ch'
+        ]
+
     def create_route(self, namespace, site_name, route_name, hostname, path, service_name, ownerReferences):
         parent_route = self._get_closest_parent_route(namespace, hostname, path)
         if parent_route and service_name == parent_route.get('spec').get('to').get('name'):
@@ -313,6 +321,8 @@ class RouteController:
             return
 
         logging.info(f" ↳ [{namespace}/{site_name}] Create Route {route_name}")
+
+        route_label = 'public-cf' if self._is_cloudflared_route(hostname) else 'public'
 
         spec = {
             "to": {
@@ -346,7 +356,7 @@ class RouteController:
                 },
                 "labels": {
                     "app": "wp-nginx",
-                    "route": "public"
+                    "route": route_label
                 },
             },
             "spec": spec
