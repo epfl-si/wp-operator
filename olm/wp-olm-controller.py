@@ -171,8 +171,8 @@ class ExistenceReconciler:
                 # Kopf is not yet started
 
                 @kopf.on.startup()
-                def on_startup (**_):
-                    return f()
+                async def on_startup (**_):
+                    return await f()
 
                 return on_startup
             else:
