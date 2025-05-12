@@ -42,7 +42,7 @@ spec:
               hostname:
                 description: Hostname of the desired WordpressSite
                 type: string
-                pattern: ^((?:[a-zA-Z0-9-]+\.)+)([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$  # The end '/' is not permitted
+                pattern: ^((?:[a-zA-Z0-9-]+\.)+)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,})$  # The end '/' is not permitted
                 default: www.epfl.ch
               path:
                 description: Path to the WordpressSite
