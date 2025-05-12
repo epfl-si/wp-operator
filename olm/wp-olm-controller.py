@@ -17,6 +17,9 @@ import re
 import io
 
 
+logging.basicConfig(level=logging.INFO)
+
+
 class KubernetesObjectData:
     @classmethod
     def load (cls, path):
