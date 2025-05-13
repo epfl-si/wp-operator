@@ -81,16 +81,25 @@ rules:
   resources:
   - rolebindings
   - roles
+  - clusterroles
   resourceNames:
   - wp-operator
+  - wp-nginx
   verbs: ["*"]
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - rolebindings
   - roles
-  - clusterrolebindings
   - clusterroles
+  verbs: ["create"]
+# The controller creates namespace-specific ClusterRoleBinding's, whose names
+# we cannot predict. It therefore needs the entire set of rights on that specific
+# kind:
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
   verbs: ["*"]
 # All Kopf programs (controller and operator alike) create so-called
 # “dynamic” clients, and they whine if they cannot list CRDs:
