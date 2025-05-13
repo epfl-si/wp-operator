@@ -78,6 +78,7 @@ rules:
   resourceNames:
   - wp-operator
   - wp-nginx
+  - wp-cron
   verbs: ["*"]
 - apiGroups:
   - rbac.authorization.k8s.io
