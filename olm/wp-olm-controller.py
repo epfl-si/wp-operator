@@ -214,6 +214,7 @@ class ExistenceReconciler:
                 return True
             except ApiException as e:
                 if not e.reason.startswith('NotFound'):
+                    logging.error(e)
                     raise
                 else:
                     return False
