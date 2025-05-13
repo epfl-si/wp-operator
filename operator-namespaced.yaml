@@ -167,6 +167,54 @@ spec:
 # than to piggy-back them with our operator's OLM controller.
 
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wp-cron
+  namespace: wordpress-test
+
+---
+# Role/wp-cron
+#
+# ⚠ Each time you add permissions here, you need to also update the
+# OLM controller's permissions (in the `ClusterRoleBinding` object in
+# olm/controller-deployment-and-rbac.yaml); see comments there to
+# explain why.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wp-cron
+  namespace: wordpress-test
+rules:
+  - apiGroups: ['wordpress.epfl.ch']
+    resources:
+      - wordpresssites
+    verbs: ['get', 'list', 'watch']
+  - apiGroups: ['wordpress.epfl.ch']
+    resources: [ "wordpresssites/status" ]
+    verbs: [ "patch" ]
+  - apiGroups: ['networking.k8s.io']
+    resources:
+      - ingresses
+    verbs: ['get', 'list', 'watch']
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wp-cron
+  namespace: wordpress-test
+subjects:
+  - kind: ServiceAccount
+    name: wp-cron
+    namespace: wordpress-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: wp-cron
+
+---
 
 # ServiceAccount/wp-nginx
 apiVersion: v1
