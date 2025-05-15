@@ -42,6 +42,7 @@ abstract class Plugin {
       'wpforms' => new WPFormsPlugin(),
       'wp-gutenberg-epfl' => new WPGutenbergEpflPlugin(),
       'wp-media-folder' => new WPMediaFolderPlugin(),
+	  'wp-plugin-pushgateway' => new WP_PushgatewayPlugin()
     );
     if (array_key_exists($pluginName, $pluginDict)) {
       $plugin = $pluginDict[$pluginName];

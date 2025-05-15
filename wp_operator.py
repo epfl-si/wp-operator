@@ -395,7 +395,8 @@ class WordPressSiteOperator:
     "tinymce-advanced",
     "very-simple-meta-description",
     "wp-gutenberg-epfl",
-    "wp-media-folder"
+    "wp-media-folder",
+    "wp-plugin-pushgateway"
   }
 
   @classmethod
