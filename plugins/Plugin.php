@@ -14,8 +14,8 @@ abstract class Plugin {
 
   public static function create($pluginName, $unit_id, $secrets_dir, $languagesList, $wpDirPath) {
     $pluginDict = array(
-      'CDHSHS' => new CDHSHSPlugin(), // EPFL Courses Search Engine plugin
-      'DiplomaVerification' => new DiplomaVerificationPlugin(),
+      'epfl-courses-se' => new CDHSHSPlugin(),
+      'epfl-diploma-verification' => new DiplomaVerificationPlugin(),
       'enlighter' => new EnlighterPlugin(),
       'epfl-404' => new EPFL404Plugin(),
       'accred' => new EPFLAccredPlugin($unit_id),
@@ -29,17 +29,17 @@ abstract class Plugin {
       'ewww-image-optimizer' => new EwwwImageOptimizerPlugin(),
       'find-my-blocks' => new FindMyBlocksPlugin(),
       'flowpaper-lite-pdf-flipbook' => new FlowpaperPlugin(),
-      'Inside' => new EPFLIntranetPlugin(),
-      'Library' => new LibraryPlugin(),
-      'PartnerUniversities' => new PartnerUniversitiesPlugin(),
+      'epfl-intranet' => new EPFLIntranetPlugin(),
+      'EPFL-Library-Plugins' => new LibraryPlugin(),
+      'epfl-partner-universities' => new PartnerUniversitiesPlugin(),
       'polylang' => new PolylangPlugin($languagesList, $wpDirPath),
-      'Payonline' => new PayonlinePlugin(),
+      'wpforms-epfl-payonline' => new PayonlinePlugin(),
       'redirection' => new RedirectionPlugin(),
-      'Restauration' => new EPFLRestaurationPlugin(),
-      'Surveys' => new SurveysPlugin(),
+      'epfl-restauration' => new EPFLRestaurationPlugin(),
+      'wpforms-surveys-polls' => new SurveysPlugin(),
       'tinymce-advanced' => new TinymceAdvancedPlugin(),
       'very-simple-meta-description' => new VSMDPlugin(),
-      'WPForms' => new WPFormsPlugin(),
+      'wpforms' => new WPFormsPlugin(),
       'wp-gutenberg-epfl' => new WPGutenbergEpflPlugin(),
       'wp-media-folder' => new WPMediaFolderPlugin(),
     );
