@@ -6,22 +6,14 @@
 # S3_BACKUP_ACCESSSECRET: S3 accessSecret
 # S3_BACKUP_SECRETNAME: OpenShift 4 secret name containing keyId and accessSecret.
 # The operator need 'S3_BACKUP_SECRETNAME' so he can pass the secret to the MariaDB operator for initial restores.
-# EPFL_MIGRATION_BUCKET: S3 bucket name for the old platform used to copy the backup file for initial restores
-# EPFL_MIGRATION_KEYID: S3 keyid for the old platform
-# EPFL_MIGRATION_ACCESSSECRET: S3 accesssecret for the old platform
-# RESTIC_PASSWORD: Extract the old platform's backup from EPFL_MIGRATION_BUCKET and copy the sql dump file into the S3_BACKUP_BUCKET
 # Run with `python3 wp_operator.py run --`
 #
 import argparse
 import base64
-from datetime import datetime, timezone
-from functools import cached_property
 import logging
 import os
 import re
 import secrets
-import shlex
-import subprocess
 import sys
 import threading
 import time
@@ -30,18 +22,17 @@ import yaml
 
 import kopf
 import kopf.cli
-
 from kubernetes import client, config
-from kubernetes.dynamic import DynamicClient
 from kubernetes.client.exceptions import ApiException
+from kubernetes.dynamic import DynamicClient
+from kubernetes.leaderelection import electionconfig
 from kubernetes.leaderelection import leaderelection
 from kubernetes.leaderelection.resourcelock.configmaplock import ConfigMapLock
-from kubernetes.leaderelection import electionconfig
-
+from urllib3 import disable_warnings
 # Remove warning: InsecureRequestWarning (Unverified HTTPS request is being made to host 'api.okd-test.fsd.team'.
 # Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings)
 from urllib3.exceptions import InsecureRequestWarning
-from urllib3 import disable_warnings
+
 disable_warnings(InsecureRequestWarning)
 
 class Config:
@@ -114,6 +105,7 @@ class classproperty:
         self.fget = func
     def __get__(self, instance, owner):
         return self.fget(owner)
+
 
 class KubernetesAPI:
   __singleton = None
@@ -255,6 +247,7 @@ class MariaDBPlacer:
                         {'mariadb_name': mariadb_name, 'len': len(mariadb_content.setdefault("databases", []))})
         mariadb_min = min(db_count_by_mariadb, key=lambda x: x['len'])
         return mariadb_min['mariadb_name']
+
 
 class RouteController:
     def __init__(self):
@@ -474,8 +467,6 @@ class WordPressSiteOperator:
       protection_script = wordpress.get("downloadsProtectionScript")
 
       plugins = wordpress.get("plugins", {})
-      if type(plugins) is list:
-        plugins = dict((p, {}) for p in plugins)
 
       languages = wordpress["languages"]
 
@@ -491,11 +482,7 @@ class WordPressSiteOperator:
       mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.namespace).data['password'])
       mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
 
-      if import_object:
-          MigrationOperator(self.namespace, self.name, self.mariadb_name, self.database_name, spec, import_object, self.ownerReferences).run()
 
-      self.install_wordpress_via_php(title, tagline, ','.join(plugins.keys()), unit_id, ','.join(languages), mariadb_password, hostname, path,
-                                     1 if import_object else 0)
 
       self.create_ingress(path, mariadb_password, hostname, protection_script)
 
@@ -507,8 +494,24 @@ class WordPressSiteOperator:
 
   def reconcile_site(self, spec, status):
       logging.info(f"Reconcile WordPressSite {self.name=} in {self.namespace=}")
-      # TODO get password mariaDB
 
+        # TODO the following
+        # echo "DB schema\n";
+        # ensure_db_schema();
+        # echo "Options and common WordPress settings\n";
+        # ensure_other_basic_wordpress_things($options);
+        # echo "Admin user\n";
+        # ensure_admin_user("admin", "admin@exemple.com", generate_random_password());
+        # echo "Site title\n";
+        # ensure_site_title($options);
+        # echo "Tagline\n";
+        # ensure_tagline($options);
+        # echo "Theme\n";
+        # ensure_theme($options);
+        # echo "Delete default pages and posts\n";
+        # delete_default_pages_and_posts();
+
+      print("Plugins\n")
       self.reconcile_plugins(spec, status)
 
       logging.info(f"Reconcile WordPressSite {self.name=} in {self.namespace=} end")
@@ -533,24 +536,6 @@ class WordPressSiteOperator:
 
       logging.info(f"End of reconcile WordPressSite plugins {self.name=} in {self.namespace=}")
 
-  def install_wordpress_via_php(self, title, tagline, plugins, unit_id, languages, secret, hostname, path, restored_site = 0):
-      logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
-
-      cmdline = [Config.php, "ensure-wordpress-and-theme.php",
-                               f"--name={self.name}", f"--path={path}",
-                               f"--wp-dir={Config.wp_dir}",
-                               f"--wp-host={hostname}",
-                               f"--db-host={self.mariadb_name}",
-                               f"--db-name={self.prefix['db']}{self.name}",
-                               f"--db-user={self.prefix['user']}{self.name}",
-                               f"--db-password={secret}",
-                               f"--title={title}",
-                               f"--tagline={tagline}",
-                               f"--plugins={plugins}",
-                               f"--unit-id={unit_id}",
-                               f"--languages={languages}",
-                               f"--secret-dir={Config.secret_dir}",
-                               f"--restored-site={restored_site}"]
 
       cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
       logging.info(f" Running: {cmdline_text}")
