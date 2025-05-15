@@ -405,8 +405,7 @@ class WordPressSiteOperator:
       "Payonline",
       "Surveys",
       "DiplomaVerification",
-      "PartnerUniversities",
-      "epfl-menus"
+      "PartnerUniversities"
   }
 
 
