@@ -377,6 +377,26 @@ class RouteController:
 
 
 class WordPressSiteOperator:
+  _mandatory_plugins = {
+    "epfl-404",
+    "enlighter",
+    "accred",
+    "epfl-cache-control",
+    "epfl-coming-soon",
+    "EPFL-Content-Filter",
+    "epfl-remote-content-shortcode",
+    "EPFL-settings",
+    "tequila",
+    "ewww-image-optimizer",
+    "find-my-blocks",
+    "flowpaper-lite-pdf-flipbook",
+    "polylang",
+    "redirection",
+    "tinymce-advanced",
+    "very-simple-meta-description",
+    "wp-gutenberg-epfl",
+    "wp-media-folder"
+  }
 
   @classmethod
   def go(cls):
@@ -387,6 +407,20 @@ class WordPressSiteOperator:
       def on_create_wordpresssite(spec, name, namespace, meta, **kwargs):
           wps_uid = meta.get('uid')
           WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).create_site(spec)
+
+      @kopf.on.update('wordpresssites')
+      def on_update_wordpresssite(spec, name, namespace, meta, status, **kwargs):
+          wps_uid = meta.get('uid')
+          # print(f'FIELD CHANGED IN SPEC: {name} \n {namespace} \n {meta} \n {wps_uid}')
+          WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).reconcile_site(spec, status)
+
+      # TODO FIXME: this handler should not be present: the kopf.on.update should be able to trigger also for subresources but it seems not to be the case
+      # TODO and if status is modified, both @kopf.on.update and @kopf.on.field are triggered
+      @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='status')
+      def on_update_status_plugins(spec, name, namespace, meta, status, **kwargs):
+          wps_uid = meta.get('uid')
+          # print(f'FIELD CHANGED IN STATUS: {spec} \n {name} \n {namespace} \n {meta} \n {wps_uid}')
+          WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).reconcile_site(spec, status)
 
   def __init__(self, name, namespace, placer, route_controller, wps_uid):
       self.name = name
@@ -451,6 +485,32 @@ class WordPressSiteOperator:
       self.route_controller.create_route(self.namespace, self.name, route_name, hostname, path, service_name, self.ownerReferences)
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
+
+  def reconcile_site(self, spec, status):
+      logging.info(f"Reconcile WordPressSite {self.name=} in {self.namespace=}")
+      # TODO get password mariaDB
+
+      self.reconcile_plugins(spec, status)
+
+      logging.info(f"Reconcile WordPressSite {self.name=} in {self.namespace=} end")
+
+  def reconcile_plugins(self, spec, status):
+      logging.info(f"Reconcile WordPressSite plugins {self.name=} in {self.namespace=}")
+
+      wordpress = spec.get("wordpress")
+      plugins_wanted = set(wordpress.get("plugins", {}))
+
+      plugins_wanted = {*plugins_wanted, *self._mandatory_plugins}
+
+      status_spec = status.get("wordpresssite", {})
+      plugins_got = set(status_spec.get("plugins", {}))
+
+      plugins_to_activate = plugins_wanted - plugins_got
+      plugins_to_deactivate = plugins_got - plugins_wanted
+
+      print(f'plugins_to_deactivate: {plugins_to_deactivate}\n plugins_to_activate: {plugins_to_activate} \n plugins_wanted: {plugins_wanted} \n plugins_got: {plugins_got}')
+
+      logging.info(f"End of reconcile WordPressSite plugins {self.name=} in {self.namespace=}")
 
   def install_wordpress_via_php(self, title, tagline, plugins, unit_id, languages, secret, hostname, path, restored_site = 0):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
@@ -616,7 +676,7 @@ class WordPressSiteOperator:
 
     if protection_script:
         location_script = f"""fastcgi_pass unix:/run/php-fpm/php-fpm.sock;"""
-        fastcgi_param_protection_script = f"""fastcgi_param DOWNLOADS_PROTECTION_SCRIPT    {protection_script};""" 
+        fastcgi_param_protection_script = f"""fastcgi_param DOWNLOADS_PROTECTION_SCRIPT    {protection_script};"""
     else:
         location_script = f"""rewrite .*/(wp-content/uploads/(.*)) /$2 break;
     root /wp-data/{self.name}/uploads/;
