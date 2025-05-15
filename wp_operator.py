@@ -392,7 +392,7 @@ class WordPressSiteOperator:
     "wp-plugin-pushgateway"
   }
 
-  _black_listed_plugins = {
+  _blacklisted_plugins = {
       "Admin",
       "CustomCSS",
       "Emploi",
@@ -522,7 +522,7 @@ class WordPressSiteOperator:
       wordpress = spec.get("wordpress")
       plugins_wanted = set(wordpress.get("plugins", {}))
 
-      plugins_wanted = {*plugins_wanted, *self._mandatory_plugins}
+      plugins_wanted = plugins_wanted | self._mandatory_plugins  # Merge two sets
 
       plugins_wanted.difference_update(self._black_listed_plugins)
 
