@@ -399,6 +399,24 @@ class WordPressSiteOperator:
     "wp-plugin-pushgateway"
   }
 
+  _black_listed_plugins = {
+      "Admin",
+      "CustomCSS",
+      "Emploi",
+      "Inside",
+      "Restauration",
+      "Unmanaged",
+      "Library",
+      "CDHSHS",
+      "WPForms",
+      "Payonline",
+      "Surveys",
+      "DiplomaVerification",
+      "PartnerUniversities",
+      "epfl-menus"
+  }
+
+
   @classmethod
   def go(cls):
       placer = MariaDBPlacer()
@@ -502,6 +520,8 @@ class WordPressSiteOperator:
       plugins_wanted = set(wordpress.get("plugins", {}))
 
       plugins_wanted = {*plugins_wanted, *self._mandatory_plugins}
+
+      plugins_wanted.difference_update(self._black_listed_plugins)
 
       status_spec = status.get("wordpresssite", {})
       plugins_got = set(status_spec.get("plugins", {}))
