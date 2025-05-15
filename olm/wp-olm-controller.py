@@ -138,7 +138,7 @@ class AsyncScheduler:
     running = set()
 
     @classmethod
-    def run (cls, f):
+    def run (cls, func_or_coroutine):
         """Decorator for async functions that should start soon."""
         try:
             asyncio.get_running_loop()
@@ -148,11 +148,16 @@ class AsyncScheduler:
 
             @kopf.on.startup()
             async def on_startup (**_):
-                return await f()
+                if asyncio.iscoroutine(func_or_coroutine):
+                    return await func_or_coroutine
+                else:
+                    return await func_or_coroutine()
 
             return on_startup
         else:
-            task = asyncio.create_task(f())
+            coroutine = (func_or_coroutine if asyncio.iscoroutine(func_or_coroutine)
+                         else func_or_coroutine())
+            task = asyncio.create_task(coroutine)
             # As per the Important block at
             # https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
             # we must shield `task` from the garbage collector...
