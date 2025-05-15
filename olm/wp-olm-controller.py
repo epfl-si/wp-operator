@@ -163,7 +163,7 @@ class AsyncScheduler:
             # we must shield `task` from the garbage collector...
             cls.running.add(task)
             # ... but we still want to clean things up eventually:
-            task.add_done_callback(background_tasks.discard)
+            task.add_done_callback(cls.running.discard)
 
 
 class ExistenceReconciler:
