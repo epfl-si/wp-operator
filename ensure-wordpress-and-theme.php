@@ -199,24 +199,25 @@ function ensure_theme ( $options ) {
 
 function get_plugin_list () {
     $defaultPlugins = array(
-        "epfl-404",
-        "enlighter",
         "accred",
+        "enlighter",
+        "epfl-404",
         "epfl-cache-control",
         "epfl-coming-soon",
         "EPFL-Content-Filter",
         "epfl-remote-content-shortcode",
         "EPFL-settings",
-        "tequila",
         "ewww-image-optimizer",
         "find-my-blocks",
         "flowpaper-lite-pdf-flipbook",
         "polylang",
         "redirection",
+        "tequila",
         "tinymce-advanced",
         "very-simple-meta-description",
         "wp-gutenberg-epfl",
         "wp-media-folder",
+        "wp-plugin-pushgateway"
     );
 
     $specificPlugin = [];
