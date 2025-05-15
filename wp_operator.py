@@ -523,7 +523,7 @@ class WordPressSiteOperator:
 
       plugins_wanted = plugins_wanted | self._mandatory_plugins  # Merge two sets
 
-      plugins_wanted.difference_update(self._black_listed_plugins)
+      plugins_wanted.difference_update(self._blacklisted_plugins)
 
       status_spec = status.get("wordpresssite", {})
       plugins_got = set(status_spec.get("plugins", {}))
