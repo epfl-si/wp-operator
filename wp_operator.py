@@ -18,7 +18,7 @@ import sys
 import threading
 import time
 import uuid
-import yaml
+import subprocess
 
 import kopf
 import kopf.cli
@@ -481,9 +481,9 @@ class WordPressSiteOperator:
       mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.namespace).data['password'])
       mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
 
-
-
       self.create_ingress(path, mariadb_password, hostname, protection_script)
+
+      self.reconcile_site(spec, {})
 
       route_name = f"{self.prefix['route']}{self.name}"
       service_name = 'wp-nginx'
@@ -494,21 +494,21 @@ class WordPressSiteOperator:
   def reconcile_site(self, spec, status):
       logging.info(f"Reconcile WordPressSite {self.name=} in {self.namespace=}")
 
-        # TODO the following
-        # echo "DB schema\n";
-        # ensure_db_schema();
-        # echo "Options and common WordPress settings\n";
-        # ensure_other_basic_wordpress_things($options);
-        # echo "Admin user\n";
-        # ensure_admin_user("admin", "admin@exemple.com", generate_random_password());
-        # echo "Site title\n";
-        # ensure_site_title($options);
-        # echo "Tagline\n";
-        # ensure_tagline($options);
-        # echo "Theme\n";
-        # ensure_theme($options);
-        # echo "Delete default pages and posts\n";
-        # delete_default_pages_and_posts();
+      # TODO the following
+      print("DB schema\n")
+      # ensure_db_schema();
+      print("Options and common WordPress settings\n")
+      # ensure_other_basic_wordpress_things($options);
+      print("Admin user\n")
+      # ensure_admin_user("admin", "admin@exemple.com", generate_random_password());
+      print("Site title\n")
+      # ensure_site_title($options);
+      print("Tagline\n")
+      # ensure_tagline($options);
+      print("Theme\n")
+      # ensure_theme($options);
+      print("Delete default pages and posts\n")
+      # delete_default_pages_and_posts();
 
       print("Plugins\n")
       self.reconcile_plugins(spec, status)
@@ -529,23 +529,24 @@ class WordPressSiteOperator:
       plugins_got = set(status_spec.get("plugins", {}))
 
       plugins_to_activate = plugins_wanted - plugins_got
-      plugins_to_deactivate = plugins_got - plugins_wanted
+      print(f'plugins_to_activate: {plugins_to_activate}')
+      for p in plugins_to_activate:
+          cmdline = ['wp', f'--ingress={self._ingress_name()}', 'plugin', 'activate', p]
+          self._do_run_wp(cmdline)
 
-      print(f'plugins_to_deactivate: {plugins_to_deactivate}\n plugins_to_activate: {plugins_to_activate} \n plugins_wanted: {plugins_wanted} \n plugins_got: {plugins_got}')
+      plugins_to_deactivate = plugins_got - plugins_wanted
+      print(f'plugins_to_deactivate: {plugins_to_deactivate}')
+      for p in plugins_to_deactivate:
+          cmdline = ['wp', f'--ingress={self._ingress_name()}', 'plugin', 'deactivate', p]
+          self._do_run_wp(cmdline)
 
       logging.info(f"End of reconcile WordPressSite plugins {self.name=} in {self.namespace=}")
 
 
-      cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
-      logging.info(f" Running: {cmdline_text}")
-      result = subprocess.run(cmdline, capture_output=True, text=True)
-
-      logging.info(result.stdout)
-
-      if "WordPress and plugins successfully installed" not in result.stdout and "Plugins successfully configured" not in result.stdout:
-          raise subprocess.CalledProcessError(result.returncode, cmdline_text)
-      else:
-          logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
+  def _do_run_wp(self, cmdline, **kwargs):
+      if 'DEBUG' in os.environ:
+          cmdline.insert(0, 'echo')
+      return subprocess.run(cmdline, check=True, **kwargs)
 
   @property
   def secret_name(self):
