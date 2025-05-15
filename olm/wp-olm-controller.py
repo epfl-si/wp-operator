@@ -134,6 +134,33 @@ async def get_dynamic_resource (api, api_version, kind, **kwargs):
         return ret
 
 
+class AsyncScheduler:
+    running = set()
+
+    @classmethod
+    def run (cls, f):
+        """Decorator for async functions that should start soon."""
+        try:
+            asyncio.get_running_loop()
+            # Kopf is started; go to "else:" below
+        except RuntimeError:
+            # Kopf is not yet started
+
+            @kopf.on.startup()
+            async def on_startup (**_):
+                return await f()
+
+            return on_startup
+        else:
+            task = asyncio.create_task(f())
+            # As per the Important block at
+            # https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
+            # we must shield `task` from the garbage collector...
+            cls.running.add(task)
+            # ... but we still want to clean things up eventually:
+            task.add_done_callback(background_tasks.discard)
+
+
 class ExistenceReconciler:
     """Enforce that an object exists, and continues doing so.
 
@@ -163,22 +190,7 @@ class ExistenceReconciler:
     def start (self):
         logging.info(f"{self.moniker}: starting")
 
-        def asap (f):
-            try:
-                asyncio.get_running_loop()
-                # Kopf is started; go to "else:" below
-            except RuntimeError:
-                # Kopf is not yet started
-
-                @kopf.on.startup()
-                async def on_startup (**_):
-                    return await f()
-
-                return on_startup
-            else:
-                return asyncio.create_task(f())
-
-        @asap
+        @AsyncScheduler.run
         async def ensure_exists_at_beginning ():
             logging.info(f"{self.moniker}: started")
             await self.ensure_exists()
@@ -197,7 +209,7 @@ class ExistenceReconciler:
 
             # We need to let the `@kopf.daemon` terminate before the object
             # actually gets deleted.
-            asyncio.create_task(self._recreate_later())
+            AsyncScheduler.run(self._recreate_later())
 
     _kube_config_loaded = False
 
