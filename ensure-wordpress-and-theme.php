@@ -38,7 +38,6 @@ $longopts  = array(
     "db-name:",
     "db-user:",
     "db-password:",
-    "plugins:",
     "unit-id:",
     "languages:",
     "secret-dir:",
@@ -67,7 +66,6 @@ Options:
   --discourage  Optional   Set search engine visibility. 1 means discourage search
                            engines from indexing this site, but it is up to search
                            engines to honor this request.
-  --plugins     Mandatory  List of non-default plugins.
   --unit-id     Mandatory  Plugin unit ID
   --languages	Mandatory  List of languages
   --secret-dir  Mandatory  Secret file's folder
@@ -116,7 +114,6 @@ define("DB_HOST", $options["db-host"]);
 define("DB_NAME", $options["db-name"]);
 define("DB_USER", $options["db-user"]);
 define("DB_PASSWORD", $options["db-password"]);
-define("PLUGINS", $options["plugins"] ?? "");
 define("UNIT_ID", $options["unit-id"]);
 define("LANGUAGES", $options["languages"]);
 define("SECRETS_DIR", $options["secret-dir"]);
@@ -197,53 +194,6 @@ function ensure_theme ( $options ) {
   print( switch_theme( $theme->get_stylesheet() ) );
 }
 
-function get_plugin_list () {
-    $defaultPlugins = array(
-        "accred",
-        "enlighter",
-        "epfl-404",
-        "epfl-cache-control",
-        "epfl-coming-soon",
-        "EPFL-Content-Filter",
-        "epfl-remote-content-shortcode",
-        "EPFL-settings",
-        "ewww-image-optimizer",
-        "find-my-blocks",
-        "flowpaper-lite-pdf-flipbook",
-        "polylang",
-        "redirection",
-        "tequila",
-        "tinymce-advanced",
-        "very-simple-meta-description",
-        "wp-gutenberg-epfl",
-        "wp-media-folder",
-        "wp-plugin-pushgateway"
-    );
-
-    $specificPlugin = [];
-    if (PLUGINS !== null and PLUGINS != '') {
-        $specificPlugin = explode(',', PLUGINS);
-    }
-    return array_merge($defaultPlugins, $specificPlugin);
-}
-
-function ensure_plugins () {
-  # This is the default plugin list that should be activated at installation
-  $pluginList = get_plugin_list();
-
-  $languagesList = explode(',', LANGUAGES);
-
-  foreach ($pluginList as $pluginName) {
-    $plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR, $languagesList, ABSPATH);
-    $activatedPlugin = activate_plugin($plugin->getPluginPath());
-    if ($activatedPlugin instanceof WP_Error) {
-      throw new ErrorException(var_dump($activatedPlugin->errors) . " - " . $plugin->getPluginPath());
-    }
-    $plugin->addSpecialConfiguration();
-    $plugin->updateOptions();
-  }
-}
-
 function delete_default_pages_and_posts () {
   $pages = get_posts([
     'post_type' => ['page', 'post'],
@@ -271,19 +221,6 @@ function generate_random_password(
   return $str;
 }
 
-function ensure_plugins_for_restore () {
-    $pluginPath = [];
-    $pluginList = get_plugin_list();
-
-    $languagesList = explode(',', LANGUAGES);
-
-    foreach ($pluginList as $pluginName) {
-        $plugin = Plugin::create($pluginName, UNIT_ID, SECRETS_DIR, $languagesList, ABSPATH);
-        $pluginPath[] = $plugin->getPluginPath();
-    }
-    update_option("active_plugins", $pluginPath);
-}
-
 function delete_footer_menus ()
 {
     $pages = get_posts([
@@ -299,27 +236,20 @@ function delete_footer_menus ()
     }
 }
 
-if (RESTORED_SITE == 1) {
-    ensure_plugins_for_restore();
-	delete_footer_menus();
-    echo "Plugins successfully configured\n";
-} else {
-    echo "DB schema\n";
-    ensure_db_schema();
-    echo "Options and common WordPress settings\n";
-    ensure_other_basic_wordpress_things($options);
-    echo "Admin user\n";
-    ensure_admin_user("admin", "admin@exemple.com", generate_random_password());
-    echo "Site title\n";
-    ensure_site_title($options);
-    echo "Tagline\n";
-    ensure_tagline($options);
-    echo "Theme\n";
-    ensure_theme($options);
-    echo "Delete default pages and posts\n";
-    delete_default_pages_and_posts();
-    echo "Plugins\n";
-    ensure_plugins();
+echo "DB schema\n";
+ensure_db_schema();
+echo "Options and common WordPress settings\n";
+ensure_other_basic_wordpress_things($options);
+echo "Admin user\n";
+ensure_admin_user("admin", "admin@exemple.com", generate_random_password());
+echo "Site title\n";
+ensure_site_title($options);
+echo "Tagline\n";
+ensure_tagline($options);
+echo "Theme\n";
+ensure_theme($options);
+echo "Delete default pages and posts\n";
+delete_default_pages_and_posts();
 
-    echo "WordPress and plugins successfully installed\n";
-}
+echo "WordPress successfully installed\n";
+
