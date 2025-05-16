@@ -18,7 +18,9 @@ import sys
 import threading
 import time
 import uuid
+import shlex
 import subprocess
+import json
 
 import kopf
 import kopf.cli
@@ -483,6 +485,9 @@ class WordPressSiteOperator:
 
       self.create_ingress(path, mariadb_password, hostname, protection_script)
 
+      self.install_wordpress_via_php(title, tagline, ','.join(plugins.keys()), unit_id, ','.join(languages),
+                                     mariadb_password, hostname, path, 0)
+
       self.reconcile_site(spec, {})
 
       route_name = f"{self.prefix['route']}{self.name}"
@@ -491,26 +496,55 @@ class WordPressSiteOperator:
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
+  def install_wordpress_via_php(self, title, tagline, plugins, unit_id, languages, secret, hostname, path, restored_site = 0):
+      logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
+
+      cmdline = [Config.php, "ensure-wordpress-and-theme.php",
+                 f"--name={self.name}", f"--path={path}",
+                 f"--wp-dir={Config.wp_dir}",
+                 f"--wp-host={hostname}",
+                 f"--db-host={self.mariadb_name}",
+                 f"--db-name={self.prefix['db']}{self.name}",
+                 f"--db-user={self.prefix['user']}{self.name}",
+                 f"--db-password={secret}",
+                 f"--title={title}",
+                 f"--tagline={tagline}",
+                 f"--plugins={plugins}",
+                 f"--unit-id={unit_id}",
+                 f"--languages={languages}",
+                 f"--secret-dir={Config.secret_dir}",
+                 f"--restored-site={restored_site}"]
+
+      cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
+      logging.info(f" Running: {cmdline_text}")
+      result = subprocess.run(cmdline, capture_output=True, text=True)
+
+      logging.info(result.stdout)
+
+      if "WordPress and plugins successfully installed" not in result.stdout and "Plugins successfully configured" not in result.stdout:
+          raise subprocess.CalledProcessError(result.returncode, cmdline_text)
+      else:
+          logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
+
   def reconcile_site(self, spec, status):
       logging.info(f"Reconcile WordPressSite {self.name=} in {self.namespace=}")
 
       # TODO the following
-      print("DB schema\n")
-      # ensure_db_schema();
-      print("Options and common WordPress settings\n")
+      # print("DB schema\n")
+      # self.reconcile_db_schema(spec);
+      # print("Options and common WordPress settings\n")
       # ensure_other_basic_wordpress_things($options);
-      print("Admin user\n")
-      # ensure_admin_user("admin", "admin@exemple.com", generate_random_password());
-      print("Site title\n")
+      # print("Admin user\n")
+      # self.ensure_db_schema()
+      # print("Site title\n")
       # ensure_site_title($options);
-      print("Tagline\n")
+      # print("Tagline\n")
       # ensure_tagline($options);
-      print("Theme\n")
+      # print("Theme\n")
       # ensure_theme($options);
-      print("Delete default pages and posts\n")
+      # print("Delete default pages and posts\n")
       # delete_default_pages_and_posts();
-
-      print("Plugins\n")
+      # print("Plugins\n")
       self.reconcile_plugins(spec, status)
 
       logging.info(f"Reconcile WordPressSite {self.name=} in {self.namespace=} end")
@@ -531,17 +565,45 @@ class WordPressSiteOperator:
       plugins_to_activate = plugins_wanted - plugins_got
       print(f'plugins_to_activate: {plugins_to_activate}')
       for p in plugins_to_activate:
-          cmdline = ['wp', f'--ingress={self._ingress_name()}', 'plugin', 'activate', p]
+          cmdline = ['wp', f'--ingress={self.ingress_name}', 'plugin', 'activate', p]
           self._do_run_wp(cmdline)
+          for option in p.get('wp_options'):
+              self._set_wp_option(option)
 
       plugins_to_deactivate = plugins_got - plugins_wanted
       print(f'plugins_to_deactivate: {plugins_to_deactivate}')
       for p in plugins_to_deactivate:
-          cmdline = ['wp', f'--ingress={self._ingress_name()}', 'plugin', 'deactivate', p]
+          cmdline = ['wp', f'--ingress={self.ingress_name}', 'plugin', 'deactivate', p]
           self._do_run_wp(cmdline)
 
       logging.info(f"End of reconcile WordPressSite plugins {self.name=} in {self.namespace=}")
 
+  def _set_wp_option(self, option):
+      value = option.get('phpSerializedValue', None)
+      if value is not None:
+          return self._set_wp_option_struct(option['name'], value)
+      value = option.get('valueFrom', None)
+      if value is not None:
+          return self._set_wp_option_indirect(option['name'], value)
+      value = option.get('value', None)
+      if value is not None:
+          return self._set_wp_option_direct(option['name'], value)
+
+      raise ValueError (f'Unable to interpret option: {option}')
+
+  def _set_wp_option_direct(self, name, value):
+      cmdline = ['wp', f'--ingress={self.ingress_name}', 'option', 'add', name, value]
+      self._do_run_wp(cmdline)
+
+  def _set_wp_option_indirect(self, name, value):
+      secret = KubernetesAPI.core.read_namespaced_secret(value['secretKeyRef']['name'], self.namespace)
+      secretValue = base64.b64decode(secret.data[value['secretKeyRef']['key']]).decode("utf-8")
+      cmdline = ['wp', f'--ingress={self.ingress_name}', 'option', 'add', name, secretValue]
+      self._do_run_wp(cmdline)
+
+  def _set_wp_option_struct(self, name, value):
+      cmdline = ['wp', f'--ingress={self.ingress_name}', 'option', 'add', name, '--format=json']
+      self._do_run_wp(cmdline, input=json.dumps(value))
 
   def _do_run_wp(self, cmdline, **kwargs):
       if 'DEBUG' in os.environ:
@@ -551,6 +613,10 @@ class WordPressSiteOperator:
   @property
   def secret_name(self):
       return self.prefix["password"] + self.name
+
+  @property
+  def ingress_name(self):
+      return self.name
 
   def create_secret(self):
       secret = secrets.token_urlsafe(32)
