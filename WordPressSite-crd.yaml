@@ -269,6 +269,7 @@ spec:
                     description: WordpressSite's plugins
                     type: object
                     default: {}
+                    x-kubernetes-preserve-unknown-fields: true
                   debug:
                     description: Whether or not activate the WP_DEBUG
                     type: boolean
