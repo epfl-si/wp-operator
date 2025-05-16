@@ -372,44 +372,6 @@ class RouteController:
 
 
 class WordPressSiteOperator:
-  _mandatory_plugins = {
-    "accred",
-    "enlighter",
-    "epfl-404",
-    "epfl-cache-control",
-    "epfl-coming-soon",
-    "EPFL-Content-Filter",
-    "epfl-remote-content-shortcode",
-    "EPFL-settings",
-    "ewww-image-optimizer",
-    "find-my-blocks",
-    "flowpaper-lite-pdf-flipbook",
-    "polylang",
-    "redirection",
-    "tequila",
-    "tinymce-advanced",
-    "very-simple-meta-description",
-    "wp-gutenberg-epfl",
-    "wp-media-folder",
-    "wp-plugin-pushgateway"
-  }
-
-  _blacklisted_plugins = {
-      "Admin",
-      "CustomCSS",
-      "Emploi",
-      "Inside",
-      "Restauration",
-      "Unmanaged",
-      "Library",
-      "CDHSHS",
-      "WPForms",
-      "Payonline",
-      "Surveys",
-      "DiplomaVerification",
-      "PartnerUniversities"
-  }
-
 
   @classmethod
   def go(cls):
@@ -424,7 +386,7 @@ class WordPressSiteOperator:
       @kopf.on.update('wordpresssites')
       def on_update_wordpresssite(spec, name, namespace, meta, status, **kwargs):
           wps_uid = meta.get('uid')
-          # print(f'FIELD CHANGED IN SPEC: {name} \n {namespace} \n {meta} \n {wps_uid}')
+          # logging.(f'FIELD CHANGED IN SPEC: {name} \n {namespace} \n {meta} \n {wps_uid}')
           WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).reconcile_site(spec, status)
 
       # TODO FIXME: this handler should not be present: the kopf.on.update should be able to trigger also for subresources but it seems not to be the case
@@ -432,7 +394,7 @@ class WordPressSiteOperator:
       @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='status')
       def on_update_status_plugins(spec, name, namespace, meta, status, **kwargs):
           wps_uid = meta.get('uid')
-          # print(f'FIELD CHANGED IN STATUS: {spec} \n {name} \n {namespace} \n {meta} \n {wps_uid}')
+          # logging.info(f'FIELD CHANGED IN STATUS: {spec} \n {name} \n {namespace} \n {meta} \n {wps_uid}')
           WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).reconcile_site(spec, status)
 
   def __init__(self, name, namespace, placer, route_controller, wps_uid):
@@ -467,8 +429,6 @@ class WordPressSiteOperator:
       tagline = wordpress["tagline"]
       protection_script = wordpress.get("downloadsProtectionScript")
 
-      plugins = wordpress.get("plugins", {})
-
       languages = wordpress["languages"]
 
       self.mariadb_name = self.placer.place_and_create_database(self.namespace, self.prefix, self.name, self.ownerReferences)
@@ -483,10 +443,10 @@ class WordPressSiteOperator:
       mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.namespace).data['password'])
       mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
 
-      self.create_ingress(path, mariadb_password, hostname, protection_script)
-
-      self.install_wordpress_via_php(title, tagline, ','.join(plugins.keys()), unit_id, ','.join(languages),
+      self.install_wordpress_via_php(title, tagline, unit_id, ','.join(languages),
                                      mariadb_password, hostname, path, 0)
+
+      self.create_ingress(path, mariadb_password, hostname, protection_script)
 
       self.reconcile_site(spec, {})
 
@@ -496,7 +456,7 @@ class WordPressSiteOperator:
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
-  def install_wordpress_via_php(self, title, tagline, plugins, unit_id, languages, secret, hostname, path, restored_site = 0):
+  def install_wordpress_via_php(self, title, tagline, unit_id, languages, secret, hostname, path, restored_site = 0):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
 
       cmdline = [Config.php, "ensure-wordpress-and-theme.php",
@@ -509,7 +469,6 @@ class WordPressSiteOperator:
                  f"--db-password={secret}",
                  f"--title={title}",
                  f"--tagline={tagline}",
-                 f"--plugins={plugins}",
                  f"--unit-id={unit_id}",
                  f"--languages={languages}",
                  f"--secret-dir={Config.secret_dir}",
@@ -517,11 +476,13 @@ class WordPressSiteOperator:
 
       cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
       logging.info(f" Running: {cmdline_text}")
+      if 'DEBUG' in os.environ:
+          cmdline.insert(0, "echo")
       result = subprocess.run(cmdline, capture_output=True, text=True)
 
       logging.info(result.stdout)
 
-      if "WordPress and plugins successfully installed" not in result.stdout and "Plugins successfully configured" not in result.stdout:
+      if "WordPress successfully installed" not in result.stdout and 'DEBUG' not in os.environ :
           raise subprocess.CalledProcessError(result.returncode, cmdline_text)
       else:
           logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
@@ -530,21 +491,21 @@ class WordPressSiteOperator:
       logging.info(f"Reconcile WordPressSite {self.name=} in {self.namespace=}")
 
       # TODO the following
-      # print("DB schema\n")
+      # logging.info("DB schema")
       # self.reconcile_db_schema(spec);
-      # print("Options and common WordPress settings\n")
+      # logging.info("Options and common WordPress settings")
       # ensure_other_basic_wordpress_things($options);
-      # print("Admin user\n")
+      # logging.info("Admin user")
       # self.ensure_db_schema()
-      # print("Site title\n")
+      # logging.info("Site title")
       # ensure_site_title($options);
-      # print("Tagline\n")
+      # logging.info("Tagline")
       # ensure_tagline($options);
-      # print("Theme\n")
+      # logging.info("Theme")
       # ensure_theme($options);
-      # print("Delete default pages and posts\n")
+      # logging.info("Delete default pages and posts")
       # delete_default_pages_and_posts();
-      # print("Plugins\n")
+      logging.info("Plugins")
       self.reconcile_plugins(spec, status)
 
       logging.info(f"Reconcile WordPressSite {self.name=} in {self.namespace=} end")
@@ -555,28 +516,31 @@ class WordPressSiteOperator:
       wordpress = spec.get("wordpress")
       plugins_wanted = set(wordpress.get("plugins", {}))
 
-      plugins_wanted = plugins_wanted | self._mandatory_plugins  # Merge two sets
-
-      plugins_wanted.difference_update(self._blacklisted_plugins)
-
       status_spec = status.get("wordpresssite", {})
       plugins_got = set(status_spec.get("plugins", {}))
 
       plugins_to_activate = plugins_wanted - plugins_got
-      print(f'plugins_to_activate: {plugins_to_activate}')
+      logging.info(f'plugins_to_activate: {plugins_to_activate}')
       for p in plugins_to_activate:
-          cmdline = ['wp', f'--ingress={self.ingress_name}', 'plugin', 'activate', p]
-          self._do_run_wp(cmdline)
-          for option in p.get('wp_options'):
-              self._set_wp_option(option)
+          self._activate_and_configure_plugin(p, wordpress['plugins'][p])
 
       plugins_to_deactivate = plugins_got - plugins_wanted
-      print(f'plugins_to_deactivate: {plugins_to_deactivate}')
+      logging.info(f'plugins_to_deactivate: {plugins_to_deactivate}')
       for p in plugins_to_deactivate:
-          cmdline = ['wp', f'--ingress={self.ingress_name}', 'plugin', 'deactivate', p]
-          self._do_run_wp(cmdline)
+          self._deactivate_plugin(p)
 
       logging.info(f"End of reconcile WordPressSite plugins {self.name=} in {self.namespace=}")
+
+  def _activate_and_configure_plugin(self, plugin_name, plugin_def):
+      logging.info(f'_activate_and_configure_plugin {plugin_name} {plugin_def} ')
+      self._do_run_wp(['plugin', 'activate', plugin_name])
+      for option in plugin_def.get('wp_options'):
+          self._set_wp_option(option)
+      # TODO add special configuration
+
+  def _deactivate_plugin(self, plugin_name):
+      logging.info(f'_deactivate_plugin {plugin_name} ')
+      self._do_run_wp(['plugin', 'deactivate', plugin_name])
 
   def _set_wp_option(self, option):
       value = option.get('phpSerializedValue', None)
@@ -592,20 +556,18 @@ class WordPressSiteOperator:
       raise ValueError (f'Unable to interpret option: {option}')
 
   def _set_wp_option_direct(self, name, value):
-      cmdline = ['wp', f'--ingress={self.ingress_name}', 'option', 'add', name, value]
-      self._do_run_wp(cmdline)
+      self._do_run_wp(['option', 'update', name, str(value)])
 
   def _set_wp_option_indirect(self, name, value):
       secret = KubernetesAPI.core.read_namespaced_secret(value['secretKeyRef']['name'], self.namespace)
       secretValue = base64.b64decode(secret.data[value['secretKeyRef']['key']]).decode("utf-8")
-      cmdline = ['wp', f'--ingress={self.ingress_name}', 'option', 'add', name, secretValue]
-      self._do_run_wp(cmdline)
+      self._do_run_wp(['option', 'update', name, secretValue])
 
   def _set_wp_option_struct(self, name, value):
-      cmdline = ['wp', f'--ingress={self.ingress_name}', 'option', 'add', name, '--format=json']
-      self._do_run_wp(cmdline, input=json.dumps(value))
+      self._do_run_wp(['option', 'update', name, '--format=json'], input=json.dumps(value))
 
   def _do_run_wp(self, cmdline, **kwargs):
+      cmdline = ['wp', f'--ingress={self.ingress_name}'] + cmdline
       if 'DEBUG' in os.environ:
           cmdline.insert(0, 'echo')
       return subprocess.run(cmdline, check=True, **kwargs)
