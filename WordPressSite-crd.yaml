@@ -268,8 +268,6 @@ spec:
                   plugins:
                     description: WordpressSite's plugins
                     type: object
-                    additionalProperties:
-                      type: object
                     default: {}
                   debug:
                     description: Whether or not activate the WP_DEBUG
