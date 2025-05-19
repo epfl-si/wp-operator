@@ -534,7 +534,7 @@ class WordPressSiteOperator:
   def _activate_and_configure_plugin(self, plugin_name, plugin_def):
       logging.info(f'_activate_and_configure_plugin {plugin_name} {plugin_def} ')
       self._do_run_wp(['plugin', 'activate', plugin_name])
-      for option in plugin_def.get('wp_options'):
+      for option in plugin_def.get('wp_options', []):
           self._set_wp_option(option)
       # TODO add special configuration
 
