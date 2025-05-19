@@ -424,7 +424,6 @@ class WordPressSiteOperator:
       path = spec.get('path')
       wordpress = spec.get("wordpress")
       unit_id = spec.get("owner", {}).get("epfl", {}).get("unitId")
-      import_object = spec.get("epfl", {}).get("import")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
       protection_script = wordpress.get("downloadsProtectionScript")
@@ -490,21 +489,6 @@ class WordPressSiteOperator:
   def reconcile_site(self, spec, status):
       logging.info(f"Reconcile WordPressSite {self.name=} in {self.namespace=}")
 
-      # TODO the following
-      # logging.info("DB schema")
-      # self.reconcile_db_schema(spec);
-      # logging.info("Options and common WordPress settings")
-      # ensure_other_basic_wordpress_things($options);
-      # logging.info("Admin user")
-      # self.ensure_db_schema()
-      # logging.info("Site title")
-      # ensure_site_title($options);
-      # logging.info("Tagline")
-      # ensure_tagline($options);
-      # logging.info("Theme")
-      # ensure_theme($options);
-      # logging.info("Delete default pages and posts")
-      # delete_default_pages_and_posts();
       logging.info("Plugins")
       self.reconcile_plugins(spec, status)
 
