@@ -570,7 +570,7 @@ class WordPressSiteOperator:
       self._do_run_wp(['option', 'update', name, secretValue])
 
   def _set_wp_option_struct(self, name, value):
-      self._do_run_wp(['option', 'update', name, '--format=json'], input=json.dumps(value))
+      self._do_run_wp(['option', 'update', name, '--format=json'], input=json.dumps(value).encode('utf-8'))
 
   def _do_run_wp(self, cmdline, **kwargs):
       cmdline = ['wp', f'--ingress={self.ingress_name}'] + cmdline
