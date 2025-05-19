@@ -536,7 +536,6 @@ class WordPressSiteOperator:
       self._do_run_wp(['plugin', 'activate', plugin_name])
       for option in plugin_def.get('wp_options', []):
           self._set_wp_option(option)
-      # TODO add special configuration
       if (plugin_name == 'polylang'):
           languages = plugin_def.get('polylang').get('languages')
           for lang in languages:
