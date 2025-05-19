@@ -17,8 +17,6 @@
  * to work from outside the cluster, you have to use something like KubeVPN.
 **/
 
-require_once("./plugins/Plugin.php");
-
 error_log("  ...  Hello from wp-ops/ensure-wordpress-and-theme.php  ... ");
 
 error_reporting(E_ALL);
