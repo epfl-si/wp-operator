@@ -542,6 +542,8 @@ class WordPressSiteOperator:
           for lang in languages:
             self._do_run_wp(['pll', 'lang', 'create', f'{lang["name"]}', f'{lang["flag"]}', f'{lang["locale"]}',
                              '--rtl=false', f'--order={lang["term_group"]}', f'--flag={lang["flag"]}'])
+      elif (plugin_name == 'redirection'):
+          self._do_run_wp(['db', 'query'], stdin=open("redirection.sql"))
 
   def _deactivate_plugin(self, plugin_name):
       logging.info(f'_deactivate_plugin {plugin_name} ')
