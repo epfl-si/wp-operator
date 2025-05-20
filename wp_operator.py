@@ -35,6 +35,8 @@ from urllib3 import disable_warnings
 # Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings)
 from urllib3.exceptions import InsecureRequestWarning
 
+from php import phpize
+
 disable_warnings(InsecureRequestWarning)
 
 class Config:
@@ -371,6 +373,52 @@ class RouteController:
             raise e
 
 
+class SiteReconcilerWork:
+
+    def __init__(self, wp):
+        self.wp = wp
+        self._php_work = ''
+        self._plugins_to_activate = []
+        self._plugins_to_deactivate = []
+
+    def activate_plugin(self, plugin_name):
+        self._plugins_to_activate.append(plugin_name)
+
+    def deactivate_plugin(self, plugin_name):
+        self._plugins_to_deactivate.append(plugin_name)
+
+    def add_language(self, lang):
+        self.flush()
+        self._do_run_wp(['pll', 'lang', 'create', f'{lang["name"]}', f'{lang["flag"]}', f'{lang["locale"]}',
+                         '--rtl=false', f'--order={lang["term_group"]}', f'--flag={lang["flag"]}'])
+
+    def apply_sql(self, sql_filename):
+        self.flush()
+        self._do_run_wp(['db', 'query'], stdin=open(sql_filename))
+
+    def set_wp_option(self, name, value):
+        self._php_work = self._php_work + f"update_option({phpize(name)},{phpize(value)}); \n"
+
+    def flush(self):
+        if self._plugins_to_activate:
+            self._do_run_wp(['plugin', 'activate'] + self._plugins_to_activate)
+        self._plugins_to_activate = []
+
+        if self._plugins_to_deactivate:
+            self._do_run_wp(['plugin', 'deactivate'] + self._plugins_to_deactivate)
+        self._plugins_to_deactivate = []
+
+        if self._php_work:
+            self._do_run_wp(['eval', self._php_work])
+        self._php_work = ''
+
+
+    def _do_run_wp(self, cmdline, **kwargs):
+        cmdline = ['wp', f'--ingress={self.wp.ingress_name}'] + cmdline
+        if 'DEBUG' in os.environ:
+            cmdline.insert(0, 'echo')
+        return subprocess.run(cmdline, check=True, **kwargs)
+
 class WordPressSiteOperator:
 
   @classmethod
@@ -496,6 +544,7 @@ class WordPressSiteOperator:
 
   def reconcile_plugins(self, spec, status):
       logging.info(f"Reconcile WordPressSite plugins {self.name=} in {self.namespace=}")
+      work = SiteReconcilerWork(self)
 
       wordpress = spec.get("wordpress")
       plugins_wanted = set(wordpress.get("plugins", {}))
@@ -506,61 +555,54 @@ class WordPressSiteOperator:
       plugins_to_activate = plugins_wanted - plugins_got
       logging.info(f'plugins_to_activate: {plugins_to_activate}')
       for p in plugins_to_activate:
-          self._activate_and_configure_plugin(p, wordpress['plugins'][p])
+          self._activate_plugin(work, p)
+      for p in plugins_to_activate:
+          self._configure_plugin(work, p, wordpress['plugins'][p])
 
       plugins_to_deactivate = plugins_got - plugins_wanted
       logging.info(f'plugins_to_deactivate: {plugins_to_deactivate}')
       for p in plugins_to_deactivate:
-          self._deactivate_plugin(p)
+          self._deactivate_plugin(work, p)
 
+      work.flush()
       logging.info(f"End of reconcile WordPressSite plugins {self.name=} in {self.namespace=}")
 
-  def _activate_and_configure_plugin(self, plugin_name, plugin_def):
-      logging.info(f'_activate_and_configure_plugin {plugin_name} {plugin_def} ')
-      self._do_run_wp(['plugin', 'activate', plugin_name])
+  def _activate_plugin(self, work, plugin_name):
+      logging.info(f'_activate_plugin {plugin_name}')
+      work.activate_plugin(plugin_name)
+
+  def _configure_plugin(self, work, plugin_name, plugin_def):
+      logging.info(f'_configure_plugin {plugin_name} {plugin_def} ')
       for option in plugin_def.get('wp_options', []):
-          self._set_wp_option(option)
+          self._set_wp_option(work, option)
       if (plugin_name == 'polylang'):
           languages = plugin_def.get('polylang').get('languages')
           for lang in languages:
-            self._do_run_wp(['pll', 'lang', 'create', f'{lang["name"]}', f'{lang["flag"]}', f'{lang["locale"]}',
-                             '--rtl=false', f'--order={lang["term_group"]}', f'--flag={lang["flag"]}'])
+              work.add_language(lang)
       elif (plugin_name == 'redirection'):
-          self._do_run_wp(['db', 'query'], stdin=open("redirection.sql"))
+          work.apply_sql("redirection.sql")
 
-  def _deactivate_plugin(self, plugin_name):
+  def _deactivate_plugin(self, work, plugin_name):
       logging.info(f'_deactivate_plugin {plugin_name} ')
-      self._do_run_wp(['plugin', 'deactivate', plugin_name])
+      work.deactivate_plugin(plugin_name)
 
-  def _set_wp_option(self, option):
+  def _set_wp_option(self, work, option):
       value = option.get('phpSerializedValue', None)
       if value is not None:
-          return self._set_wp_option_struct(option['name'], value)
+          return work.set_wp_option(option['name'], value)
       value = option.get('valueFrom', None)
       if value is not None:
-          return self._set_wp_option_indirect(option['name'], value)
+          return self._set_wp_option_indirect(work, option['name'], value)
       value = option.get('value', None)
       if value is not None:
-          return self._set_wp_option_direct(option['name'], value)
+          return work.set_wp_option(option['name'], value)
 
       raise ValueError (f'Unable to interpret option: {option}')
 
-  def _set_wp_option_direct(self, name, value):
-      self._do_run_wp(['option', 'update', name, str(value)])
-
-  def _set_wp_option_indirect(self, name, value):
+  def _set_wp_option_indirect(self, work, name, value):
       secret = KubernetesAPI.core.read_namespaced_secret(value['secretKeyRef']['name'], self.namespace)
       secretValue = base64.b64decode(secret.data[value['secretKeyRef']['key']]).decode("utf-8")
-      self._do_run_wp(['option', 'update', name, secretValue])
-
-  def _set_wp_option_struct(self, name, value):
-      self._do_run_wp(['option', 'update', name, '--format=json'], input=json.dumps(value).encode('utf-8'))
-
-  def _do_run_wp(self, cmdline, **kwargs):
-      cmdline = ['wp', f'--ingress={self.ingress_name}'] + cmdline
-      if 'DEBUG' in os.environ:
-          cmdline.insert(0, 'echo')
-      return subprocess.run(cmdline, check=True, **kwargs)
+      work.set_wp_option(name, secretValue)
 
   @property
   def secret_name(self):
