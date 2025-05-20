@@ -142,7 +142,6 @@ spec:
               mountPath: /wp-secrets
           resources:
             limits:
-              cpu: 100m
               memory: 2G
             requests:
               cpu: 10m
