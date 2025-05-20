@@ -72,6 +72,8 @@ CREATE TABLE IF NOT EXISTS `wp_redirection_404` (
                 KEY `ip` (`ip`)
               ) DEFAULT CHARACTER SET utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
+DELETE FROM `wp_redirection_groups` WHERE id IN (1, 2);
+
 INSERT INTO `wp_redirection_groups` (id,name,tracking,module_id,status,`position`) VALUES
                 (1,'Redirections',1,1,'enabled',0),
                 (2,'Modified Posts',1,1,'enabled',1);
