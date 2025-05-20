@@ -592,16 +592,21 @@ class WordPressSiteOperator:
           return work.set_wp_option(option['name'], value)
       value = option.get('valueFrom', None)
       if value is not None:
-          return self._set_wp_option_indirect(work, option['name'], value)
+          return self._set_wp_option_indirect(work, option['name'], value,
+                                              option.get('valueEncoding', None))
       value = option.get('value', None)
       if value is not None:
           return work.set_wp_option(option['name'], value)
 
       raise ValueError (f'Unable to interpret option: {option}')
 
-  def _set_wp_option_indirect(self, work, name, value):
+  def _set_wp_option_indirect(self, work, name, value, encoding=None):
       secret = KubernetesAPI.core.read_namespaced_secret(value['secretKeyRef']['name'], self.namespace)
       secretValue = base64.b64decode(secret.data[value['secretKeyRef']['key']]).decode("utf-8")
+
+      if encoding == "JSON":
+          secretValue = json.loads(secretValue)
+
       work.set_wp_option(name, secretValue)
 
   @property
