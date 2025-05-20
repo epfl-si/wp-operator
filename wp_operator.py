@@ -425,15 +425,17 @@ class SiteReconcilerWork:
 
 class PluginReconciler:
     @classmethod
-    def get (cls, plugin_name, work):
+    def get (cls, plugin_name, k8s_namespace, work):
         for subcls in cls.__subclasses__():
             if subcls.name == plugin_name:
-                return subcls(work=work)
+                return subcls(work=work, k8s_namespace=k8s_namespace)
 
-        return cls(work=work, plugin_name=plugin_name)
+        return cls(work=work, plugin_name=plugin_name,
+                   k8s_namespace=k8s_namespace)
 
-    def __init__ (self, work, plugin_name=None):
+    def __init__ (self, work, k8s_namespace, plugin_name=None):
         self.work = work
+        self.k8s_namespace = k8s_namespace
         if plugin_name:
             self.name = plugin_name
 
@@ -460,7 +462,7 @@ class PluginReconciler:
         self.work.set_wp_option(option['name'], value)
 
     def _get_wp_option_indirect (self, valueFrom):
-        secret = KubernetesAPI.core.read_namespaced_secret(valueFrom['secretKeyRef']['name'], self.namespace)
+        secret = KubernetesAPI.core.read_namespaced_secret(valueFrom['secretKeyRef']['name'], self.k8s_namespace)
         return base64.b64decode(secret.data[valueFrom['secretKeyRef']['key']]).decode("utf-8")
 
 
@@ -620,16 +622,16 @@ class WordPressSiteOperator:
       plugins_to_activate = plugins_wanted - plugins_got
       logging.info(f'plugins_to_activate: {plugins_to_activate}')
       for name in plugins_to_activate:
-          p = PluginReconciler.get(name, work)
+          p = PluginReconciler.get(name=name, work=work, k8s_namespace=self.namespace)
           p.activate()
       for name in plugins_to_activate:
-          p = PluginReconciler.get(name, work)
+          p = PluginReconciler.get(name=name, work=work, k8s_namespace=self.namespace)
           p.configure(wordpress['plugins'][p])
 
       plugins_to_deactivate = plugins_got - plugins_wanted
       logging.info(f'plugins_to_deactivate: {plugins_to_deactivate}')
       for name in plugins_to_deactivate:
-          p = PluginReconciler.get(name, work)
+          p = PluginReconciler.get(name=name, work=work, k8s_namespace=self.namespace)
           p.deactivate()
 
       work.flush()
