@@ -587,27 +587,17 @@ class WordPressSiteOperator:
       work.deactivate_plugin(plugin_name)
 
   def _set_wp_option(self, work, option):
-      value = option.get('phpSerializedValue', None)
-      if value is not None:
-          return work.set_wp_option(option['name'], value)
-      value = option.get('valueFrom', None)
-      if value is not None:
-          return self._set_wp_option_indirect(work, option['name'], value,
-                                              option.get('valueEncoding', None))
-      value = option.get('value', None)
-      if value is not None:
-          return work.set_wp_option(option['name'], value)
+      value = (option['value'] if 'value' in option
+               else self._get_wp_option_indirect(value))
 
-      raise ValueError (f'Unable to interpret option: {option}')
+      if option.get('valueEncoding', None) == "JSON":
+          value = json.loads(value)
 
-  def _set_wp_option_indirect(self, work, name, value, encoding=None):
+      work.set_wp_option(option['name'], value)
+
+  def _get_wp_option_indirect(self, value):
       secret = KubernetesAPI.core.read_namespaced_secret(value['secretKeyRef']['name'], self.namespace)
-      secretValue = base64.b64decode(secret.data[value['secretKeyRef']['key']]).decode("utf-8")
-
-      if encoding == "JSON":
-          secretValue = json.loads(secretValue)
-
-      work.set_wp_option(name, secretValue)
+      return base64.b64decode(secret.data[value['secretKeyRef']['key']]).decode("utf-8")
 
   @property
   def secret_name(self):
