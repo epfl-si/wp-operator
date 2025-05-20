@@ -588,16 +588,16 @@ class WordPressSiteOperator:
 
   def _set_wp_option(self, work, option):
       value = (option['value'] if 'value' in option
-               else self._get_wp_option_indirect(value))
+               else self._get_wp_option_indirect(option['valueFrom']))
 
       if option.get('valueEncoding', None) == "JSON":
           value = json.loads(value)
 
       work.set_wp_option(option['name'], value)
 
-  def _get_wp_option_indirect(self, value):
-      secret = KubernetesAPI.core.read_namespaced_secret(value['secretKeyRef']['name'], self.namespace)
-      return base64.b64decode(secret.data[value['secretKeyRef']['key']]).decode("utf-8")
+  def _get_wp_option_indirect(self, valueFrom):
+      secret = KubernetesAPI.core.read_namespaced_secret(valueFrom['secretKeyRef']['name'], self.namespace)
+      return base64.b64decode(secret.data[valueFrom['secretKeyRef']['key']]).decode("utf-8")
 
   @property
   def secret_name(self):
