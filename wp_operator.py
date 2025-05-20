@@ -622,16 +622,16 @@ class WordPressSiteOperator:
       plugins_to_activate = plugins_wanted - plugins_got
       logging.info(f'plugins_to_activate: {plugins_to_activate}')
       for name in plugins_to_activate:
-          p = PluginReconciler.get(name=name, work=work, k8s_namespace=self.namespace)
+          p = PluginReconciler.get(plugin_name=name, work=work, k8s_namespace=self.namespace)
           p.activate()
       for name in plugins_to_activate:
-          p = PluginReconciler.get(name=name, work=work, k8s_namespace=self.namespace)
+          p = PluginReconciler.get(plugin_name=name, work=work, k8s_namespace=self.namespace)
           p.configure(wordpress['plugins'][p])
 
       plugins_to_deactivate = plugins_got - plugins_wanted
       logging.info(f'plugins_to_deactivate: {plugins_to_deactivate}')
       for name in plugins_to_deactivate:
-          p = PluginReconciler.get(name=name, work=work, k8s_namespace=self.namespace)
+          p = PluginReconciler.get(plugin_name=name, work=work, k8s_namespace=self.namespace)
           p.deactivate()
 
       work.flush()
