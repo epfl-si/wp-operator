@@ -388,7 +388,7 @@ class SiteReconcilerWork:
 
     def add_language(self, lang):
         self.flush()
-        self._do_run_wp(['pll', 'lang', 'create', f'{lang["name"]}', f'{lang["flag"]}', f'{lang["locale"]}',
+        self._do_run_wp(['pll', 'lang', 'create', f'{lang["name"]}', f'{lang["slug"]}', f'{lang["locale"]}',
                          f'--rtl={lang["rtl"]}', f'--order={lang["term_group"]}', f'--flag={lang["flag"]}'])
 
     def apply_sql(self, sql_filename):
