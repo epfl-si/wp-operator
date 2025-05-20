@@ -374,7 +374,6 @@ class RouteController:
 
 
 class SiteReconcilerWork:
-
     def __init__(self, wp):
         self.wp = wp
         self._php_work = ''
@@ -418,6 +417,44 @@ class SiteReconcilerWork:
         if 'DEBUG' in os.environ:
             cmdline.insert(0, 'echo')
         return subprocess.run(cmdline, check=True, **kwargs)
+
+
+class PluginReconciler:
+    def __init__ (self, work, plugin_name=None):
+        self.work = work
+        self.name = plugin_name
+
+    def activate (self):
+        logging.info(f'_activate_plugin {self.name}')
+        self.work.activate_plugin(self.name)
+
+    def deactivate (self):
+        logging.info(f'_deactivate_plugin {self.name}')
+        self.work.deactivate_plugin(self.name)
+
+    def configure (self, plugin_def):
+        logging.info(f'_configure_plugin {self.name} {plugin_def} ')
+        for option in plugin_def.get('wp_options', []):
+            self._set_wp_option(option)
+        if (self.name == 'polylang'):
+            languages = plugin_def.get('polylang').get('languages')
+            for lang in languages:
+                self.work.add_language(lang)
+        elif (self.name == 'redirection'):
+            self.work.apply_sql("redirection.sql")
+
+    def _set_wp_option (self, option):
+        value = (option['value'] if 'value' in option
+                 else self._get_wp_option_indirect(option['valueFrom']))
+
+        if option.get('valueEncoding', None) == "JSON":
+            value = json.loads(value)
+
+        self.work.set_wp_option(option['name'], value)
+
+    def _get_wp_option_indirect (self, valueFrom):
+        secret = KubernetesAPI.core.read_namespaced_secret(valueFrom['secretKeyRef']['name'], self.namespace)
+        return base64.b64decode(secret.data[valueFrom['secretKeyRef']['key']]).decode("utf-8")
 
 class WordPressSiteOperator:
 
@@ -554,50 +591,21 @@ class WordPressSiteOperator:
 
       plugins_to_activate = plugins_wanted - plugins_got
       logging.info(f'plugins_to_activate: {plugins_to_activate}')
-      for p in plugins_to_activate:
-          self._activate_plugin(work, p)
-      for p in plugins_to_activate:
-          self._configure_plugin(work, p, wordpress['plugins'][p])
+      for name in plugins_to_activate:
+          p = PluginReconciler.get(name, work)
+          p.activate()
+      for name in plugins_to_activate:
+          p = PluginReconciler.get(name, work)
+          p.configure(wordpress['plugins'][p])
 
       plugins_to_deactivate = plugins_got - plugins_wanted
       logging.info(f'plugins_to_deactivate: {plugins_to_deactivate}')
-      for p in plugins_to_deactivate:
-          self._deactivate_plugin(work, p)
+      for name in plugins_to_deactivate:
+          p = PluginReconciler.get(name, work)
+          p.deactivate()
 
       work.flush()
       logging.info(f"End of reconcile WordPressSite plugins {self.name=} in {self.namespace=}")
-
-  def _activate_plugin(self, work, plugin_name):
-      logging.info(f'_activate_plugin {plugin_name}')
-      work.activate_plugin(plugin_name)
-
-  def _configure_plugin(self, work, plugin_name, plugin_def):
-      logging.info(f'_configure_plugin {plugin_name} {plugin_def} ')
-      for option in plugin_def.get('wp_options', []):
-          self._set_wp_option(work, option)
-      if (plugin_name == 'polylang'):
-          languages = plugin_def.get('polylang').get('languages')
-          for lang in languages:
-              work.add_language(lang)
-      elif (plugin_name == 'redirection'):
-          work.apply_sql("redirection.sql")
-
-  def _deactivate_plugin(self, work, plugin_name):
-      logging.info(f'_deactivate_plugin {plugin_name} ')
-      work.deactivate_plugin(plugin_name)
-
-  def _set_wp_option(self, work, option):
-      value = (option['value'] if 'value' in option
-               else self._get_wp_option_indirect(option['valueFrom']))
-
-      if option.get('valueEncoding', None) == "JSON":
-          value = json.loads(value)
-
-      work.set_wp_option(option['name'], value)
-
-  def _get_wp_option_indirect(self, valueFrom):
-      secret = KubernetesAPI.core.read_namespaced_secret(valueFrom['secretKeyRef']['name'], self.namespace)
-      return base64.b64decode(secret.data[valueFrom['secretKeyRef']['key']]).decode("utf-8")
 
   @property
   def secret_name(self):
