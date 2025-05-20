@@ -398,6 +398,10 @@ class SiteReconcilerWork:
     def set_wp_option(self, name, value):
         self._php_work = self._php_work + f"update_option({phpize(name)},{phpize(value)}); \n"
 
+    def delete_transient(self, name):
+        self.flush()
+        self._do_run_wp(['transient', 'delete', name])
+
     def flush(self):
         if self._plugins_to_activate:
             self._do_run_wp(['plugin', 'activate'] + self._plugins_to_activate)
@@ -468,6 +472,8 @@ class PolylangPluginReconciler (PluginReconciler):
         languages = plugin_def.get('polylang').get('languages')
         for lang in languages:
             self.work.add_language(lang)
+
+        self.work.delete_transient("pll_activation_redirect")
 
 
 class RedirectionPluginReconciler (PluginReconciler):
