@@ -420,9 +420,18 @@ class SiteReconcilerWork:
 
 
 class PluginReconciler:
+    @classmethod
+    def get (cls, plugin_name, work):
+        for subcls in cls.__subclasses__():
+            if subcls.name == plugin_name:
+                return subcls(work=work)
+
+        return cls(work=work, plugin_name=plugin_name)
+
     def __init__ (self, work, plugin_name=None):
         self.work = work
-        self.name = plugin_name
+        if plugin_name:
+            self.name = plugin_name
 
     def activate (self):
         logging.info(f'_activate_plugin {self.name}')
@@ -436,12 +445,6 @@ class PluginReconciler:
         logging.info(f'_configure_plugin {self.name} {plugin_def} ')
         for option in plugin_def.get('wp_options', []):
             self._set_wp_option(option)
-        if (self.name == 'polylang'):
-            languages = plugin_def.get('polylang').get('languages')
-            for lang in languages:
-                self.work.add_language(lang)
-        elif (self.name == 'redirection'):
-            self.work.apply_sql("redirection.sql")
 
     def _set_wp_option (self, option):
         value = (option['value'] if 'value' in option
@@ -455,6 +458,25 @@ class PluginReconciler:
     def _get_wp_option_indirect (self, valueFrom):
         secret = KubernetesAPI.core.read_namespaced_secret(valueFrom['secretKeyRef']['name'], self.namespace)
         return base64.b64decode(secret.data[valueFrom['secretKeyRef']['key']]).decode("utf-8")
+
+
+class PolylangPluginReconciler (PluginReconciler):
+    name = "polylang"
+
+    def configure (self, plugin_def):
+        super().configure(plugin_def)
+        languages = plugin_def.get('polylang').get('languages')
+        for lang in languages:
+            self.work.add_language(lang)
+
+
+class RedirectionPluginReconciler (PluginReconciler):
+    name = "redirection"
+
+    def configure (self, plugin_def):
+        super().configure(plugin_def)
+        self.work.apply_sql("redirection.sql")
+
 
 class WordPressSiteOperator:
 
