@@ -498,18 +498,10 @@ class WordPressSiteOperator:
           wps_uid = meta.get('uid')
           WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).create_site(spec)
 
-      @kopf.on.update('wordpresssites')
+      @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='spec')
+      @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='status.wordpresssite.plugins')
       def on_update_wordpresssite(spec, name, namespace, meta, status, **kwargs):
           wps_uid = meta.get('uid')
-          # logging.(f'FIELD CHANGED IN SPEC: {name} \n {namespace} \n {meta} \n {wps_uid}')
-          WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).reconcile_site(spec, status)
-
-      # TODO FIXME: this handler should not be present: the kopf.on.update should be able to trigger also for subresources but it seems not to be the case
-      # TODO and if status is modified, both @kopf.on.update and @kopf.on.field are triggered
-      @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='status')
-      def on_update_status_plugins(spec, name, namespace, meta, status, **kwargs):
-          wps_uid = meta.get('uid')
-          # logging.info(f'FIELD CHANGED IN STATUS: {spec} \n {name} \n {namespace} \n {meta} \n {wps_uid}')
           WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).reconcile_site(spec, status)
 
   def __init__(self, name, namespace, placer, route_controller, wps_uid):
