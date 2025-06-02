@@ -330,7 +330,7 @@ class RouteController:
 
     def create_route(self, namespace, site_name, route_name, hostname, path, service_name, ownerReferences):
         parent_route = self._get_closest_parent_route(namespace, hostname, path)
-        if parent_route and service_name == parent_route.get('spec').get('to').get('name'):
+        if parent_route and service_name == parent_route.get('spec', {}).get('to', {}).get('name'):
             logging.info(
                 f" ↳ [{namespace}/{site_name}] The closest parent route '{parent_route.get('name')}' already points to "
                 f"the same service '{service_name}' for the site url '{hostname}{path}' → route spec: {parent_route.get('spec')}"
@@ -491,7 +491,7 @@ class PolylangPluginReconciler (PluginReconciler):
 
     def configure (self, plugin_def):
         super().configure(plugin_def)
-        languages = plugin_def.get('polylang').get('languages')
+        languages = plugin_def.get('polylang', {}).get('languages', [])
         for lang in languages:
             self.work.add_language(lang)
 
