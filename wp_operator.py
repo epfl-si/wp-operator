@@ -5,6 +5,7 @@
 import argparse
 import base64
 import datetime
+from functools import cached_property
 import logging
 import os
 import re
@@ -500,6 +501,405 @@ class RedirectionPluginReconciler (PluginReconciler):
         self.work.apply_sql("redirection.sql")
 
 
+class KubernetesObject:
+    @property
+    def moniker (self):
+        # Do *not* call self.field (even indirectly) to avoid a loop:
+        namespace_moniker_fragment = f" in namespace {self.namespace}" if self.namespace else ""
+        return f"<{self.kind}/{self.name}{namespace_moniker_fragment}>"
+
+    @property
+    def uid (self):
+        return self.field('metadata.uid')
+
+    @property
+    def owner_uid (self):
+        owners = self.field('metadata.ownerReferences')
+        if not owners:
+            return None
+        elif len(owners) > 1:
+            raise ValueError("wp_operator cannot deal with objects that have multiple owners")
+        else:
+            return self.field("uid", starting_from=owners[0])
+
+    @property
+    def owner_reference (self):
+        return dict(
+            apiVersion=self.api_version,
+            kind=self.kind,
+            name=self.name,
+            uid=self.uid)
+
+    def _filter_owned (self, candidates):
+        return [c for c in candidates
+                if c.owner_uid == self.uid]
+
+    def _sole_owned (self, candidates):
+        candidates = self._filter_owned(candidates)
+        if len(candidates) == 1:
+            return candidates[0]
+        elif len(candidates) == 0:
+            raise ValueError(f"No object owned by {self.moniker}")
+        else:
+            raise ValueError(f"Found {len(candidates)} {candidates[0].kind}s owned by {self.moniker}, expected just one")
+            return candidates
+
+
+class KubernetesBuiltinObject (KubernetesObject):
+    """One of the “built-in” (metaprogrammed) objects in the Kubernetes store"""
+
+    @classmethod
+    def from_list (cls, k8s_list, owner=None):
+        return [cls(s) for s in k8s_list.items]
+
+    def __init__ (self, definition):
+        self._definition = definition
+
+    @property
+    def kind (self):
+        return self.__class__.__name__   # Meh - Good enough, we don't use it
+                                         # for anything serious anyway 😜
+
+    @property
+    def api_version (self):
+        return "v1"                      # See comment above
+
+    @property
+    def name (self):
+        return self._definition.metadata.name
+
+    @property
+    def namespace (self):
+        return self._definition.metadata.namespace
+
+    def field (self, field_path, *, starting_from=None):
+        walk = starting_from if starting_from is not None else self._definition
+        for fragment in field_path.split("."):
+            try:
+                walk = getattr(walk, self._to_snake_case(fragment))
+            except AttributeError:
+                # At some point during the drill-down (e.g. below a
+                # Secret's `.data`), even the “built-in” types turn to
+                # dicts 🤷‍♂️
+                walk = walk.get(fragment)
+        return walk
+
+    @classmethod
+    def _to_snake_case(cls, name):
+        """
+        Convert camelCase or PascalCase to snake_case.
+        Example: 'ownerReferences' → 'owner_references'
+        """
+        s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', name)
+        s2 = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1)
+        return s2.lower()
+
+
+class Secret (KubernetesBuiltinObject):
+    kind = "Secret"
+
+    @classmethod
+    def all (cls, namespace):
+        return cls.from_list(
+            KubernetesAPI.core.list_namespaced_secret(namespace=namespace))
+
+    def decode (self, field):
+        return base64.b64decode(self.field(f"data.{field}"))
+
+    @property
+    def mariadb_password (self):
+        return self.decode("password")
+
+
+class Service (KubernetesBuiltinObject):
+    @classmethod
+    def all (cls, namespace):
+        return cls.from_list(
+            KubernetesAPI.core.list_namespaced_service(
+                namespace=namespace))
+
+    @property
+    def publish_not_ready_addresses (self):
+        return self._definition.spec.publish_not_ready_addresses
+
+    @property
+    def ports (self):
+        return self._definition.spec.ports
+
+
+class CustomAPIKubernetesObject (KubernetesObject):
+    """An instance of one of the Kubernetes object whose type is not
+    known until run time (e.g. because it belongs to a CRD)"""
+    def __init__ (self, definition):
+        if not isinstance(definition, dict):
+            raise ValueError(f"{definition} is not a Kubernetes object")
+        self._definition = definition
+
+    @classmethod
+    def all (cls, namespace):
+        return cls.from_list(
+            KubernetesAPI.custom.list_namespaced_custom_object(
+                namespace=namespace, **cls._search_kwargs))
+
+    @classmethod
+    def from_list (cls, k8s_list):
+        if "items" in k8s_list:
+            return [cls(s) for s in k8s_list["items"]]
+        else:
+            raise ValueError(f"Unexpected type {type(k8s_list)} in from_list")
+
+    @classmethod
+    def get (cls, namespace, name):
+        return cls(KubernetesAPI.custom.get_namespaced_custom_object(
+            name = name,
+            namespace=namespace,
+            **cls._search_kwargs))
+
+    __UNSET = object()
+
+    def field (self, field_path, default=__UNSET, *, starting_from=None):
+        walk = starting_from if starting_from is not None else self._definition
+        for fragment in field_path.split("."):
+            walk = walk.get(fragment)
+            if walk is None:
+                if default == CustomAPIKubernetesObject.__UNSET:
+                    raise ValueError(f"{field_path} not found in {self.moniker}")
+                else:
+                    return default
+        return walk
+
+    # These accessors are called by `KubernetesObject().moniker` and
+    # therefore, should not use `.field`:
+    @property
+    def kind (self):
+        return self._definition.get("kind", "(Unknown kind)")
+
+    @property
+    def api_version (self):
+        return self._definition.get("apiVersion", "(Unknown apiVersion)")
+
+    @property
+    def name (self):
+        return self._definition.get("metadata", {}).get("name", None)
+
+    @property
+    def namespace (self):
+        return self._definition.get("metadata", {}).get("namespace", None)
+
+
+class MariaDBUser (CustomAPIKubernetesObject):
+    _search_kwargs = dict(group="k8s.mariadb.com",
+                          version="v1alpha1",
+                          plural="users")
+
+    @property
+    def username (self):
+        explicit_name = self.field("spec.name", None)
+        return (explicit_name if explicit_name is not None
+                else self.name)
+
+
+class MariaDBDatabase (CustomAPIKubernetesObject):
+    _search_kwargs = dict(group="k8s.mariadb.com",
+                          version="v1alpha1",
+                          plural="databases")
+
+    @property
+    def dbname (self):
+        explicit_name = self.field("spec.name", None)
+        return (explicit_name if explicit_name is not None
+                else self.name)
+
+    @property
+    def mariadb (self):
+        return MariaDB.get(
+            name=self.field("spec.mariaDbRef.name"),
+            namespace=self.namespace)
+
+
+class MariaDB (CustomAPIKubernetesObject) :
+    _search_kwargs = dict(group="k8s.mariadb.com",
+                          version="v1alpha1",
+                          plural="mariadbs")
+
+    @property
+    def service (self):
+        for s in self._filter_owned(Service.all(namespace=self.namespace)):
+            if not s.publish_not_ready_addresses:
+                for p in s.ports:
+                    if p.name == "mariadb":
+                        return s
+
+
+class WordpressSite (CustomAPIKubernetesObject):
+    _search_kwargs = dict(group='wordpress.epfl.ch',
+                          version='v2',
+                          plural='wordpresssites')
+
+    @property
+    def path (self):
+        return self.field("spec.path")
+
+    @property
+    def hostname (self):
+        return self.field("spec.hostname")
+
+    @property
+    def protection_script (self):
+        return self.field("spec.wordpress.downloadsProtectionScript", None)
+
+    @property
+    def unit_id (self):
+        return self.field("spec.owner.epfl.unitId")
+
+    @property
+    def title (self):
+        return self.field("spec.wordpress.title")
+
+    @property
+    def tagline (self):
+        return self.field("spec.wordpress.tagline")
+
+    @cached_property
+    def database (self):
+        return self._sole_owned(MariaDBDatabase.all(namespace=self.namespace))
+
+    @cached_property
+    def user (self):
+        return self._sole_owned(MariaDBUser.all(namespace=self.namespace))
+
+    @cached_property
+    def secret (self):
+        return self._sole_owned(Secret.all(namespace=self.namespace))
+
+
+class WordpressIngressReconciler:
+    def __init__ (self, namespace, name):
+        self.name = name
+        self.namespace = namespace
+
+    @cached_property
+    def _me (self):
+        return WordpressSite.get(namespace=self.namespace,
+                                 name=self.name)
+
+    @property
+    def hostname (self):
+        return self._me.hostname
+
+    @property
+    def db (self):
+        return self._me.database
+
+    @property
+    def user (self):
+        return self._me.user
+
+    @property
+    def secret (self):
+        return self._me.secret
+
+    @property
+    def uploads_dir (self):
+        return f"/wp-data/{self.name}/uploads/"
+
+    @property
+    def protection_script (self):
+        return self._me.protection_script
+
+    @property
+    def _nginx_configuration_snippet (self):
+        if self.protection_script:
+            location_script = f"""fastcgi_pass unix:/run/php-fpm/php-fpm.sock;"""
+            fastcgi_param_protection_script = f"""fastcgi_param DOWNLOADS_PROTECTION_SCRIPT    {self.protection_script};"""
+        else:
+            location_script = f"""rewrite .*/(wp-content/uploads/(.*)) /$2 break;
+
+            root {self.uploads_dir};
+            add_header Cache-Control "129600, public";"""
+            fastcgi_param_protection_script = ""
+
+        path_slash = ensure_final_slash(self._me.path)
+
+        return f"""
+include "/etc/nginx/template/wordpress_fastcgi.conf";
+
+location = {path_slash}wp-admin {{
+    return 301 https://{self.hostname}{path_slash}wp-admin/;
+}}
+
+location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {{
+    rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
+    root /wp/6/;
+    location ~* \\.(ico|pdf|apng|avif|webp|jpg|jpeg|png|gif|svg)$ {{
+        add_header Cache-Control "129600, public";
+        # rewrite is not inherited https://stackoverflow.com/a/32126596
+        rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
+    }}
+}}
+
+location ~ (wp-content/uploads)/ {{
+    {location_script}
+}}
+
+fastcgi_param WP_DEBUG           true;
+fastcgi_param WP_ROOT_URI        {path_slash};
+fastcgi_param WP_SITE_NAME       {self.name};
+fastcgi_param WP_ABSPATH         /wp/6/;
+fastcgi_param WP_DB_HOST         {self.db.mariadb.service.name};
+fastcgi_param WP_DB_NAME         {self.db.dbname};
+fastcgi_param WP_DB_USER         {self.user.username};
+fastcgi_param WP_DB_PASSWORD     {self.secret.mariadb_password};
+{fastcgi_param_protection_script}
+"""
+
+    def reconcile (self):
+        """TODO: doesn't actually handle anything but initial creation. (Yet)"""
+        body = client.V1Ingress(
+            api_version="networking.k8s.io/v1",
+            kind="Ingress",
+            metadata=client.V1ObjectMeta(
+                name=self._me.name,
+                namespace=self._me.namespace,
+                owner_references=[self._me.owner_reference],
+                annotations={
+                    "nginx.ingress.kubernetes.io/configuration-snippet":
+                    self._nginx_configuration_snippet
+                }
+            ),
+            spec=client.V1IngressSpec(
+                ingress_class_name="wordpress",
+                rules=[client.V1IngressRule(
+                    host=self._me.hostname,
+                    http=client.V1HTTPIngressRuleValue(
+                        paths=[client.V1HTTPIngressPath(
+                            path=self._me.path,
+                            path_type="Prefix",
+                            backend=client.V1IngressBackend(
+                                service=client.V1IngressServiceBackend(
+                                    name="wp-nginx",
+                                    port=client.V1ServiceBackendPort(
+                                        number=80,
+                                    )
+                                )
+                            )
+                        )]
+                    )
+                )]
+            )
+        )
+
+        try:
+            KubernetesAPI.networking.create_namespaced_ingress(
+                namespace=self.namespace,
+                body=body
+            )
+        except ApiException as e:
+            if e.status != 409:
+                raise e
+            logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} already exists")
+
+
 class WordPressSiteOperator:
 
   @classmethod
@@ -820,91 +1220,9 @@ class WordPressSiteOperator:
           else:
               raise kopf.PermanentError(f"create {customObjectName} timed out or failed, last condition message: {message}")
 
-  def create_ingress(self, path, secret, hostname, protection_script):
-
-    if protection_script:
-        location_script = f"""fastcgi_pass unix:/run/php-fpm/php-fpm.sock;"""
-        fastcgi_param_protection_script = f"""fastcgi_param DOWNLOADS_PROTECTION_SCRIPT    {protection_script};"""
-    else:
-        location_script = f"""rewrite .*/(wp-content/uploads/(.*)) /$2 break;
-    root /wp-data/{self.name}/uploads/;
-    add_header Cache-Control "129600, public";"""
-        fastcgi_param_protection_script = f""" """
-
-    path_slash = ensure_final_slash(path)
-    body = client.V1Ingress(
-        api_version="networking.k8s.io/v1",
-        kind="Ingress",
-        metadata=client.V1ObjectMeta(
-            name=self.name,
-            namespace=self.namespace,
-            owner_references=[self.ownerReferences],
-            annotations={
-            "nginx.ingress.kubernetes.io/configuration-snippet": f"""
-include "/etc/nginx/template/wordpress_fastcgi.conf";
-
-location = {path_slash}wp-admin {{
-    return 301 https://{hostname}{path_slash}wp-admin/;
-}}
-
-location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {{
-    rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
-    root /wp/6/;
-    location ~* \\.(ico|pdf|apng|avif|webp|jpg|jpeg|png|gif|svg)$ {{
-        add_header Cache-Control "129600, public";
-        # rewrite is not inherited https://stackoverflow.com/a/32126596
-        rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
-    }}
-}}
-
-location ~ (wp-content/uploads)/ {{
-    {location_script}
-}}
-
-fastcgi_param WP_DEBUG           true;
-fastcgi_param WP_ROOT_URI        {path_slash};
-fastcgi_param WP_SITE_NAME       {self.name};
-fastcgi_param WP_ABSPATH         /wp/6/;
-fastcgi_param WP_DB_HOST         {self.mariadb_name};
-fastcgi_param WP_DB_NAME         {self.prefix["db"]}{self.name};
-fastcgi_param WP_DB_USER         {self.prefix["user"]}{self.name};
-fastcgi_param WP_DB_PASSWORD     {secret};
-{fastcgi_param_protection_script}
-"""
-            }
-        ),
-        spec=client.V1IngressSpec(
-            ingress_class_name="wordpress",
-            rules=[client.V1IngressRule(
-                host=hostname,
-                http=client.V1HTTPIngressRuleValue(
-                    paths=[client.V1HTTPIngressPath(
-                        path=path,
-                        path_type="Prefix",
-                        backend=client.V1IngressBackend(
-                            service=client.V1IngressServiceBackend(
-                                name="wp-nginx",
-                                port=client.V1ServiceBackendPort(
-                                    number=80,
-                                )
-                            )
-                        )
-                    )]
-                )
-            )]
-        )
-    )
-
-    try:
-        KubernetesAPI.networking.create_namespaced_ingress(
-            namespace=self.namespace,
-            body=body
-        )
-    except ApiException as e:
-        if e.status != 409:
-            raise e
-        logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} already exists")
-
+  def create_ingress (self, path, secret, hostname, protection_script):
+      logging.info(f"Creating ingress for {self.name}")
+      WordpressIngressReconciler(namespace=self.namespace, name=self.name).reconcile()
 
 class NamespaceFromEnv:
     @classmethod
