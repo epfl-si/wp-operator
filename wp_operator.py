@@ -1,6 +1,6 @@
 # Kopf documentation : https://kopf.readthedocs.io/
 #
-# The operator consume the following environment variables:
+# The operator consumes the following environment variables:
 # S3_BACKUP_BUCKET: OpenShift 4' S3 bucket name used to paste the backup file for initial restores
 # S3_BACKUP_KEYID: S3 keyid
 # S3_BACKUP_ACCESSSECRET: S3 accessSecret
