@@ -119,20 +119,6 @@ spec:
                   name: wp-backups
             - secretRef:
                   name: epfl-migration
-          env:
-            - name: S3_BACKUP_KEYID
-              valueFrom:
-                secretKeyRef:
-                  name: s3-backup-credentials
-                  key: keyId
-            - name: S3_BACKUP_ACCESSSECRET
-              valueFrom:
-                secretKeyRef:
-                  name: s3-backup-credentials
-                  key: accessSecret
-            - name: S3_BACKUP_SECRETNAME
-              # the operator need 'S3_BACKUP_SECRETNAME' so he can pass the secret to the MariaDB operator for initial restores
-              value: s3-backup-credentials
           volumeMounts:
             - name: wp-data
               mountPath: /wp-data/
