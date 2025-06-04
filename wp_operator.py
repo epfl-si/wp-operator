@@ -576,7 +576,7 @@ class WordPressSiteOperator:
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
-  def install_wordpress_via_php(self, title, tagline, unit_id, languages, secret, hostname, path, restored_site = 0):
+  def install_wordpress_via_php(self, title, tagline, unit_id, languages, secret, hostname, path):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
 
       cmdline = [Config.php, "ensure-wordpress-and-theme.php",
@@ -591,8 +591,7 @@ class WordPressSiteOperator:
                  f"--tagline={tagline}",
                  f"--unit-id={unit_id}",
                  f"--languages={languages}",
-                 f"--secret-dir={Config.secret_dir}",
-                 f"--restored-site={restored_site}"]
+                 f"--secret-dir={Config.secret_dir}"]
 
       cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
       logging.info(f" Running: {cmdline_text}")
