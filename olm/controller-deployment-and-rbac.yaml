@@ -126,7 +126,6 @@ rules:
   - databases
   - grants
   - mariadbs
-  - restores
   - sqljobs
   - users
   verbs: ['*']
