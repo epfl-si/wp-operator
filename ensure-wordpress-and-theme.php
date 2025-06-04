@@ -39,7 +39,6 @@ $longopts  = array(
     "unit-id:",
     "languages:",
     "secret-dir:",
-    "restored-site:",
 );
 $options = getopt($shortops, $longopts);
 if ( key_exists("h", $options) ) {
@@ -67,7 +66,6 @@ Options:
   --unit-id     Mandatory  Plugin unit ID
   --languages	Mandatory  List of languages
   --secret-dir  Mandatory  Secret file's folder
-  --restored-site Optional `1` if it's a restored site, the default value is `0` (for new sites)
 EOD;
   echo $help . "\n";
   exit();
@@ -116,7 +114,6 @@ define("UNIT_ID", $options["unit-id"]);
 define("LANGUAGES", $options["languages"]);
 define("SECRETS_DIR", $options["secret-dir"]);
 $options["restored-site"] = $options["restored-site"] ?? '0';
-define("RESTORED_SITE", $options["restored-site"]);
 
 global $table_prefix; $table_prefix = "wp_";
 
