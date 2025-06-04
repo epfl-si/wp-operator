@@ -21,7 +21,6 @@ RUN set -e -x; apt-get -qy update; \
         php-mysql \
         python3 \
         python3-pip \
-        restic \
         rsync \
         unzip \
      && rm -rf /var/lib/apt/lists/*; # from 1.12GB to 869MB
