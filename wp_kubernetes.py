@@ -102,7 +102,7 @@ class KubernetesObject:
 
     @property
     def owner_uid (self):
-        owners = self.field('metadata.ownerReferences')
+        owners = self.field('metadata.ownerReferences', None)
         if not owners:
             return None
         elif len(owners) > 1:
