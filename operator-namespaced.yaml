@@ -41,6 +41,9 @@ rules:
     resources:
     - events
     verbs: ['create', 'patch']
+  - apiGroups: ['']
+    resources: ['services']
+    verbs: ['get', 'list', 'watch']
   - apiGroups: ['k8s.mariadb.com']
     resources:
     - backups
