@@ -101,14 +101,10 @@ class KubernetesObject:
         return self.field('metadata.uid')
 
     @property
-    def owner_uid (self):
+    def owner_uids (self):
         owners = self.field('metadata.ownerReferences', None)
-        if not owners:
-            return None
-        elif len(owners) > 1:
-            raise ValueError("wp_operator cannot deal with objects that have multiple owners")
-        else:
-            return self.field("uid", starting_from=owners[0])
+        return [self.field("uid", starting_from=owner)
+                for owner in (owners if owners is not None else [])]
 
     @property
     def owner_reference (self):
@@ -120,7 +116,7 @@ class KubernetesObject:
 
     def _filter_owned (self, candidates):
         return [c for c in candidates
-                if c.owner_uid == self.uid]
+                if self.uid in c.owner_uids]
 
     def _sole_owned (self, candidates):
         candidates = self._filter_owned(candidates)
