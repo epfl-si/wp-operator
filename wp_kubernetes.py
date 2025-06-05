@@ -258,7 +258,7 @@ class CustomAPIKubernetesObject (KubernetesObject):
         for fragment in field_path.split("."):
             walk = walk.get(fragment)
             if walk is None:
-                if default == CustomAPIKubernetesObject.__UNSET:
+                if default is self.__UNSET:
                     raise ValueError(f"{field_path} not found in {self.moniker}")
                 else:
                     return default
