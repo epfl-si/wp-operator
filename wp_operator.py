@@ -606,7 +606,6 @@ class WordPressSiteOperator:
       unit_id = spec.get("owner", {}).get("epfl", {}).get("unitId")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
-      protection_script = wordpress.get("downloadsProtectionScript")
 
       languages = wordpress["languages"]
 
@@ -623,9 +622,9 @@ class WordPressSiteOperator:
       mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
 
       self.install_wordpress_via_php(title, tagline, unit_id, ','.join(languages),
-                                     mariadb_password, hostname, path, 0)
+                                     mariadb_password, hostname, path)
 
-      self.create_ingress(path, mariadb_password, hostname, protection_script)
+      self.create_ingress()
 
       self.reconcile_site(spec, {})
 
@@ -879,7 +878,7 @@ class WordPressSiteOperator:
           else:
               raise kopf.PermanentError(f"create {customObjectName} timed out or failed, last condition message: {message}")
 
-  def create_ingress (self, path, secret, hostname, protection_script):
+  def create_ingress (self):
       logging.info(f"Creating ingress for {self.name}")
       WordpressIngressReconciler(namespace=self.namespace, name=self.name).reconcile()
 

@@ -7,6 +7,7 @@ import re
 import threading
 import time
 import uuid
+import sys
 
 import kubernetes
 import kubernetes.client
