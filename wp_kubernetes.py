@@ -196,7 +196,7 @@ class Secret (KubernetesBuiltinObject):
             KubernetesAPI.core.list_namespaced_secret(namespace=namespace))
 
     def decode (self, field):
-        return base64.b64decode(self.field(f"data.{field}"))
+        return base64.b64decode(self.field(f"data.{field}")).decode("utf-8")
 
     @property
     def mariadb_password (self):
