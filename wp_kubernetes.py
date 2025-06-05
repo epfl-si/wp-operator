@@ -164,7 +164,9 @@ class KubernetesBuiltinObject (KubernetesObject):
     def namespace (self):
         return self._definition.metadata.namespace
 
-    def field (self, field_path, *, starting_from=None):
+    __UNSET = object()
+
+    def field (self, field_path, default=__UNSET, *, starting_from=None):
         walk = starting_from if starting_from is not None else self._definition
         for fragment in field_path.split("."):
             try:
@@ -173,6 +175,8 @@ class KubernetesBuiltinObject (KubernetesObject):
                 # At some point during the drill-down (e.g. below a
                 # Secret's `.data`), even the “built-in” types turn to
                 # dicts 🤷‍♂️
+                if default is not self.__UNSET and fragment not in walk:
+                    return default
                 walk = walk.get(fragment)
         return walk
 
