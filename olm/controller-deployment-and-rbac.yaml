@@ -155,6 +155,9 @@ rules:
   resources:
   - namespaces
   verbs: ['get']
+- apiGroups: ['']
+  resources: ['services']
+  verbs: ['get', 'list', 'watch']
 - apiGroups: ['networking.k8s.io']
   resources:
   - ingresses/status
