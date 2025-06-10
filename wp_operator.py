@@ -433,14 +433,16 @@ class RedirectionPluginReconciler (PluginReconciler):
 
 
 class WordpressIngressReconciler:
-    def __init__ (self, namespace, name):
-        self.name = name
-        self.namespace = namespace
+    def __init__ (self, me):
+        self._me = me
 
-    @cached_property
-    def _me (self):
-        return WordpressSite.get(namespace=self.namespace,
-                                 name=self.name)
+    @property
+    def name (self):
+        return self._me.name
+
+    @property
+    def namespace (self):
+        return self._me.namespace
 
     @property
     def hostname (self):
@@ -567,9 +569,9 @@ class WordPressSiteOperator:
       route_controller = RouteController()
 
       @kopf.on.create('wordpresssites')
-      def on_create_wordpresssite(spec, name, namespace, meta, **kwargs):
+      def on_create_wordpresssite(body, name, namespace, meta, **kwargs):
           wps_uid = meta.get('uid')
-          WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).create_site(spec)
+          WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).create_site(body)
 
       @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='spec')
       @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='status.wordpresssite.plugins')
@@ -597,9 +599,10 @@ class WordPressSiteOperator:
           "uid": self.wpn_uid
       }
 
-  def create_site(self, spec):
+  def create_site(self, body):
       logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
 
+      spec = body["spec"]
       hostname = spec.get('hostname')
       path = spec.get('path')
       wordpress = spec.get("wordpress")
@@ -624,7 +627,7 @@ class WordPressSiteOperator:
       self.install_wordpress_via_php(title, tagline, unit_id, ','.join(languages),
                                      mariadb_password, hostname, path)
 
-      self.create_ingress()
+      self.create_ingress(body)
 
       self.reconcile_site(spec, {})
 
@@ -878,9 +881,10 @@ class WordPressSiteOperator:
           else:
               raise kopf.PermanentError(f"create {customObjectName} timed out or failed, last condition message: {message}")
 
-  def create_ingress (self):
+  def create_ingress (self, body):
       logging.info(f"Creating ingress for {self.name}")
-      WordpressIngressReconciler(namespace=self.namespace, name=self.name).reconcile()
+      WordpressIngressReconciler(WordpressSite(body)).reconcile()
+
 
 class NamespaceFromEnv:
     @classmethod
