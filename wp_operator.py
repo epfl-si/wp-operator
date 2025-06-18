@@ -610,8 +610,6 @@ class WordPressSiteOperator:
       title = wordpress["title"]
       tagline = wordpress["tagline"]
 
-      languages = wordpress["languages"]
-
       self.mariadb_name = self.placer.place_and_create_database(self.namespace, self.prefix, self.name, self.ownerReferences)
       self.database_name = f"{self.prefix['db']}{self.name}"
 
@@ -624,7 +622,7 @@ class WordPressSiteOperator:
       mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.namespace).data['password'])
       mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
 
-      self.install_wordpress_via_php(title, tagline, unit_id, ','.join(languages),
+      self.install_wordpress_via_php(title, tagline, unit_id,
                                      mariadb_password, hostname, path)
 
       self.create_ingress(body)
@@ -637,7 +635,7 @@ class WordPressSiteOperator:
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
-  def install_wordpress_via_php(self, title, tagline, unit_id, languages, secret, hostname, path):
+  def install_wordpress_via_php(self, title, tagline, unit_id, secret, hostname, path):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
 
       cmdline = [Config.php, "ensure-wordpress-and-theme.php",
@@ -651,7 +649,6 @@ class WordPressSiteOperator:
                  f"--title={title}",
                  f"--tagline={tagline}",
                  f"--unit-id={unit_id}",
-                 f"--languages={languages}",
                  f"--secret-dir={Config.secret_dir}"]
 
       cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
