@@ -241,15 +241,6 @@ spec:
                     x-kubernetes-validations:
                       - message: Field 'wordpress.theme' is immutable
                         rule: self == oldSelf
-                  languages:
-                    description: WordpressSite's languages
-                    type: array
-                    items:
-                      type: string
-                      pattern: ^[a-z]{2}$
-                    x-kubernetes-validations:
-                      - message: Field 'wordpress.language' is immutable
-                        rule: self == oldSelf
                   downloadsProtectionScript:
                     type: string
                     pattern: ^/(.*)

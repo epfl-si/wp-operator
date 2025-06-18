@@ -37,7 +37,6 @@ $longopts  = array(
     "db-user:",
     "db-password:",
     "unit-id:",
-    "languages:",
     "secret-dir:",
 );
 $options = getopt($shortops, $longopts);
@@ -64,7 +63,6 @@ Options:
                            engines from indexing this site, but it is up to search
                            engines to honor this request.
   --unit-id     Mandatory  Plugin unit ID
-  --languages	Mandatory  List of languages
   --secret-dir  Mandatory  Secret file's folder
 EOD;
   echo $help . "\n";
@@ -111,7 +109,6 @@ define("DB_NAME", $options["db-name"]);
 define("DB_USER", $options["db-user"]);
 define("DB_PASSWORD", $options["db-password"]);
 define("UNIT_ID", $options["unit-id"]);
-define("LANGUAGES", $options["languages"]);
 define("SECRETS_DIR", $options["secret-dir"]);
 $options["restored-site"] = $options["restored-site"] ?? '0';
 
@@ -214,21 +211,6 @@ function generate_random_password(
     $str .= $keyspace[random_int(0, $max)];
   }
   return $str;
-}
-
-function delete_footer_menus ()
-{
-    $pages = get_posts([
-        'post_type' => ['epfl-external-menu'],
-        'posts_per_page' => -1, // get all
-        'post_status' => array_keys(get_post_statuses()), // all post statuses (publish, draft, private etc...)
-    ]);
-
-    foreach ($pages as $page) {
-        if (strpos($page->post_title, 'Footer[') > -1 or strpos($page->post_title, 'Pied de page[') > -1) {
-            wp_delete_post($page->ID, true);
-        }
-    }
 }
 
 echo "DB schema\n";
