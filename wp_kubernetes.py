@@ -227,7 +227,11 @@ class CustomAPIKubernetesObject (KubernetesObject):
     the `kind:` of the objects they model.
     """
     def __init__ (self, definition):
-        if not isinstance(definition, dict):
+        if hasattr(definition, "items"):
+            # Accepts plain Python dicts, as well as instances of
+            # kopf._cogs.structs.bodies.Body
+            pass
+        else:
             raise ValueError(f"{definition} is not a Kubernetes object")
         self._definition = definition
 
