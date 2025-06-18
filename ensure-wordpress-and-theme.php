@@ -213,21 +213,6 @@ function generate_random_password(
   return $str;
 }
 
-function delete_footer_menus ()
-{
-    $pages = get_posts([
-        'post_type' => ['epfl-external-menu'],
-        'posts_per_page' => -1, // get all
-        'post_status' => array_keys(get_post_statuses()), // all post statuses (publish, draft, private etc...)
-    ]);
-
-    foreach ($pages as $page) {
-        if (strpos($page->post_title, 'Footer[') > -1 or strpos($page->post_title, 'Pied de page[') > -1) {
-            wp_delete_post($page->ID, true);
-        }
-    }
-}
-
 echo "DB schema\n";
 ensure_db_schema();
 echo "Options and common WordPress settings\n";
