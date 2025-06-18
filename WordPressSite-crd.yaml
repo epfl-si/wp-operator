@@ -221,9 +221,6 @@ spec:
                       unitId:
                         description: EPFL unit ID of the owner
                         type: integer
-                        x-kubernetes-validations:
-                          - message: Field 'owner.epfl.unitId' is immutable
-                            rule: self == oldSelf
                         # TODO : Obtain the “official” regex with ISCS-IAM team.
               wordpress:
                 description: WordpressSite's own specs
@@ -233,16 +230,10 @@ spec:
                     description: WordpressSite's title
                     type: string
                     pattern: ^[\w\p{L}\p{M}\p{N}\p{P}\p{S}@._\- ]{1,}$
-                    x-kubernetes-validations:
-                      - message: Field 'wordpress.title' is immutable
-                        rule: self == oldSelf
                   tagline:
                     description: WordpressSite's tagline
                     type: string
                     pattern: ^[\w\p{L}\p{M}\p{N}\p{P}\p{S}@._\- ]{1,}$
-                    x-kubernetes-validations:
-                      - message: Field 'wordpress.tagline' is immutable
-                        rule: self == oldSelf
                   theme:
                     description: WordpressSite's theme
                     type: string
