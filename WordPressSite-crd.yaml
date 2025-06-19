@@ -266,7 +266,6 @@ spec:
                   - title
                   - tagline
                   - theme
-                  - languages
               epfl:
                 description: WordpressSite's EPFL related specs
                 type: object
@@ -329,11 +328,6 @@ spec:
         type: string
         description: "WordPress site's unit"
         jsonPath: ".spec.owner.epfl.unitId"
-        priority: 1
-      - name: Languages
-        type: string
-        description: "Initial languages for the site"
-        jsonPath: ".spec.wordpress.languages"
         priority: 1
       - name: Plugins
         type: string
