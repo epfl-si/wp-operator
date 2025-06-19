@@ -325,6 +325,7 @@ class SiteReconcilerWork:
         self._php_work = ''
         self._plugins_to_activate = []
         self._plugins_to_deactivate = []
+        self._languages_to_delete = []
 
     def activate_plugin(self, plugin_name):
         self._plugins_to_activate.append(plugin_name)
@@ -336,6 +337,9 @@ class SiteReconcilerWork:
         self.flush()
         self._do_run_wp(['pll', 'lang', 'create', f'{lang["name"]}', f'{lang["slug"]}', f'{lang["locale"]}',
                          f'--rtl={lang["rtl"]}', f'--order={lang["term_group"]}', f'--flag={lang["flag"]}'])
+
+    def delete_language(self, locale):
+        self._languages_to_delete.append(locale)
 
     def apply_sql(self, sql_filename):
         self.flush()
@@ -356,6 +360,10 @@ class SiteReconcilerWork:
         if self._plugins_to_deactivate:
             self._do_run_wp(['plugin', 'deactivate'] + self._plugins_to_deactivate)
         self._plugins_to_deactivate = []
+
+        if self._languages_to_delete:
+            self._do_run_wp(['pll', 'lang', 'delete'] + self._languages_to_delete)
+        self._languages_to_delete = []
 
         if self._php_work:
             self._do_run_wp(['eval', self._php_work])
@@ -575,6 +583,8 @@ class WordPressSiteOperator:
 
       @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='spec')
       @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='status.wordpresssite.plugins')
+      @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='status.wordpresssite.languages')
+      @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='status.wordpresssite.unitid')
       def on_update_wordpresssite(spec, name, namespace, meta, status, **kwargs):
           wps_uid = meta.get('uid')
           WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).reconcile_site(spec, status)
@@ -669,6 +679,8 @@ class WordPressSiteOperator:
 
       logging.info("Plugins")
       self.reconcile_plugins(spec, status)
+      self.reconcile_languages(spec, status)
+      self.reconcile_unitId(spec)
 
       self._patch_wordpresssite_status()
 
@@ -701,6 +713,42 @@ class WordPressSiteOperator:
 
       work.flush()
       logging.info(f"End of reconcile WordPressSite plugins {self.name=} in {self.namespace=}")
+
+  def reconcile_languages(self, spec, status):
+    logging.info(f"Reconcile WordPressSite languages {self.name=} in {self.namespace=}")
+    work = SiteReconcilerWork(self)
+
+    wordpress = spec.get("wordpress")
+    plugins = wordpress.get("plugins", {})
+    polylang = plugins.get("polylang", {}).get("polylang", {})
+    languages_wanted = polylang.get("languages", [])
+    locale_wanted = {lang['locale'] for lang in languages_wanted}
+
+    status_spec = status.get("wordpresssite", {})
+    languages_got = status_spec.get("languages", [])
+    locale_got = {lang['locale'] for lang in languages_got}
+
+    languages_to_activate = locale_wanted - locale_got
+    logging.info(f'languages_to_activate: {languages_to_activate}')
+    for locale in languages_to_activate:
+        language = next((lang for lang in languages_wanted if lang["locale"] == locale), None)
+        if language:
+            work.add_language(language)
+
+    languages_to_deactivate = locale_got - locale_wanted
+    logging.info(f'languages_to_deactivate: {languages_to_deactivate}')
+    for locale in languages_to_deactivate:
+        work.delete_language(locale)
+
+    work.flush()
+    logging.info(f"End of reconcile WordPressSite languages {self.name=} in {self.namespace=}")
+
+  def reconcile_unitId(self, spec):
+      logging.info(f"Reconcile WordPressSite unit_id {self.name=} in {self.namespace=}")
+      work = SiteReconcilerWork(self)
+      unit = spec.get("owner", {}).get("epfl", {}).get("unitId", {})
+      work.set_wp_option('plugin:epfl_accred:unit_id', unit)
+      logging.info(f"Reconcile WordPressSite unit_id {self.name=} in {self.namespace=}")
 
   def _patch_wordpresssite_status (self):
       """
