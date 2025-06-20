@@ -726,7 +726,7 @@ class WordPressSiteOperator:
 
     status_spec = status.get("wordpresssite", {})
     languages_got = status_spec.get("languages", [])
-    locale_got = {lang['locale'] for lang in languages_got}
+    locale_got = {lang for lang in languages_got}
 
     languages_to_activate = locale_wanted - locale_got
     logging.info(f'languages_to_activate: {languages_to_activate}')
