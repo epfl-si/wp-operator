@@ -30,19 +30,19 @@ async function makeFileExecutable() {
 }
 
 const LANGUAGES = [
-	{ name: "English", locale: "en_US", rtl: 0, term_group: 0, flag: "us", slug: "en_US" },
-	{ name: "English", locale: "en_GB", rtl: 0, term_group: 29, flag: "gb", slug: "en_GB" },
-	{ name: "Français", locale: "fr_FR", rtl: 0, term_group: 1, flag: "fr", slug: "fr_FR" },
-	{ name: "Deutsch", locale: "de_CH", rtl: 0, term_group: 20, flag: "ch", slug: "de_CH" },
-	{ name: "Deutsch", locale: "de_CH_informal", rtl: 0, term_group: 21, flag: "ch", slug: "de_CH_informal" },
-	{ name: "Deutsch", locale: "de_DE", rtl: 0, term_group: 22, flag: "de", slug: "de_DE" },
-	{ name: "Українська", locale: "uk", rtl: 0, term_group: 128, flag: "ua", slug: "uk" },
-	{ name: "Italiano", locale: "it_IT", rtl: 0, term_group: 3, flag: "it", slug: "it_IT" },
-	{ name: "Español", locale: "es_ES", rtl: 0, term_group: 4, flag: "es", slug: "es_ES" },
-	{ name: "Ελληνικά", locale: "el", rtl: 0, term_group: 5, flag: "gr", slug: "el" },
-	{ name: "Română", locale: "ro_RO", rtl: 0, term_group: 6, flag: "ro", slug: "ro_RO" },
-	{ name: "فارسی", locale: "fa_IR", rtl: 1, term_group: 50, flag: "ir", slug: "fa_IR" },
-	{ name: "Polski", locale: "pl_PL", rtl: 0, term_group: 97, flag: "pl", slug: "pl_PL" },
+	{ name: "English", locale: "en_US", rtl: 0, term_group: 0, flag: "us", slug: "en"},
+	{ name: "English", locale: "en_GB", rtl: 0, term_group: 29, flag: "gb", slug: "en"},
+	{ name: "Français", locale: "fr_FR", rtl: 0, term_group: 1, flag: "fr", slug: "fr"},
+	{ name: "Deutsch", locale: "de_CH", rtl: 0, term_group: 20, flag: "ch", slug: "de"},
+	{ name: "Deutsch", locale: "de_CH_informal", rtl: 0, term_group: 21, flag: "ch", slug: "de"},
+	{ name: "Deutsch", locale: "de_DE", rtl: 0, term_group: 22, flag: "de", slug: "de"},
+	{ name: "Українська", locale: "uk", rtl: 0, term_group: 128, flag: "ua", slug: "uk"},
+	{ name: "Italiano", locale: "it_IT", rtl: 0, term_group: 3, flag: "it", slug: "it"},
+	{ name: "Español", locale: "es_ES", rtl: 0, term_group: 4, flag: "es", slug: "es"},
+	{ name: "Ελληνικά", locale: "el", rtl: 0, term_group: 5, flag: "gr", slug: "el"},
+	{ name: "Română", locale: "ro_RO", rtl: 0, term_group: 6, flag: "ro", slug: "ro"},
+	{ name: "فارسی", locale: "fa_IR", rtl: 1, term_group: 50, flag: "ir", slug: "fa"},
+	{ name: "Polski", locale: "pl_PL", rtl: 0, term_group: 97, flag: "pl", slug: "pl"},
 ];
 
 const run = async () => {
