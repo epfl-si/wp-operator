@@ -338,8 +338,8 @@ class SiteReconcilerWork:
         self._do_run_wp(['pll', 'lang', 'create', f'{lang["name"]}', f'{lang["slug"]}', f'{lang["locale"]}',
                          f'--rtl={lang["rtl"]}', f'--order={lang["term_group"]}', f'--flag={lang["flag"]}'])
 
-    def delete_language(self, locale):
-        self._languages_to_delete.append(locale)
+    def delete_language(self, slug):
+        self._languages_to_delete.append(slug)
 
     def apply_sql(self, sql_filename):
         self.flush()
@@ -722,23 +722,23 @@ class WordPressSiteOperator:
     plugins = wordpress.get("plugins", {})
     polylang = plugins.get("polylang", {}).get("polylang", {})
     languages_wanted = polylang.get("languages", [])
-    locale_wanted = {lang['locale'] for lang in languages_wanted}
+    slug_wanted = {lang['slug'] for lang in languages_wanted}
 
     status_spec = status.get("wordpresssite", {})
     languages_got = status_spec.get("languages", [])
-    locale_got = {lang for lang in languages_got}
+    slug_got = {lang for lang in languages_got}
 
-    languages_to_activate = locale_wanted - locale_got
+    languages_to_activate = slug_wanted - slug_got
     logging.info(f'languages_to_activate: {languages_to_activate}')
-    for locale in languages_to_activate:
-        language = next((lang for lang in languages_wanted if lang["locale"] == locale), None)
+    for slug in languages_to_activate:
+        language = next((lang for lang in languages_wanted if lang["slug"] == slug), None)
         if language:
             work.add_language(language)
 
-    languages_to_deactivate = locale_got - locale_wanted
+    languages_to_deactivate = slug_got - slug_wanted
     logging.info(f'languages_to_deactivate: {languages_to_deactivate}')
-    for locale in languages_to_deactivate:
-        work.delete_language(locale)
+    for slug in languages_to_deactivate:
+        work.delete_language(slug)
 
     work.flush()
     logging.info(f"End of reconcile WordPressSite languages {self.name=} in {self.namespace=}")
@@ -775,7 +775,7 @@ class WordPressSiteOperator:
 
   def _status_wordpresssite_struct(self):
       if 'DEBUG' in os.environ:
-          out = {'plugins': {'tata': {}, 'titi': {}}}
+          out = {}
       else:
           cmdline = ['wp', f'--ingress={self.ingress_name}', 'eval', '''echo(json_encode(apply_filters('wp_operator_status',[]), JSON_PRETTY_PRINT));''']
           result = self._do_run_wp(cmdline, capture_output=True, text=True)
@@ -959,7 +959,7 @@ class NamespaceFromEnv:
     @classmethod
     def setup (cls):
         namespace = cls.get()
-        logging.info(f'WP-Operator v2.1.0 | codename: Chihuahua')
+        logging.info(f'WP-Operator v2.1.0 | codename: Mellifera')
         logging.info(f'Running in namespace {namespace}')
         os.environ['KUBERNETES_NAMESPACE'] = namespace
         try:
