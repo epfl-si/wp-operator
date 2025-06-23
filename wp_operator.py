@@ -325,7 +325,6 @@ class SiteReconcilerWork:
         self._php_work = ''
         self._plugins_to_activate = []
         self._plugins_to_deactivate = []
-        self._languages_to_delete = []
 
     def activate_plugin(self, plugin_name):
         self._plugins_to_activate.append(plugin_name)
@@ -339,7 +338,8 @@ class SiteReconcilerWork:
                          f'--rtl={lang["rtl"]}', f'--order={lang["term_group"]}', f'--flag={lang["flag"]}'])
 
     def delete_language(self, slug):
-        self._languages_to_delete.append(slug)
+        self.flush()
+        self._do_run_wp(['pll', 'lang', 'delete', f'{slug}'])
 
     def apply_sql(self, sql_filename):
         self.flush()
@@ -360,10 +360,6 @@ class SiteReconcilerWork:
         if self._plugins_to_deactivate:
             self._do_run_wp(['plugin', 'deactivate'] + self._plugins_to_deactivate)
         self._plugins_to_deactivate = []
-
-        if self._languages_to_delete:
-            self._do_run_wp(['pll', 'lang', 'delete'] + self._languages_to_delete)
-        self._languages_to_delete = []
 
         if self._php_work:
             self._do_run_wp(['eval', self._php_work])
