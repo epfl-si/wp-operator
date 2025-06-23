@@ -2,7 +2,7 @@
 const { promises: fs } = require("fs");
 const { exec } = require('child_process');
 
-const namespace = "wordpress-test";
+const namespace = "svc0041t-wordpress";
 const patchFile = 'scripts/patchlanguages.sh';
 
 async function execKubectl(command) {
@@ -22,7 +22,7 @@ async function execKubectl(command) {
 }
 
 async function write(content) {
-	await fs.writeFile(patchFile, content);
+	await fs.appendFile(patchFile, content);
 }
 
 async function makeFileExecutable() {
@@ -52,11 +52,15 @@ const run = async () => {
 		if (site["polylang_spec"] != null)
 			continue;
 		const languageList = []
-		site["languages"].forEach(l => {
-			languageList.push(LANGUAGES.find(lang => lang.locale == l))
-		})
-		await write(`kubectl patch wp ${site.NAME} -n ${namespace} --type='merge' -p '{"spec":{"wordpress": {"plugins": {"polylang": {"polylang": {"languages": ${JSON.stringify(languageList)}}}}}}}' \n`)
-		await makeFileExecutable();
+		if (site["languages"]) {
+			site["languages"].forEach(l => {
+				languageList.push(LANGUAGES.find(lang => lang.locale == l.locale))
+			})
+			await write(`kubectl patch wp ${site.NAME} -n ${namespace} --type='merge' -p '{"spec":{"wordpress": {"plugins": {"polylang": {"polylang": {"languages": ${JSON.stringify(languageList)}}}}}}}' \n`)
+			await makeFileExecutable();
+		} else {
+			console.log(`Error with the following site: ${JSON.stringify(site)}`)
+		}
 	}
 }
 
