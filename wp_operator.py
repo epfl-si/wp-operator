@@ -718,23 +718,25 @@ class WordPressSiteOperator:
     plugins = wordpress.get("plugins", {})
     polylang = plugins.get("polylang", {}).get("polylang", {})
     languages_wanted = polylang.get("languages", [])
-    slug_wanted = {lang['slug'] for lang in languages_wanted}
+    locale_wanted = {lang['locale'] for lang in languages_wanted}
 
     status_spec = status.get("wordpresssite", {})
     languages_got = status_spec.get("languages", [])
-    slug_got = {lang for lang in languages_got}
+    locale_got = {lang['locale'] for lang in languages_got}
 
-    languages_to_activate = slug_wanted - slug_got
+    languages_to_deactivate = locale_got - locale_wanted
+    logging.info(f'languages_to_deactivate: {languages_to_deactivate}')
+    for locale in languages_to_deactivate:
+        language = next((lang for lang in languages_got if lang["locale"] == locale), None)
+        if language:
+            work.delete_language(language['slug'])
+
+    languages_to_activate = locale_wanted - locale_got
     logging.info(f'languages_to_activate: {languages_to_activate}')
-    for slug in languages_to_activate:
-        language = next((lang for lang in languages_wanted if lang["slug"] == slug), None)
+    for locale in languages_to_activate:
+        language = next((lang for lang in languages_wanted if lang["locale"] == locale), None)
         if language:
             work.add_language(language)
-
-    languages_to_deactivate = slug_got - slug_wanted
-    logging.info(f'languages_to_deactivate: {languages_to_deactivate}')
-    for slug in languages_to_deactivate:
-        work.delete_language(slug)
 
     work.flush()
     logging.info(f"End of reconcile WordPressSite languages {self.name=} in {self.namespace=}")
