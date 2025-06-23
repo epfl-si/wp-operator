@@ -36,8 +36,7 @@ COPY ./requirements.txt .
 RUN pip3 install -r requirements.txt
 COPY . .
 
-# `wp-base` below means the image built from https://github.com/epfl-si/wp-ops/tree/WPN/docker/wp-base
-COPY --from=wp-base /wp /wp
-COPY --from=wp-base /usr/local/bin/wp /usr/local/bin/wp
+COPY --from=quay-its.epfl.ch/svc0041/wp-base:rc /wp /wp
+COPY --from=quay-its.epfl.ch/svc0041/wp-base:rc /usr/local/bin/wp /usr/local/bin/wp
 
 ENTRYPOINT [ "python3", "wp_operator.py", "run"]
