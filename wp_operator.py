@@ -746,6 +746,7 @@ class WordPressSiteOperator:
       work = SiteReconcilerWork(self)
       unit = spec.get("owner", {}).get("epfl", {}).get("unitId", {})
       work.set_wp_option('plugin:epfl_accred:unit_id', unit)
+      work.flush()
       logging.info(f"Reconcile WordPressSite unit_id {self.name=} in {self.namespace=}")
 
   def _patch_wordpresssite_status (self):
