@@ -487,22 +487,6 @@ class WordpressIngressReconciler:
         path_slash = ensure_final_slash(self._me.path)
 
         return f"""
-include "/etc/nginx/template/wordpress_fastcgi.conf";
-
-location = {path_slash}wp-admin {{
-    return 301 https://{self.hostname}{path_slash}wp-admin/;
-}}
-
-location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {{
-    rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
-    root /wp/;
-    location ~* \\.(ico|pdf|apng|avif|webp|jpg|jpeg|png|gif|svg)$ {{
-        add_header Cache-Control "129600, public";
-        # rewrite is not inherited https://stackoverflow.com/a/32126596
-        rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
-    }}
-}}
-
 location ~ (wp-content/uploads)/ {{
     {location_script}
 }}
@@ -510,7 +494,6 @@ location ~ (wp-content/uploads)/ {{
 fastcgi_param WP_DEBUG           true;
 fastcgi_param WP_ROOT_URI        {path_slash};
 fastcgi_param WP_SITE_NAME       {self.name};
-fastcgi_param WP_ABSPATH         /wp/;
 fastcgi_param WP_DB_HOST         {self.db.mariadb.service.name};
 fastcgi_param WP_DB_NAME         {self.db.dbname};
 fastcgi_param WP_DB_USER         {self.user.username};
