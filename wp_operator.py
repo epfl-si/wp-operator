@@ -475,22 +475,13 @@ class WordpressIngressReconciler:
     @property
     def _nginx_configuration_snippet (self):
         if self.protection_script:
-            location_script = f"""fastcgi_pass unix:/run/php-fpm/php-fpm.sock;"""
             fastcgi_param_protection_script = f"""fastcgi_param DOWNLOADS_PROTECTION_SCRIPT    {self.protection_script};"""
         else:
-            location_script = f"""rewrite .*/(wp-content/uploads/(.*)) /$2 break;
-
-            root {self.uploads_dir};
-            add_header Cache-Control "129600, public";"""
             fastcgi_param_protection_script = ""
 
         path_slash = ensure_final_slash(self._me.path)
 
         return f"""
-location ~ (wp-content/uploads)/ {{
-    {location_script}
-}}
-
 fastcgi_param WP_DEBUG           true;
 fastcgi_param WP_ROOT_URI        {path_slash};
 fastcgi_param WP_SITE_NAME       {self.name};
@@ -503,6 +494,14 @@ fastcgi_param WP_DB_PASSWORD     {self.secret.mariadb_password};
 
     def reconcile (self):
         """TODO: doesn't actually handle anything but initial creation. (Yet)"""
+        annotations = {
+            "nginx.ingress.kubernetes.io/configuration-snippet":
+            self._nginx_configuration_snippet
+        }
+
+        if not self.protection_script:
+            annotations["wordpress.epfl.ch/nginx-uploads-dirname"] = self.name
+
         body = client.V1Ingress(
             api_version="networking.k8s.io/v1",
             kind="Ingress",
@@ -510,10 +509,7 @@ fastcgi_param WP_DB_PASSWORD     {self.secret.mariadb_password};
                 name=self._me.name,
                 namespace=self._me.namespace,
                 owner_references=[self._me.owner_reference],
-                annotations={
-                    "nginx.ingress.kubernetes.io/configuration-snippet":
-                    self._nginx_configuration_snippet
-                }
+                annotations=annotations
             ),
             spec=client.V1IngressSpec(
                 ingress_class_name="wordpress",
