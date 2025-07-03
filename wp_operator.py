@@ -43,7 +43,7 @@ class Config:
             epilog='Happy operating!')
 
         parser.add_argument('--wp-dir', help='The path to the WordPress sources to load and call.',
-                            default="../volumes/wp/6/")   # TODO: this only makes sense in dev.
+                            default="../volumes/wp/")   # TODO: this only makes sense in dev.
         parser.add_argument('--php', help='The path to the PHP command-line (CLI) executable.',
                             default="php")
         parser.add_argument('--wp-php-ensure', help='The path to the PHP script that ensures the postconditions.',
@@ -495,7 +495,7 @@ location = {path_slash}wp-admin {{
 
 location ~ (wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/ {{
     rewrite .*/((wp-includes|wp-admin|wp-content/(plugins|mu-plugins|themes))/.*) /$1 break;
-    root /wp/6/;
+    root /wp/;
     location ~* \\.(ico|pdf|apng|avif|webp|jpg|jpeg|png|gif|svg)$ {{
         add_header Cache-Control "129600, public";
         # rewrite is not inherited https://stackoverflow.com/a/32126596
@@ -510,7 +510,7 @@ location ~ (wp-content/uploads)/ {{
 fastcgi_param WP_DEBUG           true;
 fastcgi_param WP_ROOT_URI        {path_slash};
 fastcgi_param WP_SITE_NAME       {self.name};
-fastcgi_param WP_ABSPATH         /wp/6/;
+fastcgi_param WP_ABSPATH         /wp/;
 fastcgi_param WP_DB_HOST         {self.db.mariadb.service.name};
 fastcgi_param WP_DB_NAME         {self.db.dbname};
 fastcgi_param WP_DB_USER         {self.user.username};
