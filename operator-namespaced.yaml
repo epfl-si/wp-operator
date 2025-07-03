@@ -112,7 +112,7 @@ spec:
           args:
           - --namespace=wordpress-test
           - --
-          - --wp-dir=/wp/6
+          - --wp-dir=/wp
           - --secret-dir=/wp-secrets
           envFrom:
             - configMapRef:
