@@ -465,8 +465,8 @@ class WordpressIngressReconciler:
         return self._me.secret
 
     @property
-    def uploads_dir (self):
-        return f"/wp-data/{self.name}/uploads/"
+    def uploads_dirname (self):
+        return self.name   # ⚠ Do *NOT* rely on that being the case forever!
 
     @property
     def protection_script (self):
@@ -484,7 +484,7 @@ class WordpressIngressReconciler:
         return f"""
 fastcgi_param WP_DEBUG           true;
 fastcgi_param WP_ROOT_URI        {path_slash};
-fastcgi_param WP_SITE_NAME       {self.name};
+fastcgi_param WP_UPLOADS_DIRNAME {self.uploads_dirname};
 fastcgi_param WP_DB_HOST         {self.db.mariadb.service.name};
 fastcgi_param WP_DB_NAME         {self.db.dbname};
 fastcgi_param WP_DB_USER         {self.user.username};
@@ -500,7 +500,7 @@ fastcgi_param WP_DB_PASSWORD     {self.secret.mariadb_password};
         }
 
         if not self.protection_script:
-            annotations["wordpress.epfl.ch/nginx-uploads-dirname"] = self.name
+            annotations["wordpress.epfl.ch/nginx-uploads-dirname"] = self.uploads_dirname
 
         body = client.V1Ingress(
             api_version="networking.k8s.io/v1",
