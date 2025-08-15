@@ -18,6 +18,7 @@ import json
 
 import kopf
 import kopf.cli
+from wp_database import MariaDB
 from kubernetes import client, config
 from kubernetes.client.exceptions import ApiException
 from urllib3 import disable_warnings
@@ -594,7 +595,7 @@ class WordPressSiteOperator:
       unit_id = spec.get("owner", {}).get("epfl", {}).get("unitId")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
-      restore = spec.get("epfl", {}).get("restore")
+      restore = spec.get("restore")
 
       self.mariadb_name = self.placer.place_and_create_database(self.namespace, self.prefix, self.name, self.ownerReferences)
       self.database_name = f"{self.prefix['db']}{self.name}"
@@ -614,7 +615,7 @@ class WordPressSiteOperator:
       self.create_ingress(body)
 
       if restore:
-          self.restore_site(restore)
+          self.restore_site(restore["s3"])
 
       self.reconcile_site(spec, {})
 
@@ -625,8 +626,86 @@ class WordPressSiteOperator:
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
   def restore_site(self, restore):
-      # TODO
-      restore["s3"]
+      # TODO create wp-fleet image + cronjob + add it into tekton
+
+      #V 0- create a mariadb-restore as code ansible --> we need in test also the wp-fleet-prod -->
+      # TODO ticket ITOP-SDDC
+      # TODO remove fleet from mariadb-restore into ansible
+
+      # TODO faire condition pour le onOf entre mariaDBLookup et dbName
+      # If restore["wpDbBackupRef"]["mariaDBLookup"] is fullfilled
+      # 2- From the wp-fleet DB (test or prod), make the query to get the record where the 'name' is the wpssource
+      source_information = MariaDB.get_site(restore['wpDbBackupRef']['mariaDBLookup']['query'])
+
+      # 3- Get the mariadb from the source_information
+      mariadb_source_name = source_information["mariadb"]
+      db_source_name = source_information["database"]
+
+      # 4- From the s3, restore the db source on the mariadb-restore
+      # TODO add "mariadb-restore into an environment variable (add it into the deployment wp-operator)
+      self.restore_from_s3 (restore["s3"]["bucket"], mariadb_source_name, db_source_name, os.getenv("MARIADB-RESTORE"),
+                            restore["s3"]["endpoint"], restore["s3"]["secretKeyName"])
+
+      # 5- use mysqldump to dump the db from the restored mariadb
+      # 6- in the pipeline faire un sed for the search and replace for the url and the DB name
+      # 7- restore this modified dump into the new database of the new site
+      # 8- media??
+      MariaDB.close()
+
+  def restore_from_s3 (self, bucket_name, mariadb_name_src, db_name_src, mariadb_name_dst, endpoint, s3_secret_name):
+    logging.info(f"   ↳ [{self.namespace}/{self.name}] Initiating restore on {mariadb_name_dst} for {mariadb_name_src}/{db_name_src}")
+
+    # Initiate the restore process in MariaDB
+    restore_spec = {
+        "apiVersion": "k8s.mariadb.com/v1alpha1",
+        "kind": "Restore",
+        "metadata": {
+            "name": f"m-{db_name_src[-50:]}-{round(time.time())}",
+            "namespace": self.namespace,
+            "ownerReferences": self.ownerReferences
+        },
+        "spec": {
+            "mariaDbRef": {
+                "name": mariadb_name_dst
+            },
+            "resources": {
+                "requests": {
+                    "cpu": "100m",
+                    "memory": "256Mi"
+                }
+            },
+            "s3": {
+                "bucket": bucket_name,
+                "prefix": f"MariaDB-{mariadb_name_src}",
+                "endpoint": endpoint,
+                "accessKeyIdSecretKeyRef": {
+                    "name": s3_secret_name,
+                    "key": "keyId"
+                },
+                "secretAccessKeySecretKeyRef": {
+                    "name": s3_secret_name,
+                    "key": "accessSecret"
+                },
+                "tls": {
+                    "enabled": True
+                }
+            },
+            "targetRecoveryTime": self.now,
+            "args": [
+                "--verbose",
+                f"--database={db_name_src}"
+            ]
+        }
+    }
+
+    logging.info(f"   ↳ [{self.namespace}/{self.name}] Creating restore object in Kubernetes")
+    return KubernetesAPI.custom.create_namespaced_custom_object(
+        group="k8s.mariadb.com",
+        version="v1alpha1",
+        namespace=self.namespace,
+        plural="restores",
+        body=restore_spec
+    )
 
   def install_wordpress_via_php(self, title, tagline, unit_id, secret, hostname, path):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
