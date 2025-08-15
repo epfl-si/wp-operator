@@ -594,6 +594,7 @@ class WordPressSiteOperator:
       unit_id = spec.get("owner", {}).get("epfl", {}).get("unitId")
       title = wordpress["title"]
       tagline = wordpress["tagline"]
+      restore = spec.get("epfl", {}).get("restore")
 
       self.mariadb_name = self.placer.place_and_create_database(self.namespace, self.prefix, self.name, self.ownerReferences)
       self.database_name = f"{self.prefix['db']}{self.name}"
@@ -612,6 +613,9 @@ class WordPressSiteOperator:
 
       self.create_ingress(body)
 
+      if restore:
+          self.restore_site(restore)
+
       self.reconcile_site(spec, {})
 
       route_name = f"{self.prefix['route']}{self.name}"
@@ -619,6 +623,10 @@ class WordPressSiteOperator:
       self.route_controller.create_route(self.namespace, self.name, route_name, hostname, path, service_name, self.ownerReferences)
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
+
+  def restore_site(self, restore):
+      # TODO
+      restore["s3"]
 
   def install_wordpress_via_php(self, title, tagline, unit_id, secret, hostname, path):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
