@@ -262,16 +262,16 @@ spec:
                         description: Connection string to mariaDB
                         type: object
                         properties:
-                          mariadb_name_source:
+                          mariadbNameSource:
                             description: Name of the mariaDB
                             type: string
-                          mariadb_secret_name:
+                          mariadbSecretName:
                             description: secret
                             type: string
-                          database_name_source:
+                          databaseNameSource:
                             description: database of the cource
                             type: string
-                          url_source:
+                          urlSource:
                             description: url of the source
                             type: string
                         required:
