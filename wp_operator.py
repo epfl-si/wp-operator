@@ -18,7 +18,6 @@ import json
 
 import kopf
 import kopf.cli
-from wp_database import MariaDB
 from kubernetes import client, config
 from kubernetes.client.exceptions import ApiException
 from urllib3 import disable_warnings
