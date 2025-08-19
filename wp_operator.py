@@ -643,7 +643,7 @@ class WordPressSiteOperator:
           self.create_database_for_restore(db_source_name)
           secret = KubernetesAPI.core.read_namespaced_secret(restore["wpDbBackupRef"]["mariaDBLookup"]["mariadb_secret_name"],
                                                              self.namespace)
-          base64.b64decode(secret.data["root-password"]).decode("utf-8")
+          decoded_secret = base64.b64decode(secret.data["root-password"]).decode("utf-8")
 
           self.restore_from_s3 (restore["s3"]["bucket"], mariadb_source_name, db_source_name, os.getenv("MARIADB-RESTORE"),
                                 restore["s3"]["endpoint"], restore["s3"]["secretKeyName"])
@@ -651,7 +651,7 @@ class WordPressSiteOperator:
           # 5- Use mysqldump to dump the db from the restored mariadb
           logging.info(f" ↳ Dump restored source DB")
 
-          cmdline = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p'{secret}'", "--databases", db_source_name,
+          cmdline = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p{decoded_secret}", "--databases", db_source_name,
                      "|",
                      "sed", "-e", rf"s|{restore['url_source']}|https://{hostname}{path}|g",
                      "|",
@@ -663,7 +663,7 @@ class WordPressSiteOperator:
               cmdline.insert(0, "echo")
           result_dump = subprocess.run(cmdline, capture_output=True, text=True)
 
-          restore_command = ["mysql", "-u", "root", "-h", self.mariadb_name, f"-p{secret}", self.database_name]
+          restore_command = ["mysql", "-u", "root", "-h", self.mariadb_name, f"-p{decoded_secret}", self.database_name]
           logging.info(f"   Running: {' '.join(restore_command)}")
           result_restore = subprocess.Popen(restore_command, stdin=result_dump.stdout, stdout=subprocess.PIPE)
           result_restore.stdout.close()
