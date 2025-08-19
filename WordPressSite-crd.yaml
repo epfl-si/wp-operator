@@ -245,13 +245,6 @@ spec:
                         description: Name of the secret key containing the S3 secret access key
                         type: string
                         default: "accessSecret"
-                      database:
-                        description: Name of the database to restore
-                        type: string
-                      urlSource:
-                        description: URL of the source site to restore from
-                        type: string
-                        pattern: ^http(s)?://.*
                     required:
                       - bucket
                       - endpoint
