@@ -1,4 +1,3 @@
 kopf
 kubernetes
 kubernetes-asyncio
-mariadb
