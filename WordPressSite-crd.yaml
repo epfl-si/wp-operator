@@ -249,8 +249,36 @@ spec:
                       - bucket
                       - endpoint
                       - secretKeyName
-                      - database
-                      - urlSource
+                  wpDbBackupRef:
+                    type: object
+                    oneOf:
+                      - required: ["dbName"]
+                      - required: ["mariaDBLookup"]
+                    properties:
+                      dbName:
+                        description: Name of the database of the worpdresssite to restore
+                        type: string
+                      mariaDBLookup:
+                        description: Connection string to mariaDB
+                        type: object
+                        properties:
+                          mariadb_name_source:
+                            description: Name of the mariaDB
+                            type: string
+                          mariadb_secret_name:
+                            description: secret
+                            type: string
+                          database_name_source:
+                            description: database of the cource
+                            type: string
+                          url_source:
+                            description: url of the source
+                            type: string
+                        required:
+                          - mariadb_name_source
+                          - database_name_source
+                          - url_source
+                          - mariadb_secret_name
               wordpress:
                 description: WordpressSite's own specs
                 type: object
