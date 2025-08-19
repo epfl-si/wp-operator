@@ -635,13 +635,13 @@ class WordPressSiteOperator:
       # TODO faire condition pour le onOf entre mariaDBLookup et dbName
       if restore["wpDbBackupRef"]["mariaDBLookup"]:
           # 3- Get the mariadb from the source_information
-          mariadb_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["mariadb_name_source"]
-          db_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["database_name_source"]
+          mariadb_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["mariadbNameSource"]
+          db_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["databaseNameSource"]
 
           # 4- From the s3, restore the db source on the mariadb-restore
           # TODO add "mariadb-restore into an environment variable (add it into the deployment wp-operator)
           self.create_database_for_restore(db_source_name)
-          secret = KubernetesAPI.core.read_namespaced_secret(restore["wpDbBackupRef"]["mariaDBLookup"]["mariadb_secret_name"],
+          secret = KubernetesAPI.core.read_namespaced_secret(restore["wpDbBackupRef"]["mariaDBLookup"]["mariadbSecretName"],
                                                              self.namespace)
           decoded_secret = base64.b64decode(secret.data["root-password"]).decode("utf-8")
 
@@ -649,28 +649,29 @@ class WordPressSiteOperator:
                                 restore["s3"]["endpoint"], restore["s3"]["secretKeyName"])
 
           # 5- Use mysqldump to dump the db from the restored mariadb
-          logging.info(f" ↳ Dump restored source DB")
+          logging.info(f"Running dump of {db_source_name} and import of {self.database_name}")
 
-          cmdline = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p{decoded_secret}", "--databases", db_source_name,
-                     "|",
-                     "sed", "-e", rf"s|{restore['url_source']}|https://{hostname}{path}|g",
-                     "|",
-                     "sed", "-e", rf"s|{db_source_name}|{self.database_name}|g"]
+          dump_cmd = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p{decoded_secret}", "--databases", db_source_name]
+          sed_url = ["sed", "-e", rf"s|{restore['urlSource']}|https://{hostname}{path}|g"]
+          sed_dbname = ["sed", "-e", rf"s|{db_source_name}|{self.database_name}|g"]
+          restore_cmd = ["mariadb-import", "-u", "root", "-h", self.mariadb_name, f"-p{decoded_secret}", self.database_name]
 
-          cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
-          logging.info(f" Running: {cmdline_text}")
-          if 'DEBUG' in os.environ:
-              cmdline.insert(0, "echo")
-          result_dump = subprocess.run(cmdline, capture_output=True, text=True)
+          mariadb_dump = subprocess.Popen(dump_cmd, stdout=subprocess.PIPE)
+          dump_replaced_url = subprocess.Popen(sed_url, stdin=mariadb_dump.stdout, stdout=subprocess.PIPE)
+          dump_replaced_dbname = subprocess.Popen(sed_dbname, stdin=dump_replaced_url.stdout, stdout=subprocess.PIPE)
+          restore_db = subprocess.Popen(restore_cmd, stdin=dump_replaced_dbname.stdout, stdout=subprocess.PIPE)
+          mariadb_dump.stdout.close()
+          dump_replaced_url.stdout.close()
+          dump_replaced_dbname.stdout.close()
+          outs, errs = restore_db.communicate()
 
-          restore_command = ["mysql", "-u", "root", "-h", self.mariadb_name, f"-p{decoded_secret}", self.database_name]
-          logging.info(f"   Running: {' '.join(restore_command)}")
-          result_restore = subprocess.Popen(restore_command, stdin=result_dump.stdout, stdout=subprocess.PIPE)
-          result_restore.stdout.close()
-          if "WordPress successfully installed" not in result_dump.stdout and 'DEBUG' not in os.environ :
-              raise subprocess.CalledProcessError(result_dump.returncode, cmdline_text)
+          # TODO : how to manage DEBUG mode ?
+
+          if restore_db.returncode != 0 and 'DEBUG' not in os.environ :
+              raise subprocess.CalledProcessError(restore_db.returncode, restore_cmd, outs, errs)
           else:
-              logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
+              logging.info(f"Dump and import done.")
+
           # TODO delete these objects at the end (user grant and database restore)
 
       # 6- in the pipeline faire un sed for the search and replace for the url and the DB name
