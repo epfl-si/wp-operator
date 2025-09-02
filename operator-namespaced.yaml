@@ -106,9 +106,11 @@ spec:
     spec:
       serviceAccountName: wp-operator
       automountServiceAccountToken: true
+      imagePullSecrets:
+      - name: wp-operator-pull
       containers:
         - name: wp-operator
-          image: anonymous.apps.t-ocp-its-01.xaas.epfl.ch/svc0041/wp-operator:latest
+          image: quay-its.epfl.ch/svc0041/wp-operator:latest
           args:
           - --namespace=wordpress-test
           - --
