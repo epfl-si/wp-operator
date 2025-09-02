@@ -27,7 +27,7 @@ COPY olm/controller-deployment-and-rbac.yaml \
      WordPressSite-crd.yaml \
      /bundle-gen
 
-ARG BUNDLE_VERSION=0.2.2
+ARG BUNDLE_VERSION=0.2.3
 
 RUN set -e -x; cd /bundle-gen; \
     sed -i 's|#\( *image\): controller:latest| \1: quay-its.epfl.ch/svc0041/wordpress-olm-controller:v'"${BUNDLE_VERSION}"'|' controller-deployment-and-rbac.yaml; \
@@ -50,6 +50,7 @@ RUN grep "type: ConversionWebhook"                         /bundle-gen/manifests
 RUN ! grep "admissionReviewVersions: null"                 /bundle-gen/manifests/*clusterserviceversion.yaml
 RUN grep "name: wordpresssite-conversion-webhook"          /bundle-gen/manifests/*clusterserviceversion.yaml
 RUN grep -v 'namespace: ""'                                /bundle-gen/manifests/*clusterserviceversion.yaml
+RUN grep 'imagePullSecrets:'                               /bundle-gen/manifests/*clusterserviceversion.yaml
 
 # Yup, that's ourselves:
 COPY olm/Dockerfile.bundle /bundle-gen
