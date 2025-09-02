@@ -27,10 +27,10 @@ COPY olm/controller-deployment-and-rbac.yaml \
      WordPressSite-crd.yaml \
      /bundle-gen
 
-ARG BUNDLE_VERSION=0.2.0
+ARG BUNDLE_VERSION=0.2.2
 
 RUN set -e -x; cd /bundle-gen; \
-    sed -i 's|#\( *image\): controller:latest| \1: anonymous.apps.t-ocp-its-01.xaas.epfl.ch/svc0041/wordpress-olm-controller:v'"${BUNDLE_VERSION}"'|' controller-deployment-and-rbac.yaml; \
+    sed -i 's|#\( *image\): controller:latest| \1: quay-its.epfl.ch/svc0041/wordpress-olm-controller:v'"${BUNDLE_VERSION}"'|' controller-deployment-and-rbac.yaml; \
     (for i in *.yaml; do cat $i; echo "---"; done) | operator-sdk generate bundle \
         --package wordpress-operator \
         --verbose --output-dir . --version ${BUNDLE_VERSION}
@@ -41,7 +41,7 @@ RUN test -f                                                /bundle-gen/manifests
 RUN ! grep 'deployments: \[\]'                             /bundle-gen/manifests/*clusterserviceversion.yaml
 RUN grep ISAS-FSD                                          /bundle-gen/manifests/*clusterserviceversion.yaml
 RUN grep 'clusterPermissions:'                             /bundle-gen/manifests/*clusterserviceversion.yaml
-RUN grep 'image: anonymous.apps.t-ocp-its-01.xaas.epfl.ch' /bundle-gen/manifests/*clusterserviceversion.yaml
+RUN grep 'image: quay-its.epfl.ch' /bundle-gen/manifests/*clusterserviceversion.yaml
 RUN ! grep 'customresourcedefinitions: {}'                 /bundle-gen/manifests/*clusterserviceversion.yaml
 
 # Temporary — Webhook is only required while the CRD transitions from v1 to v2:
