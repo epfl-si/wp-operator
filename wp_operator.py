@@ -125,7 +125,7 @@ class MariaDBPlacer:
 
         @kopf.on.event('mariadbs')
         def on_event_mariadb(event, spec, name, namespace, labels, patch, **kwargs):
-            if (labels and labels['wpAutoallocate']):
+            if (labels and labels.get('wpAutoallocate')):
                 if (event['type'] in [None, 'ADDED', 'MODIFIED']):
                     self._mariadbs_at(namespace, name)["spec"] = spec
                 elif (event['type'] == 'DELETED'):
