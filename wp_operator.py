@@ -639,7 +639,6 @@ class WordPressSiteOperator:
           db_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["databaseNameSource"]
 
           # 4- From the s3, restore the db source on the mariadb-restore
-          # TODO add "mariadb-restore into an environment variable (add it into the deployment wp-operator)
           self.create_database_for_restore(db_source_name)
           secret = KubernetesAPI.core.read_namespaced_secret(restore["wpDbBackupRef"]["mariaDBLookup"]["mariadbSecretName"],
                                                              self.namespace)
