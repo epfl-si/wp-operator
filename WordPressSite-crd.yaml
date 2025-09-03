@@ -275,10 +275,10 @@ spec:
                             description: url of the source
                             type: string
                         required:
-                          - mariadb_name_source
-                          - database_name_source
-                          - url_source
-                          - mariadb_secret_name
+                          - mariadbNameSource
+                          - databaseNameSource
+                          - urlSource
+                          - mariadbSecretName
               wordpress:
                 description: WordpressSite's own specs
                 type: object
