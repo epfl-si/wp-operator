@@ -632,7 +632,6 @@ class WordPressSiteOperator:
       #V 0- create a mariadb-restore as code ansible --> we need in test also the wp-fleet-prod -->
       # TODO ticket ITOP-SDDC
 
-      # TODO faire condition pour le onOf entre mariaDBLookup et dbName
       if restore["wpDbBackupRef"]["mariaDBLookup"]:
           # - Get the mariadb from the source_information in the CR
           mariadb_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["mariadbNameSource"]
@@ -648,14 +647,13 @@ class WordPressSiteOperator:
           decoded_secret = base64.b64decode(secret.data["root-password"]).decode("utf-8")
 
           # - When the DB is created, restore data from s3
-          self.restore_from_s3 (restore["s3"]["bucket"], mariadb_source_name, db_source_name, os.getenv("MARIADB-RESTORE"),
-                                restore["s3"]["endpoint"], restore["s3"]["secretKeyName"])
+          self.restore_from_s3 (restore["s3"], mariadb_source_name, db_source_name, os.getenv("MARIADB-RESTORE"))
 
           # 5- Use mysqldump to dump the db from the restored DB into mariadb-restore
           logging.info(f"Running dump of {db_source_name} and import of {self.database_name}")
 
           dump_cmd = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p{decoded_secret}", "--databases", db_source_name]
-          sed_url = ["sed", "-e", rf"s|{restore['urlSource']}|https://{hostname}{path}|g"]
+          sed_url = ["sed", "-e", rf"s|{restore['wpDbBackupRef']['mariaDBLookup']['urlSource']}|https://{hostname}{path}|g"]
           sed_dbname = ["sed", "-e", rf"s|{db_source_name}|{self.database_name}|g"]
           restore_cmd = ["mariadb-import", "-u", "root", "-h", self.mariadb_name, f"-p{decoded_secret}", self.database_name]
 
@@ -677,9 +675,7 @@ class WordPressSiteOperator:
 
           # TODO delete these objects at the end (user grant and database restore)
 
-      # 6- in the pipeline faire un sed for the search and replace for the url and the DB name
-      # 7- restore this modified dump into the new database of the new site
-      # 8- media??
+     # 8- media??
 
 
   def create_database_for_restore(self, name):
@@ -713,7 +709,7 @@ class WordPressSiteOperator:
         logging.info(f" ↳ [{self.namespace}/{name}] Database {name} already exists in {os.getenv('MARIADB-RESTORE')}")
 
 
-  def restore_from_s3 (self, bucket_name, mariadb_name_src, db_name_src, mariadb_name_dst, endpoint, s3_secret_name):
+  def restore_from_s3 (self, s3_info, mariadb_name_src, db_name_src, mariadb_name_dst):
     logging.info(f"   ↳ [{self.namespace}/{self.name}] Initiating restore on {mariadb_name_dst} for {mariadb_name_src}/{db_name_src}")
 
     # Initiate the restore process in MariaDB
@@ -736,16 +732,16 @@ class WordPressSiteOperator:
                 }
             },
             "s3": {
-                "bucket": bucket_name,
+                "bucket": s3_info["bucket"],
                 "prefix": f"MariaDB-{mariadb_name_src}",
-                "endpoint": endpoint,
+                "endpoint": s3_info["endpoint"],
                 "accessKeyIdSecretKeyRef": {
-                    "name": s3_secret_name,
-                    "key": "keyId"
+                    "name": s3_info["secretKeyName"],
+                    "key": s3_info["accessKeyIdSecretKeyRef"]
                 },
                 "secretAccessKeySecretKeyRef": {
-                    "name": s3_secret_name,
-                    "key": "accessSecret"
+                    "name": s3_info["secretKeyName"],
+                    "key": s3_info["secretAccessKeySecretKeyRef"]
                 },
                 "tls": {
                     "enabled": True
