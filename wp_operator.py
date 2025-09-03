@@ -640,6 +640,8 @@ class WordPressSiteOperator:
 
           # 4- From the s3, restore the db source on the mariadb-restore
           self.create_database_for_restore(db_source_name)
+          self._waitMariaDBObjectReady("databases", db_source_name)
+
           secret = KubernetesAPI.core.read_namespaced_secret(restore["wpDbBackupRef"]["mariaDBLookup"]["mariadbSecretName"],
                                                              self.namespace)
           decoded_secret = base64.b64decode(secret.data["root-password"]).decode("utf-8")
