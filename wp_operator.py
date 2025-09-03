@@ -631,7 +631,6 @@ class WordPressSiteOperator:
 
       #V 0- create a mariadb-restore as code ansible --> we need in test also the wp-fleet-prod -->
       # TODO ticket ITOP-SDDC
-      # TODO remove fleet from mariadb-restore into ansible
 
       # TODO faire condition pour le onOf entre mariaDBLookup et dbName
       if restore["wpDbBackupRef"]["mariaDBLookup"]:
