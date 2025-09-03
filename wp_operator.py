@@ -634,22 +634,24 @@ class WordPressSiteOperator:
 
       # TODO faire condition pour le onOf entre mariaDBLookup et dbName
       if restore["wpDbBackupRef"]["mariaDBLookup"]:
-          # 3- Get the mariadb from the source_information
+          # - Get the mariadb from the source_information in the CR
           mariadb_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["mariadbNameSource"]
           db_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["databaseNameSource"]
 
-          # 4- From the s3, restore the db source on the mariadb-restore
+          # - From the s3, restore the db source on the mariadb-restore
           self.create_database_for_restore(db_source_name)
           self._waitMariaDBObjectReady("databases", db_source_name)
 
+          # - Read the root secret for mariadb-restore
           secret = KubernetesAPI.core.read_namespaced_secret(restore["wpDbBackupRef"]["mariaDBLookup"]["mariadbSecretName"],
                                                              self.namespace)
           decoded_secret = base64.b64decode(secret.data["root-password"]).decode("utf-8")
 
+          # - When the DB is created, restore data from s3
           self.restore_from_s3 (restore["s3"]["bucket"], mariadb_source_name, db_source_name, os.getenv("MARIADB-RESTORE"),
                                 restore["s3"]["endpoint"], restore["s3"]["secretKeyName"])
 
-          # 5- Use mysqldump to dump the db from the restored mariadb
+          # 5- Use mysqldump to dump the db from the restored DB into mariadb-restore
           logging.info(f"Running dump of {db_source_name} and import of {self.database_name}")
 
           dump_cmd = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p{decoded_secret}", "--databases", db_source_name]
