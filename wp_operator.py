@@ -124,13 +124,14 @@ class MariaDBPlacer:
             self._log_mariadbs()
 
         @kopf.on.event('mariadbs')
-        def on_event_mariadb(event, spec, name, namespace, patch, **kwargs):
-            if (event['type'] in [None, 'ADDED', 'MODIFIED']):
-                self._mariadbs_at(namespace, name)["spec"] = spec
-            elif (event['type'] == 'DELETED'):
-                if namespace in self._mariadbs_by_namespace:
-                    if name in self._mariadbs_by_namespace[namespace]:
-                        del self._mariadbs_by_namespace[namespace][name]
+        def on_event_mariadb(event, spec, name, namespace, labels, patch, **kwargs):
+            if (labels and labels['wpAutoallocate']):
+                if (event['type'] in [None, 'ADDED', 'MODIFIED']):
+                    self._mariadbs_at(namespace, name)["spec"] = spec
+                elif (event['type'] == 'DELETED'):
+                    if namespace in self._mariadbs_by_namespace:
+                        if name in self._mariadbs_by_namespace[namespace]:
+                            del self._mariadbs_by_namespace[namespace][name]
             self._log_mariadbs()
 
     def _mariadbs_at(self, namespace, name):
