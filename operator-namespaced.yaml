@@ -116,13 +116,6 @@ spec:
           - --
           - --wp-dir=/wp
           - --secret-dir=/wp-secrets
-          envFrom:
-            - configMapRef:
-                  name: epfl-migration
-            - configMapRef:
-                  name: wp-backups
-            - secretRef:
-                  name: epfl-migration
           volumeMounts:
             - name: wp-data
               mountPath: /wp-data/
