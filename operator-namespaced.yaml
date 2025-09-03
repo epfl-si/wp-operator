@@ -116,6 +116,9 @@ spec:
           - --
           - --wp-dir=/wp
           - --secret-dir=/wp-secrets
+          envFrom:
+            - configMapRef:
+                  name: wp-operator-config
           volumeMounts:
             - name: wp-data
               mountPath: /wp-data/
