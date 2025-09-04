@@ -130,6 +130,7 @@ rules:
   - mariadbs
   - sqljobs
   - users
+  - restores
   verbs: ['*']
 - apiGroups: ['']
   resources:
