@@ -718,7 +718,6 @@ class WordPressSiteOperator:
             raise e
         logging.info(f" ↳ [{self.namespace}/{name}] Database {name} already exists in {os.getenv('MARIADB-RESTORE')}")
 
-
   def restore_from_s3 (self, s3_info, mariadb_name_src, db_name_src, mariadb_name_dst):
     logging.info(f"   ↳ [{self.namespace}/{self.name}] Initiating restore on {mariadb_name_dst} for {mariadb_name_src}/{db_name_src}")
 
@@ -729,7 +728,7 @@ class WordPressSiteOperator:
         "metadata": {
             "name": f"m-{db_name_src[-50:]}-{round(time.time())}",
             "namespace": self.namespace,
-            "ownerReferences": self.ownerReferences
+#            "ownerReferences": self.ownerReferences
         },
         "spec": {
             "mariaDbRef": {
