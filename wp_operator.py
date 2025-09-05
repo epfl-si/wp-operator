@@ -105,23 +105,33 @@ class MariaDBPlacer:
 
         @kopf.on.event('databases.k8s.mariadb.com')
         def on_event_database(event, spec, name, namespace, patch, **kwargs):
-            if (event['type'] in [None, 'ADDED', 'MODIFIED']):
-                databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", [])
-                db_exist = False
-                for db in databases:
-                    if (db['name'] == name and db['namespace'] == namespace):
-                        db_exist = True
-                if not db_exist:
-                    self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", []).append(
-                        {'name': name, 'namespace': namespace, 'spec': spec})
-            elif (event['type'] == 'DELETED'):
-                previous_databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases",
-                                                                                                         [])
-                self._mariadbs_at(namespace, spec['mariaDbRef']['name'])["databases"] = [
-                    db for db in previous_databases
-                    if not (db['name'] == name and db['namespace'] == namespace)
-                ]
-            self._log_mariadbs()
+            try:
+                mariadbref = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
+                                                                               version="v1alpha1",
+                                                                               namespace=namespace,
+                                                                               plural="mariadbs",
+                                                                               name=spec['mariaDbRef']['name'])
+                if mariadbref and mariadbref.get('metadata', {}).get('labels', {}).get('wpAutoallocate'):
+                    if (event['type'] in [None, 'ADDED', 'MODIFIED']):
+                        databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", [])
+                        db_exist = False
+                        for db in databases:
+                            if (db['name'] == name and db['namespace'] == namespace):
+                                db_exist = True
+                        if not db_exist:
+                            self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", []).append(
+                                {'name': name, 'namespace': namespace, 'spec': spec})
+                    elif (event['type'] == 'DELETED'):
+                        previous_databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases",
+                                                                                                                 [])
+                        self._mariadbs_at(namespace, spec['mariaDbRef']['name'])["databases"] = [
+                            db for db in previous_databases
+                            if not (db['name'] == name and db['namespace'] == namespace)
+                        ]
+                    self._log_mariadbs()
+
+            except ApiException as e:
+                logging.error(f" ↳ [{namespace}/{spec['mariaDbRef']['name']}] The mariadb {spec['mariaDbRef']['name']} doesn't exist")
 
         @kopf.on.event('mariadbs')
         def on_event_mariadb(event, spec, name, namespace, labels, patch, **kwargs):
