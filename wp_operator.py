@@ -806,9 +806,14 @@ class WordPressSiteOperator:
 
       logging.info("Plugins")
       self.reconcile_plugins(spec, status)
+
+      logging.info("Languages")
       self.reconcile_languages(spec, status)
+
+      logging.info("UnitId")
       self.reconcile_unitId(spec)
 
+      logging.info("Patch status")
       self._patch_wordpresssite_status()
 
       logging.info(f"Reconcile WordPressSite {self.name=} in {self.namespace=} end")
