@@ -48,9 +48,11 @@ spec:
       labels:
         app: wordpresssite-conversion-webhook
     spec:
+      imagePullSecrets:
+        - name: wordpress-olm-controller-image-pull
       containers:
         - name: wordpresssite-conversion-webhook
-          image: anonymous.apps.t-ocp-its-01.xaas.epfl.ch/svc0041/wordpresssite-conversion-webhook:latest
+          image: quay-its.epfl.ch/svc0041/wordpresssite-conversion-webhook:latest
           imagePullPolicy: Always
 ## Uncomment this volumeMounts section to consume the PKI-as-a-service (see comment above):
 #           volumeMounts:
