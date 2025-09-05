@@ -756,10 +756,9 @@ class WordPressSiteOperator:
                     "enabled": True
                 }
             },
-            "targetRecoveryTime": self.now,
+            "database": db_name_src,
             "args": [
-                "--verbose",
-                f"--database={db_name_src}"
+                "--verbose"
             ]
         }
     }
