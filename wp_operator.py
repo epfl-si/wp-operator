@@ -657,15 +657,16 @@ class WordPressSiteOperator:
           decoded_secret = base64.b64decode(secret.data["root-password"]).decode("utf-8")
 
           # - When the DB is created, restore data from s3
-          self.restore_from_s3 (restore["s3"], mariadb_source_name, db_source_name, os.getenv("MARIADB-RESTORE"))
+          restore_name = self.restore_from_s3 (restore["s3"], mariadb_source_name, db_source_name, os.getenv("MARIADB-RESTORE"))
+          self._waitMariaDBObjectComplete("restores", restore_name)
 
           # 5- Use mysqldump to dump the db from the restored DB into mariadb-restore
-          logging.info(f"Running dump of {db_source_name} and import of {self.database_name}")
+          logging.info(f"Running dump of {db_source_name} and import to {self.database_name}")
 
-          dump_cmd = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p{decoded_secret}", "--databases", db_source_name]
+          dump_cmd = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p'{decoded_secret}'", "--databases", db_source_name]
           sed_url = ["sed", "-e", rf"s|{restore['wpDbBackupRef']['mariaDBLookup']['urlSource']}|https://{hostname}{path}|g"]
           sed_dbname = ["sed", "-e", rf"s|{db_source_name}|{self.database_name}|g"]
-          restore_cmd = ["mariadb-import", "-u", "root", "-h", self.mariadb_name, f"-p{decoded_secret}", self.database_name]
+          restore_cmd = ["mariadb", "-u", "root", "-h", self.mariadb_name, f"-p'{decoded_secret}'", self.database_name]
 
           mariadb_dump = subprocess.Popen(dump_cmd, stdout=subprocess.PIPE)
           dump_replaced_url = subprocess.Popen(sed_url, stdin=mariadb_dump.stdout, stdout=subprocess.PIPE)
@@ -683,7 +684,13 @@ class WordPressSiteOperator:
           else:
               logging.info(f"Dump and import done.")
 
-          # TODO delete these objects at the end (user grant and database restore)
+          logging.info(f"Delete temp database {db_source_name}")
+          KubernetesAPI.custom.delete_namespaced_custom_object(group="k8s.mariadb.com",
+                                version="v1alpha1",
+                                namespace=self.namespace,
+                                plural="databases",
+                                name=db_source_name
+                                )
 
      # 8- media??
 
@@ -721,12 +728,13 @@ class WordPressSiteOperator:
   def restore_from_s3 (self, s3_info, mariadb_name_src, db_name_src, mariadb_name_dst):
     logging.info(f"   ↳ [{self.namespace}/{self.name}] Initiating restore on {mariadb_name_dst} for {mariadb_name_src}/{db_name_src}")
 
+    restore_name = f"m-{db_name_src[-50:]}-{round(time.time())}"
     # Initiate the restore process in MariaDB
     restore_spec = {
         "apiVersion": "k8s.mariadb.com/v1alpha1",
         "kind": "Restore",
         "metadata": {
-            "name": f"m-{db_name_src[-50:]}-{round(time.time())}",
+            "name": restore_name,
             "namespace": self.namespace,
 #            "ownerReferences": self.ownerReferences
         },
@@ -764,13 +772,20 @@ class WordPressSiteOperator:
     }
 
     logging.info(f"   ↳ [{self.namespace}/{self.name}] Creating restore object in Kubernetes")
-    return KubernetesAPI.custom.create_namespaced_custom_object(
-        group="k8s.mariadb.com",
-        version="v1alpha1",
-        namespace=self.namespace,
-        plural="restores",
-        body=restore_spec
-    )
+    try:
+        KubernetesAPI.custom.create_namespaced_custom_object(
+            group="k8s.mariadb.com",
+            version="v1alpha1",
+            namespace=self.namespace,
+            plural="restores",
+            body=restore_spec
+        )
+    except ApiException as e:
+        if e.status != 409:
+            raise e
+        logging.info(f" ↳ [{self.namespace}/{self.name}] Restore {restore_name} already exists")
+
+    return restore_name
 
   def install_wordpress_via_php(self, title, tagline, unit_id, secret, hostname, path):
       logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
@@ -1036,11 +1051,36 @@ class WordPressSiteOperator:
 
       self._waitMariaDBObjectReady("grants", grant_name)
 
+  def _waitMariaDBObjectComplete(self, customObjectType, customObjectName):
+    # Wait until the customobject creation completes (either in error or successfully)
+
+    message = ''
+    iteration = 0
+    while(True):
+        newUser = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
+                                                                    version="v1alpha1",
+                                                                    namespace=self.namespace,
+                                                                    plural=customObjectType,
+                                                                    name=customObjectName)
+        for condition in newUser.get("status", {}).get("conditions", []):
+            if condition.get("type") == "Complete":
+                message = condition.get("message")
+                if message == "Success":
+                    return
+                else:
+                    pass
+
+        if iteration < 12:
+            time.sleep(5)
+            iteration = iteration + 1
+        else:
+            raise kopf.PermanentError(f"create {customObjectName} timed out or failed, last condition message: {message}")
+
   def _waitMariaDBObjectReady(self, customObjectType, customObjectName):
       # Wait until the customobject creation completes (either in error or successfully)
 
       message = ''
-      iteration = 0;
+      iteration = 0
       while(True):
           newUser = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
                                                                  version="v1alpha1",
