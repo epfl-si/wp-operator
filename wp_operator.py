@@ -710,16 +710,29 @@ class WordPressSiteOperator:
           dump_replaced_dbname.stdout.close()
 
           outs, _ = restore_db.communicate()
-
+          mariadb_dump.wait()
+          dump_replaced_url.wait()
+          dump_replaced_dbname.wait()
+          restore_db.wait()
+          
           # TODO : how to manage DEBUG mode ?
 
-          if restore_db.returncode == 1 :
-              logging.info(f"ERROR:::::::::: {restore_db.returncode} {restore_cmd} {outs}")
-              # raise subprocess.CalledProcessError(restore_db.returncode, restore_cmd, outs, errs)
-          else:
-              logging.info(f"Dump and import done.")
+          pipeline_failures = 0
+          if mariadb_dump.returncode != 0:
+              logging.error(f"restore_site pipeline: mariadb-dump command failed with code {mariadb_dump.returncode}")
+              pipeline_failures = pipeline_failures + 1
+          if dump_replaced_url.returncode != 0:
+              logging.error(f"restore_site pipeline: sed command for url failed with code {dump_replaced_url.returncode}")
+              pipeline_failures = pipeline_failures + 1
+          if dump_replaced_dbname.returncode != 0:
+              logging.error(f"restore_site pipeline: sed command for dbname failed with code {dump_replaced_dbname.returncode}")
+              pipeline_failures = pipeline_failures + 1
+          if restore_db.returncode != 0:
+              logging.error(f"restore_site pipeline: restore command failed with code {restore_db.returncode}: {outs}")
+              pipeline_failures = pipeline_failures + 1
 
-          logging.info(f"Dump and import done.")
+          if pipeline_failures:
+              raise kopf.PermanentError("restore_site pipeline failed")
 
           logging.info(f"Delete temp database {db_source_name}")
           KubernetesAPI.custom.delete_namespaced_custom_object(group="k8s.mariadb.com",
