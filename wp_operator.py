@@ -663,51 +663,61 @@ class WordPressSiteOperator:
           # 5- Use mysqldump to dump the db from the restored DB into mariadb-restore
           logging.info(f"Running dump of {db_source_name} and import to {self.database_name}")
 
-          tmp_dump = f"/tmp/mariadb_dump-{self.database_name}.sql"
-          tmp_sed_url = f"/tmp/mariadb_dump_url-{self.database_name}.sql"
-          tmp_sed_dbname = f"/tmp/mariadb_dump_dbname-{self.database_name}.sql"
+          # tmp_dump = f"/tmp/mariadb_dump-{self.database_name}.sql"
+          # tmp_sed_url = f"/tmp/mariadb_dump_url-{self.database_name}.sql"
+          # tmp_sed_dbname = f"/tmp/mariadb_dump_dbname-{self.database_name}.sql"
+          #
+          # dump_cmd = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p{decoded_secret}", "--databases", db_source_name]
+          # logging.info(f"RESTORE - DUMP: {' '.join(dump_cmd)}")
+          # with open(tmp_dump, "w") as f_out:
+          #   subprocess.run(dump_cmd, stdout=f_out, check=True)
+          #
+          # sed_url = ["sed", "-e", rf"s|{restore['wpDbBackupRef']['mariaDBLookup']['urlSource']}|https://{hostname}{path}|g"]
+          # logging.info(f"RESTORE - SED URL: {' '.join(sed_url)}")
+          # with open(tmp_dump, "r") as f_in, open(tmp_sed_url, "w") as f_out:
+          #   subprocess.run(sed_url, stdin=f_in, stdout=f_out, check=True)
+          #
+          # sed_dbname = ["sed", "-e", rf"s|{db_source_name}|{self.database_name}|g"]
+          # logging.info(f"RESTORE - SED DB NAME: {' '.join(sed_dbname)}")
+          # with open(tmp_sed_url, "r") as f_in, open(tmp_sed_dbname, "w") as f_out:
+          #   subprocess.run(sed_dbname, stdin=f_in, stdout=f_out, check=True)
+          #
+          # restore_cmd = ["mariadb", "-u", "root", "-h", self.mariadb_name, f"-p{decoded_secret}", self.database_name]
+          # logging.info(f"RESTORE - IMPORT INTO NEW DB: {' '.join(restore_cmd)}")
+          # with open(tmp_sed_dbname, "r") as f_in:
+          #   subprocess.run(restore_cmd, stdin=f_in, check=True)
 
           dump_cmd = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p{decoded_secret}", "--databases", db_source_name]
           logging.info(f"RESTORE - DUMP: {' '.join(dump_cmd)}")
-          with open(tmp_dump, "w") as f_out:
-            subprocess.run(dump_cmd, stdout=f_out, check=True)
 
           sed_url = ["sed", "-e", rf"s|{restore['wpDbBackupRef']['mariaDBLookup']['urlSource']}|https://{hostname}{path}|g"]
           logging.info(f"RESTORE - SED URL: {' '.join(sed_url)}")
-          with open(tmp_dump, "r") as f_in, open(tmp_sed_url, "w") as f_out:
-            subprocess.run(sed_url, stdin=f_in, stdout=f_out, check=True)
 
           sed_dbname = ["sed", "-e", rf"s|{db_source_name}|{self.database_name}|g"]
           logging.info(f"RESTORE - SED DB NAME: {' '.join(sed_dbname)}")
-          with open(tmp_sed_url, "r") as f_in, open(tmp_sed_dbname, "w") as f_out:
-            subprocess.run(sed_dbname, stdin=f_in, stdout=f_out, check=True)
 
           restore_cmd = ["mariadb", "-u", "root", "-h", self.mariadb_name, f"-p{decoded_secret}", self.database_name]
           logging.info(f"RESTORE - IMPORT INTO NEW DB: {' '.join(restore_cmd)}")
-          with open(tmp_sed_dbname, "r") as f_in:
-            subprocess.run(restore_cmd, stdin=f_in, check=True)
 
-          # dump_cmd = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p{decoded_secret}", "--databases", db_source_name]
-          # sed_url = ["sed", "-e", rf"s|{restore['wpDbBackupRef']['mariaDBLookup']['urlSource']}|https://{hostname}{path}|g"]
-          # sed_dbname = ["sed", "-e", rf"s|{db_source_name}|{self.database_name}|g"]
-          # restore_cmd = ["mariadb", "-u", "root", "-h", self.mariadb_name, f"-p{decoded_secret}", self.database_name]
-          #
-          # mariadb_dump = subprocess.Popen(dump_cmd, stdout=subprocess.PIPE)
-          # dump_replaced_url = subprocess.Popen(sed_url, stdin=mariadb_dump.stdout, stdout=subprocess.PIPE)
-          # dump_replaced_dbname = subprocess.Popen(sed_dbname, stdin=dump_replaced_url.stdout, stdout=subprocess.PIPE)
-          # restore_db = subprocess.Popen(restore_cmd, stdin=dump_replaced_dbname.stdout, stdout=subprocess.PIPE)
-          # mariadb_dump.stdout.close()
-          # dump_replaced_url.stdout.close()
-          # dump_replaced_dbname.stdout.close()
-          # outs, errs = restore_db.communicate()
-          #
-          # # TODO : how to manage DEBUG mode ?
-          #
-          # if restore_db.returncode == 1 :
-          #     logging.info(f"ERROR:::::::::: {restore_db.returncode} {restore_cmd} {outs} {errs}")
-          #     # raise subprocess.CalledProcessError(restore_db.returncode, restore_cmd, outs, errs)
-          # else:
-          #     logging.info(f"Dump and import done.")
+          mariadb_dump = subprocess.Popen(dump_cmd, stdout=subprocess.PIPE)
+          dump_replaced_url = subprocess.Popen(sed_url, stdin=mariadb_dump.stdout, stdout=subprocess.PIPE)
+          mariadb_dump.stdout.close()
+
+          dump_replaced_dbname = subprocess.Popen(sed_dbname, stdin=dump_replaced_url.stdout, stdout=subprocess.PIPE)
+          dump_replaced_url.stdout.close()
+
+          restore_db = subprocess.Popen(restore_cmd, stdin=dump_replaced_dbname.stdout, stdout=subprocess.PIPE)
+          dump_replaced_dbname.stdout.close()
+
+          outs, _ = restore_db.communicate()
+
+          # TODO : how to manage DEBUG mode ?
+
+          if restore_db.returncode == 1 :
+              logging.info(f"ERROR:::::::::: {restore_db.returncode} {restore_cmd} {outs}")
+              # raise subprocess.CalledProcessError(restore_db.returncode, restore_cmd, outs, errs)
+          else:
+              logging.info(f"Dump and import done.")
 
           logging.info(f"Dump and import done.")
 
@@ -719,12 +729,12 @@ class WordPressSiteOperator:
                                 name=db_source_name
                                 )
 
-          if os.path.exists(tmp_dump):
-            os.remove(tmp_dump)
-          if os.path.exists(tmp_sed_url):
-            os.remove(tmp_sed_url)
-          if os.path.exists(tmp_sed_dbname):
-            os.remove(tmp_sed_dbname)
+          # if os.path.exists(tmp_dump):
+          #   os.remove(tmp_dump)
+          # if os.path.exists(tmp_sed_url):
+          #   os.remove(tmp_sed_url)
+          # if os.path.exists(tmp_sed_dbname):
+          #   os.remove(tmp_sed_dbname)
      # 8- media??
 
 
