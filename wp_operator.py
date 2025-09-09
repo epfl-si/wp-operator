@@ -53,6 +53,12 @@ class Config:
         parser.add_argument('--max-workers', help='Max number of `WordPressSite`s to operate on at the same time',
                             type=int,
                             default=10)
+        parser.add_argument('--media-restore-to-pvc', help='PVC name for media used for restore.',
+                            default="wordpress-data")
+        parser.add_argument('--image-for-restore', help='Image to pull for restore.',
+                            default="eeacms/rsync") # TODO https://hub.docker.com/r/eeacms/rsync
+        parser.add_argument('--image-pull-secret', help='Pull secret to use for pulling image.',
+                            default="")
         return parser
 
     @classmethod
@@ -67,6 +73,9 @@ class Config:
         cls.wp_dir = os.path.join(cmdline.wp_dir, '')
         cls.secret_dir = cmdline.secret_dir
         cls.max_workers = cmdline.max_workers
+        cls.media_restore_to_pvc = cmdline.media_restore_to_pvc
+        cls.image_for_restore = cmdline.image_for_restore
+        cls.image_pull_secret = cmdline.image_pull_secret
 
     @classmethod
     def script_dir(cls):
