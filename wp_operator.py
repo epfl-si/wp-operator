@@ -607,7 +607,10 @@ class MediaRestoreOperator:
                         ),
                         name="restore",
                         command=[
-                            f"rsync -r /wp-media-data-source/{self._source_subdir} /wp-media-data-destination/{self._dest_subdir}"
+                            "/usr/bin/rsync",
+                            "-r",
+                            f"/wp-media-data-source/{self._source_subdir}",
+                            f"/wp-media-data-destination/{self._dest_subdir}"
                         ],
                         volume_mounts=[
                             client.V1VolumeMount(
