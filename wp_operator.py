@@ -755,9 +755,6 @@ class WordPressSiteOperator:
   def restore_site(self, restore, hostname, path):
       # TODO create wp-fleet image + cronjob + add it into tekton
 
-      #V 0- create a mariadb-restore as code ansible --> we need in test also the wp-fleet-prod -->
-      # TODO ticket ITOP-SDDC
-
       if restore["wpDbBackupRef"]["mariaDBLookup"]:
           # - Get the mariadb from the source_information in the CR
           mariadb_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["mariadbNameSource"]
