@@ -564,6 +564,113 @@ fastcgi_param WP_DB_PASSWORD     {self.secret.mariadb_password};
                 raise e
             logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} already exists")
 
+class MediaRestoreOperator:
+    def __init__ (self, namespace, wp_name, source_pvc, source_subdir, dest_pvc, dest_subdir):
+        self._pod_name = f"{wp_name}-media-restore-pod-{round(time.time())}"
+        self._wp_name = wp_name
+        self._namespace = namespace
+        self._source_pvc = source_pvc
+        self._source_subdir = source_subdir
+        self._dest_pvc = dest_pvc
+        self._dest_subdir = dest_subdir
+
+    def _body(self):
+        pull_secret = []
+        if Config.image_pull_secret != "":
+            pull_secret = [
+                client.V1LocalObjectReference(
+                    name=Config.image_pull_secret
+                )
+            ]
+
+        return client.V1Ingress(
+            api_version="v1",
+            kind="Pod",
+            metadata=client.V1ObjectMeta(
+                name=self._pod_name,
+                namespace=self._namespace
+            ),
+            spec=client.V1PodSpec(
+                image_pull_secrets=pull_secret,
+                restart_policy='Never',
+                containers=[
+                    client.V1Container(
+                        resources=client.V1ResourceRequirements(
+                            requests={
+                                "cpu": "10m",
+                                "memory": "256Mi"
+                            }
+                        ),
+                        name="restore",
+                        command=[
+                            f"rsync -r /wp-media-data-source/{self._source_subdir} /wp-media-data-destination/{self._dest_subdir}"
+                        ],
+                        volume_mounts=[
+                            client.V1VolumeMount(
+                                name="wp-media-data-destination",
+                                read_only=True,
+                                mount_path="/wp-media-data-destination/"
+                            ),
+                            client.V1VolumeMount(
+                                name="wp-media-data-source",
+                                read_only=True,
+                                mount_path="/wp-media-data-source/"
+                            ),
+                        ],
+                        image=Config.image_for_restore
+                    )
+                ],
+                volumes=[
+                    client.V1Volume(
+                        name="wp-media-data-destination",
+                        persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                            claim_name=self._dest_pvc
+                        )
+                    ),
+                    client.V1Volume(
+                        name="wp-media-data-source",
+                        persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                            claim_name=self._source_pvc
+                        )
+                    )
+                ]
+            )
+        )
+
+    def run_pod(self):
+        try:
+            KubernetesAPI.core.create_namespaced_pod(
+                namespace=self._namespace,
+                body=self._body()
+            )
+            self._wait_pod()
+        except ApiException as e:
+            if e.status != 409:
+                raise e
+            logging.info(f" ↳ [{self._namespace}/{self._pod_name}] Pod {self._pod_name} already exists")
+
+    def _wait_pod(self):
+        iteration = 0
+        while(True):
+            pod_status = KubernetesAPI.core.read_namespaced_pod_status(group="",
+                                                                        version="v1",
+                                                                        namespace=self._namespace,
+                                                                        plural="pods",
+                                                                        name=self._pod_name)
+            if pod_status.get("status", {}).get("phase") == "Succeeded":
+                self._delete_pod()
+                return
+            else:
+                pass
+
+            if iteration < 12:
+                time.sleep(5)
+                iteration = iteration + 1
+            else:
+                raise kopf.PermanentError(f"create {self._pod_name} timed out or failed")
+
+    def _delete_pod(self):
+        KubernetesAPI.core.delete_namespaced_pod(namespace=self._namespace, name=self._pod_name)
 
 class WordPressSiteOperator:
 
@@ -726,6 +833,13 @@ class WordPressSiteOperator:
                                 plural="databases",
                                 name=db_source_name
                                 )
+      MediaRestoreOperator(
+          namespace=self.namespace,
+          wp_name=self.name,
+          source_pvc=restore['mediaPersistentVolumeClaim']['claimName'],
+          source_subdir=restore['mediaPersistentVolumeClaim']['subPath'],
+          dest_pvc=Config.media_restore_to_pvc,
+          dest_subdir=self.name).run_pod()
 
 
   def create_database_for_restore(self, name):
