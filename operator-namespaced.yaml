@@ -246,9 +246,12 @@ rules:
   # need them in our use case:
   - apiGroups: ['']
     resources:
-    - pods
     - services
     verbs: ['get', 'list', 'watch']
+  - apiGroups: ['']
+    resources:
+      - pods
+    verbs: ['get', 'list', 'watch', 'create']
   - apiGroups: ['discovery.k8s.io']
     resources:
     - endpointslices
