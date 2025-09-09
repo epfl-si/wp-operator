@@ -279,6 +279,19 @@ spec:
                           - databaseNameSource
                           - urlSource
                           - mariadbSecretName
+                  mediaPersistentVolumeClaim:
+                    description: PVC where media are stored
+                    type: object
+                    properties:
+                      claimName:
+                        description: Source PVC name where media are stored
+                        type: string
+                      subPath:
+                        description: Source PVC subdirectory for site
+                        type: string
+                    required:
+                      - claimName
+                      - subPath
               wordpress:
                 description: WordpressSite's own specs
                 type: object
