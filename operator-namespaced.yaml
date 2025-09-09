@@ -123,8 +123,6 @@ spec:
           volumeMounts:
             - name: wp-data
               mountPath: /wp-data/
-            - name: wp-data-ro-openshift3
-              mountPath: /wp-data-ro-openshift3/
             - name: wp-secrets
               mountPath: /wp-secrets
           resources:
@@ -141,10 +139,6 @@ spec:
         - name: wp-secrets
           secret:
             secretName: wp-plugin-secrets
-        - name: wp-data-ro-openshift3
-          persistentVolumeClaim:
-            claimName: wp-data-ro-openshift3
-            readOnly: true
 
 # Additional RBAC for the WordPress Deployment starts here
 # We have no control over the fact that the `nginx-ingress-controller`
