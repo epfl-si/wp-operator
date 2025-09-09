@@ -583,6 +583,9 @@ class MediaRestoreOperator:
                 )
             ]
 
+        if not self._source_subdir.endswith("/"):
+            self._source_subdir = self._source_subdir + "/"
+
         return client.V1Ingress(
             api_version="v1",
             kind="Pod",
