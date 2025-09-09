@@ -172,7 +172,8 @@ rules:
 - apiGroups: ['']
   resources:
     - pods
-  verbs: ['get', 'list', 'watch', 'create']
+    - pods/status
+  verbs: ['get', 'list', 'watch', 'create', 'delete']
 - apiGroups: ['discovery.k8s.io']
   resources:
   - endpointslices
