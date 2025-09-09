@@ -117,6 +117,9 @@ spec:
           - --
           - --wp-dir=/wp
           - --secret-dir=/wp-secrets
+          - --media-restore-to-pvc=wordpress-data
+          - --image-for-restore=quay-its.epfl.ch/svc0041/rsync
+          - --image-pull-secret=svc0041-svc0041-puller-pull-secret
           envFrom:
             - configMapRef:
                   name: wp-operator-config
