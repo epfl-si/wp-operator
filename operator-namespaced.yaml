@@ -42,6 +42,11 @@ rules:
     - events
     verbs: ['create', 'patch']
   - apiGroups: ['']
+    resources:
+      - pods
+      - pods/status
+    verbs: ['get', 'list', 'watch', 'create', 'delete']
+  - apiGroups: ['']
     resources: ['services']
     verbs: ['get', 'list', 'watch']
   - apiGroups: ['k8s.mariadb.com']
