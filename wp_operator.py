@@ -658,12 +658,9 @@ class MediaRestoreOperator:
     def _wait_pod(self):
         iteration = 0
         while(True):
-            pod_status = KubernetesAPI.core.read_namespaced_pod_status(group="",
-                                                                        version="v1",
-                                                                        namespace=self._namespace,
-                                                                        plural="pods",
-                                                                        name=self._pod_name)
-            if pod_status.get("status", {}).get("phase") == "Succeeded":
+            pod_status = KubernetesAPI.core.read_namespaced_pod_status(namespace=self._namespace,
+                                                                       name=self._pod_name)
+            if pod_status.status and pod_status.status.phase == "Succeeded":
                 self._delete_pod()
                 return
             else:
