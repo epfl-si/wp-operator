@@ -564,7 +564,7 @@ fastcgi_param WP_DB_PASSWORD     {self.secret.mariadb_password};
             logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} already exists")
 
 class MediaRestoreOperator:
-    def __init__ (self, namespace, wp_name, source_pvc, source_subdir, dest_pvc, dest_subdir):
+    def __init__ (self, namespace, wp_name, source_pvc, source_subdir, dest_pvc, dest_subdir, owner):
         self._pod_name = f"{wp_name}-media-restore-pod-{round(time.time())}"
         self._wp_name = wp_name
         self._namespace = namespace
@@ -572,6 +572,7 @@ class MediaRestoreOperator:
         self._source_subdir = source_subdir
         self._dest_pvc = dest_pvc
         self._dest_subdir = dest_subdir
+        self._owner = owner
 
     def _body(self):
         pull_secret = []
@@ -587,7 +588,8 @@ class MediaRestoreOperator:
             kind="Pod",
             metadata=client.V1ObjectMeta(
                 name=self._pod_name,
-                namespace=self._namespace
+                namespace=self._namespace,
+                owner_references=[self._owner]
             ),
             spec=client.V1PodSpec(
                 image_pull_secrets=pull_secret,
@@ -835,7 +837,9 @@ class WordPressSiteOperator:
           source_pvc=restore['mediaPersistentVolumeClaim']['claimName'],
           source_subdir=restore['mediaPersistentVolumeClaim']['subPath'],
           dest_pvc=Config.media_restore_to_pvc,
-          dest_subdir=self.name).run_pod()
+          dest_subdir=self.name,
+          owner=self.ownerReferences
+      ).run_pod()
 
 
   def create_database_for_restore(self, name):
