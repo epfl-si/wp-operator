@@ -615,7 +615,6 @@ class MediaRestoreOperator:
                         volume_mounts=[
                             client.V1VolumeMount(
                                 name="wp-media-data-destination",
-                                read_only=True,
                                 mount_path="/wp-media-data-destination/"
                             ),
                             client.V1VolumeMount(
