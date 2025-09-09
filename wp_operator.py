@@ -211,7 +211,6 @@ class MariaDBPlacer:
     def _least_populated_mariadb(self, namespace):
         db_count_by_mariadb = []
         for namespace_name, content in self._mariadbs_by_namespace.items():
-            # TODO filter on mariadb-[0-5] (without mariadb-restore)
             if namespace_name == namespace:
                 for mariadb_name, mariadb_content in content.items():
                     db_count_by_mariadb.append(
