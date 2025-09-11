@@ -316,3 +316,49 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: wp-operator
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wp-fleet
+  namespace: wordpress-test
+
+---
+# Role/wp-fleet
+#
+# ⚠ Each time you add permissions here, you need to also update the
+# OLM controller's permissions (in the `ClusterRoleBinding` object in
+# olm/controller-deployment-and-rbac.yaml); see comments there to
+# explain why.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wp-fleet
+  namespace: wordpress-test
+rules:
+  - apiGroups: ['wordpress.epfl.ch']
+    resources:
+      - wordpresssites
+    verbs: ['get', 'list', 'watch']
+  - apiGroups: ['k8s.mariadb.com']
+    resources:
+      - backups
+      - databases
+    verbs: ['get', 'list', 'watch']
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wp-fleet
+  namespace: wordpress-test
+subjects:
+  - kind: ServiceAccount
+    name: wp-fleet
+    namespace: wordpress-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: wp-fleet
