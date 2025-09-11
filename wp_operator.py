@@ -756,8 +756,6 @@ class WordPressSiteOperator:
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
   def restore_site(self, restore, hostname, path):
-      # TODO create wp-fleet image + cronjob + add it into tekton
-
       if restore["wpDbBackupRef"]["mariaDBLookup"]:
           # - Get the mariadb from the source_information in the CR
           mariadb_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["mariadbNameSource"]
