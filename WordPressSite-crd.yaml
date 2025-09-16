@@ -292,6 +292,10 @@ spec:
                     required:
                       - claimName
                       - subPath
+                required:
+                  - s3
+                  - wpDbBackupRef
+                  - mediaPersistentVolumeClaim
               wordpress:
                 description: WordpressSite's own specs
                 type: object
