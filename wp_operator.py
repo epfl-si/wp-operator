@@ -762,8 +762,8 @@ class WordPressSiteOperator:
           db_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["databaseNameSource"]
 
           # - From the s3, restore the db source on the mariadb-restore
-          self.create_database_for_restore(db_source_name)
-          self._waitMariaDBObjectReady("databases", db_source_name)
+          k8s_name = self.create_database_for_restore(db_source_name)
+          self._waitMariaDBObjectReady("databases", k8s_name)
 
           # - Read the root secret for mariadb-restore
           secret = KubernetesAPI.core.read_namespaced_secret(restore["wpDbBackupRef"]["mariaDBLookup"]["mariadbSecretName"],
@@ -775,7 +775,7 @@ class WordPressSiteOperator:
           self._waitMariaDBObjectComplete("restores", restore_name)
 
           # 5- Use mysqldump to dump the db from the restored DB into mariadb-restore
-          logging.info(f"Running dump of {db_source_name} and import to {self.database_name}")
+          logging.info(f"Running dump of {k8s_name} and import to {self.database_name}")
 
           dump_cmd = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p{decoded_secret}", "--databases", db_source_name]
           logging.info(f"RESTORE - DUMP: {' '.join(dump_cmd)}")
@@ -824,12 +824,12 @@ class WordPressSiteOperator:
           if pipeline_failures:
               raise kopf.PermanentError("restore_site pipeline failed")
 
-          logging.info(f"Delete temp database {db_source_name}")
+          logging.info(f"Delete temp database {k8s_name}")
           KubernetesAPI.custom.delete_namespaced_custom_object(group="k8s.mariadb.com",
                                 version="v1alpha1",
                                 namespace=self.namespace,
                                 plural="databases",
-                                name=db_source_name
+                                name=k8s_name
                                 )
       MediaRestoreOperator(
           namespace=self.namespace,
@@ -843,14 +843,16 @@ class WordPressSiteOperator:
 
 
   def create_database_for_restore(self, name):
+    k8s_name = f"{name}-restore"
     body = {
         "apiVersion": "k8s.mariadb.com/v1alpha1",
         "kind": "Database",
         "metadata": {
-            "name": name,
+            "name": k8s_name,
             "namespace": self.namespace
         },
         "spec": {
+            "name": name,
             "mariaDbRef": {
                 "name": os.getenv("MARIADB-RESTORE")
             },
@@ -870,7 +872,9 @@ class WordPressSiteOperator:
     except ApiException as e:
         if e.status != 409:
             raise e
-        logging.info(f" ↳ [{self.namespace}/{name}] Database {name} already exists in {os.getenv('MARIADB-RESTORE')}")
+        logging.info(f" ↳ [{self.namespace}/{name}] Database {k8s_name} already exists in {os.getenv('MARIADB-RESTORE')}")
+
+    return k8s_name
 
   def restore_from_s3 (self, s3_info, mariadb_name_src, db_name_src, mariadb_name_dst):
     logging.info(f"   ↳ [{self.namespace}/{self.name}] Initiating restore on {mariadb_name_dst} for {mariadb_name_src}/{db_name_src}")
