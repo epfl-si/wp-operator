@@ -656,6 +656,7 @@ class MediaRestoreOperator:
         )
 
     def run_pod(self):
+        logging.info(f" ↳ [{self._namespace}/{self._pod_name}] RESTORE - create pod for media restore {self._pod_name}")
         try:
             KubernetesAPI.core.create_namespaced_pod(
                 namespace=self._namespace,
@@ -772,8 +773,10 @@ class WordPressSiteOperator:
           # - Get the mariadb from the source_information in the CR
           mariadb_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["mariadbNameSource"]
           db_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["databaseNameSource"]
+          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - by mariaDBLookup: {db_source_name} for {self.database_name}")
 
           # - From the s3, restore the db source on the mariadb-restore
+          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - create DB source: {db_source_name}")
           k8s_name = self.create_database_for_restore(db_source_name)
           self._waitMariaDBObjectReady("databases", k8s_name)
 
@@ -783,23 +786,25 @@ class WordPressSiteOperator:
           decoded_secret = base64.b64decode(secret.data["root-password"]).decode("utf-8")
 
           # - When the DB is created, restore data from s3
+          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - restore DB from s3: {db_source_name}")
           restore_name = self.restore_from_s3 (restore["s3"], mariadb_source_name, db_source_name, os.getenv("MARIADB-RESTORE"))
+          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - waiting for restore: {restore_name}")
           self._waitMariaDBObjectComplete("restores", restore_name)
 
           # 5- Use mysqldump to dump the db from the restored DB into mariadb-restore
           logging.info(f"Running dump of {k8s_name} and import to {self.database_name}")
 
           dump_cmd = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p{decoded_secret}", "--databases", db_source_name]
-          logging.info(f"RESTORE - DUMP: {' '.join(dump_cmd)}")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - DUMP: {' '.join(dump_cmd)}")
 
           sed_url = ["sed", "-e", rf"s|{restore['wpDbBackupRef']['mariaDBLookup']['urlSource']}|https://{hostname}{path}|g"]
-          logging.info(f"RESTORE - SED URL: {' '.join(sed_url)}")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - SED URL: {' '.join(sed_url)}")
 
           sed_dbname = ["sed", "-e", rf"s|{db_source_name}|{self.database_name}|g"]
-          logging.info(f"RESTORE - SED DB NAME: {' '.join(sed_dbname)}")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - SED DB NAME: {' '.join(sed_dbname)}")
 
           restore_cmd = ["mariadb", "-u", "root", "-h", self.mariadb_name, f"-p{decoded_secret}", self.database_name]
-          logging.info(f"RESTORE - IMPORT INTO NEW DB: {' '.join(restore_cmd)}")
+          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - IMPORT INTO NEW DB: {' '.join(restore_cmd)}")
 
           mariadb_dump = subprocess.Popen(dump_cmd, stdout=subprocess.PIPE)
           dump_replaced_url = subprocess.Popen(sed_url, stdin=mariadb_dump.stdout, stdout=subprocess.PIPE)
@@ -843,6 +848,8 @@ class WordPressSiteOperator:
                                 plural="databases",
                                 name=k8s_name
                                 )
+
+      logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - media for {self.name}")
       MediaRestoreOperator(
           namespace=self.namespace,
           wp_name=self.name,
