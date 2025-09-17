@@ -586,6 +586,41 @@ class MediaRestoreOperator:
         if not self._source_subdir.endswith("/"):
             self._source_subdir = self._source_subdir + "/"
 
+        wp_media_data_destination = 'wp-media-data'
+        wp_media_data_source = 'wp-media-data'
+
+        volume_mounts = [
+            client.V1VolumeMount(
+                name=wp_media_data_destination,
+                mount_path=f"/{wp_media_data_destination}/"
+            )
+        ]
+
+        volumes=[
+            client.V1Volume(
+                name=wp_media_data_destination,
+                persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                    claim_name=self._dest_pvc
+                )
+            )
+        ]
+
+        if self._source_pvc != self._dest_pvc:
+            wp_media_data_source = 'wp-media-data-source'
+
+            volume_mounts.append(client.V1VolumeMount(
+                name=wp_media_data_source,
+                read_only=True,
+                mount_path=f"/{wp_media_data_source}/"
+            ))
+
+            volumes.append(client.V1Volume(
+                name=wp_media_data_source,
+                persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                    claim_name=self._source_pvc
+                )
+            ))
+
         return client.V1Ingress(
             api_version="v1",
             kind="Pod",
@@ -609,37 +644,14 @@ class MediaRestoreOperator:
                         command=[
                             "/usr/bin/rsync",
                             "-r",
-                            f"/wp-media-data-source/{self._source_subdir}",
-                            f"/wp-media-data-destination/{self._dest_subdir}"
+                            f"/{wp_media_data_source}/{self._source_subdir}",
+                            f"/{wp_media_data_destination}/{self._dest_subdir}"
                         ],
-                        volume_mounts=[
-                            client.V1VolumeMount(
-                                name="wp-media-data-destination",
-                                mount_path="/wp-media-data-destination/"
-                            ),
-                            client.V1VolumeMount(
-                                name="wp-media-data-source",
-                                read_only=True,
-                                mount_path="/wp-media-data-source/"
-                            ),
-                        ],
+                        volume_mounts=volume_mounts,
                         image=Config.image_for_restore
                     )
                 ],
-                volumes=[
-                    client.V1Volume(
-                        name="wp-media-data-destination",
-                        persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                            claim_name=self._dest_pvc
-                        )
-                    ),
-                    client.V1Volume(
-                        name="wp-media-data-source",
-                        persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                            claim_name=self._source_pvc
-                        )
-                    )
-                ]
+                volumes=volumes
             )
         )
 
