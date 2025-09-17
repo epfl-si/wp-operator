@@ -120,7 +120,7 @@ class MariaDBPlacer:
                                                                                namespace=namespace,
                                                                                plural="mariadbs",
                                                                                name=spec['mariaDbRef']['name'])
-                if mariadbref and mariadbref.get('metadata', {}).get('labels', {}).get('wpAutoallocate'):
+                if mariadbref and mariadbref.get('metadata', {}).get('labels', {}).get('wp-auto-allocate'):
                     if (event['type'] in [None, 'ADDED', 'MODIFIED']):
                         databases = self._mariadbs_at(namespace, spec['mariaDbRef']['name']).setdefault("databases", [])
                         db_exist = False
@@ -144,7 +144,7 @@ class MariaDBPlacer:
 
         @kopf.on.event('mariadbs')
         def on_event_mariadb(event, spec, name, namespace, labels, patch, **kwargs):
-            if (labels and labels.get('wpAutoallocate')):
+            if (labels and labels.get('wp-auto-allocate')):
                 if (event['type'] in [None, 'ADDED', 'MODIFIED']):
                     self._mariadbs_at(namespace, name)["spec"] = spec
                 elif (event['type'] == 'DELETED'):
