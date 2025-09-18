@@ -1,3 +1,4 @@
 kopf
 kubernetes
 kubernetes-asyncio
+requests
