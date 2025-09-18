@@ -18,6 +18,7 @@ import json
 
 import kopf
 import kopf.cli
+import requests
 from kubernetes import client, config
 from kubernetes.client.exceptions import ApiException
 from urllib3 import disable_warnings
@@ -860,6 +861,13 @@ class WordPressSiteOperator:
           owner=self.ownerReferences
       ).run_pod()
 
+      logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - refresh menu-api for {self.name}")
+      self._refresh_menu_after_restore(hostname, path)
+
+  def _refresh_menu_after_restore(self, hostname, path):
+      url = f"https://{hostname}{path}"
+      r = requests.get(f"http://{os.getenv('MENU_API_HOST')}:3001/refreshSingleMenu/?url={url}")
+      logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - refresh menu-api for {url} ends with {r.json()}")
 
   def create_database_for_restore(self, name):
     k8s_name = f"{name}-restore"
