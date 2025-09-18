@@ -680,7 +680,7 @@ class MediaRestoreOperator:
             else:
                 pass
 
-            if iteration < 60: # we wait 10min for the restore to ending
+            if iteration < 60: # Wait up to 10 mins for the restore to end
                 time.sleep(10)
                 iteration = iteration + 1
             else:
@@ -1248,7 +1248,7 @@ class WordPressSiteOperator:
                 else:
                     pass
 
-        if iteration < 60: # we wait 10min for the restore to ending
+        if iteration < 60: # Wait up to 10 mins for the restore to end
             time.sleep(10)
             iteration = iteration + 1
         else:
