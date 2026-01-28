@@ -374,13 +374,13 @@ class SiteReconcilerWork:
         self._do_run_wp(['transient', 'delete', name])
 
     def flush(self):
-        if self._plugins_to_activate:
-            self._do_run_wp(['plugin', 'activate'] + self._plugins_to_activate)
-        self._plugins_to_activate = []
-
         if self._plugins_to_deactivate:
             self._do_run_wp(['plugin', 'deactivate'] + self._plugins_to_deactivate)
         self._plugins_to_deactivate = []
+
+        if self._plugins_to_activate:
+            self._do_run_wp(['plugin', 'activate'] + self._plugins_to_activate)
+        self._plugins_to_activate = []
 
         if self._php_work:
             self._do_run_wp(['eval', self._php_work])
