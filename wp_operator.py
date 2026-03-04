@@ -913,8 +913,7 @@ class WordPressSiteOperator:
         "kind": "Restore",
         "metadata": {
             "name": restore_name,
-            "namespace": self.namespace,
-#            "ownerReferences": self.ownerReferences
+            "namespace": self.namespace
         },
         "spec": {
             "mariaDbRef": {
