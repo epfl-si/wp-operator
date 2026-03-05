@@ -697,6 +697,11 @@ class WordPressSiteOperator:
           wps_uid = meta.get('uid')
           WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).create_site(body)
 
+      @kopf.on.delete('wordpresssites')
+      def on_delete_wordpresssite(body, name, namespace, meta, **kwargs):
+          wps_uid = meta.get('uid')
+          WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).deactivate_all_plugins()
+
       @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='spec')
       @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='status.wordpresssite.plugins')
       @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='status.wordpresssite.languages')
@@ -765,7 +770,12 @@ class WordPressSiteOperator:
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
 
-def run_wp_cli (self, cmdline, **kwargs):
+  def deactivate_all_plugins(self):
+      logging.info(f"Deactivate all plugins  for WordPressSite {self.name=} in {self.namespace=}")
+      self.run_wp_cli(["plugin", "deactivate", "--all"])
+
+
+  def run_wp_cli (self, cmdline, **kwargs):
       cmdline = ['wp', f'--ingress={self.ingress_name}'] + cmdline
       if 'DEBUG' in os.environ:
           cmdline.insert(0, 'echo')
