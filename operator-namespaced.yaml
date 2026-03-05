@@ -128,6 +128,9 @@ spec:
           envFrom:
             - configMapRef:
                   name: wp-operator-config
+            - secretRef:
+                name: wp-operator-supplemental-environment
+                optional: true
           volumeMounts:
             - name: wp-data
               mountPath: /wp-data/
