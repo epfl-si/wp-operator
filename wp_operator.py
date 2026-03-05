@@ -386,12 +386,8 @@ class SiteReconcilerWork:
             self._do_run_wp(['eval', self._php_work])
         self._php_work = ''
 
-
     def _do_run_wp(self, cmdline, **kwargs):
-        cmdline = ['wp', f'--ingress={self.wp.ingress_name}'] + cmdline
-        if 'DEBUG' in os.environ:
-            cmdline.insert(0, 'echo')
-        return subprocess.run(cmdline, check=True, **kwargs)
+        return self.wp.run_wp_cli(cmdline, **kwargs)
 
 
 class PluginReconciler:
@@ -768,6 +764,12 @@ class WordPressSiteOperator:
       self.route_controller.create_route(self.namespace, self.name, route_name, hostname, path, service_name, self.ownerReferences)
 
       logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
+
+def run_wp_cli (self, cmdline, **kwargs):
+      cmdline = ['wp', f'--ingress={self.ingress_name}'] + cmdline
+      if 'DEBUG' in os.environ:
+          cmdline.insert(0, 'echo')
+      return subprocess.run(cmdline, check=True, **kwargs)
 
   def restore_site(self, restore, hostname, path):
       if restore["wpDbBackupRef"]["mariaDBLookup"]:
