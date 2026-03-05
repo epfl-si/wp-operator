@@ -763,6 +763,7 @@ class WordPressSiteOperator:
 
       if restore:
           self.restore_site(restore, hostname, path)
+          self.run_wp_cli(["eval", "do_action('wp_operator_post_restore', NULL);"])
 
       route_name = f"{self.prefix['route']}{self.name}"
       service_name = 'wp-nginx'
