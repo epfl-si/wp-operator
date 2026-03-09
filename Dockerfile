@@ -18,7 +18,13 @@ RUN set -e -x; apt-get -qy update; \
         mariadb-client \
         patch \
         php-cli \
+        php-curl \
         php-mysql \
+        php-gd \
+        php-ldap \
+        php-mbstring \
+        php-xml \
+        php-zip \
         python3 \
         python3-pip \
         rsync \
