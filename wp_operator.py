@@ -1120,7 +1120,9 @@ class WordPressSiteOperator:
       if 'DEBUG' in os.environ:
           return python_side_data
 
-      cmdline = ['wp', f'--ingress={self.ingress_name}', 'eval', '''echo(json_encode(apply_filters('wp_operator_status',[]), JSON_PRETTY_PRINT));''']
+      cmdline = ['wp', f'--ingress={self.ingress_name}', 'eval',
+                 '''$w = apply_filters('wp_operator_status',[]); ''' +
+                 '''echo(json_encode($w, JSON_PRETTY_PRINT));''']
       result = self._do_run_wp(cmdline, capture_output=True, text=True)
       out = json.loads(result.stdout)
       return {
