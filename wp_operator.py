@@ -1141,7 +1141,7 @@ class WordPressSiteOperator:
         out = json.loads(unarmored)
         return {
           **python_side_data,
-          **(out == [] ? {} : out)
+          **({} if out == [] else out)
         }
       except json.JSONDecodeError:
         raise RuntimeError("unparseable JSON: %s" % unarmored)
