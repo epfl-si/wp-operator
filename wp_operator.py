@@ -1114,17 +1114,18 @@ class WordPressSiteOperator:
           raise
 
   def _status_wordpresssite_struct(self):
+      python_side_data = {
+          'lastCronJobRuntime': datetime.datetime.now().isoformat()
+      }
       if 'DEBUG' in os.environ:
-          out = {}
-      else:
-          cmdline = ['wp', f'--ingress={self.ingress_name}', 'eval', '''echo(json_encode(apply_filters('wp_operator_status',[]), JSON_PRETTY_PRINT));''']
-          result = self._do_run_wp(cmdline, capture_output=True, text=True)
-          out = json.loads(result.stdout)
-          if out == []:
-              out = {}
+          return python_side_data
+
+      cmdline = ['wp', f'--ingress={self.ingress_name}', 'eval', '''echo(json_encode(apply_filters('wp_operator_status',[]), JSON_PRETTY_PRINT));''']
+      result = self._do_run_wp(cmdline, capture_output=True, text=True)
+      out = json.loads(result.stdout)
       return {
-          'lastCronJobRuntime': datetime.datetime.now().isoformat(),
-          **out
+          **python_side_data,
+          **(out == [] ? {} : out)
       }
 
   def _do_run_wp(self, cmdline, **kwargs):
