@@ -1120,15 +1120,31 @@ class WordPressSiteOperator:
       if 'DEBUG' in os.environ:
           return python_side_data
 
+      armor = "===== %S WORDPRESS JSON STATUS ====="
+      armor_begin = armor % "BEGIN"
+      armor_end = armor % "END"
+
       cmdline = ['wp', f'--ingress={self.ingress_name}', 'eval',
                  '''$w = apply_filters('wp_operator_status',[]); ''' +
-                 '''echo(json_encode($w, JSON_PRETTY_PRINT));''']
+                 '''echo("%s\n"); ''' % armor_begin +
+                 '''echo(json_encode($w, JSON_PRETTY_PRINT)); ''' +
+                 '''echo("%s\n");''' % armor_end]
       result = self._do_run_wp(cmdline, capture_output=True, text=True)
-      out = json.loads(result.stdout)
-      return {
+
+      start = result.stdout.find(armor_begin)
+      end = result.stdout.find(armor_end)
+      if start == -1 or end == -1 or end <= start:
+        raise RuntimeError("No armored JSON output: %s" % result.stdout)
+
+      unarmored = result.stdout[start + len(armor_begin):end]
+      try:
+        out = json.loads(unarmored)
+        return {
           **python_side_data,
           **(out == [] ? {} : out)
-      }
+        }
+      except json.JSONDecodeError:
+        raise RuntimeError("unparseable JSON: %s" % unarmored)
 
   def _do_run_wp(self, cmdline, **kwargs):
       if 'DEBUG' in os.environ:
