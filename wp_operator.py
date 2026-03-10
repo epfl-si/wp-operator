@@ -1114,18 +1114,37 @@ class WordPressSiteOperator:
           raise
 
   def _status_wordpresssite_struct(self):
-      if 'DEBUG' in os.environ:
-          out = {}
-      else:
-          cmdline = ['wp', f'--ingress={self.ingress_name}', 'eval', '''echo(json_encode(apply_filters('wp_operator_status',[]), JSON_PRETTY_PRINT));''']
-          result = self._do_run_wp(cmdline, capture_output=True, text=True)
-          out = json.loads(result.stdout)
-          if out == []:
-              out = {}
-      return {
-          'lastCronJobRuntime': datetime.datetime.now().isoformat(),
-          **out
+      python_side_data = {
+          'lastCronJobRuntime': datetime.datetime.now().isoformat()
       }
+      if 'DEBUG' in os.environ:
+          return python_side_data
+
+      armor = "===== %S WORDPRESS JSON STATUS ====="
+      armor_begin = armor % "BEGIN"
+      armor_end = armor % "END"
+
+      cmdline = ['wp', f'--ingress={self.ingress_name}', 'eval',
+                 '''$w = apply_filters('wp_operator_status',[]); ''' +
+                 '''echo("%s\n"); ''' % armor_begin +
+                 '''echo(json_encode($w, JSON_PRETTY_PRINT)); ''' +
+                 '''echo("%s\n");''' % armor_end]
+      result = self._do_run_wp(cmdline, capture_output=True, text=True)
+
+      start = result.stdout.find(armor_begin)
+      end = result.stdout.find(armor_end)
+      if start == -1 or end == -1 or end <= start:
+        raise RuntimeError("No armored JSON output: %s" % result.stdout)
+
+      unarmored = result.stdout[start + len(armor_begin):end]
+      try:
+        out = json.loads(unarmored)
+        return {
+          **python_side_data,
+          **(out == [] ? {} : out)
+        }
+      except json.JSONDecodeError:
+        raise RuntimeError("unparseable JSON: %s" % unarmored)
 
   def _do_run_wp(self, cmdline, **kwargs):
       if 'DEBUG' in os.environ:
