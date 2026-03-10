@@ -1120,7 +1120,7 @@ class WordPressSiteOperator:
       if 'DEBUG' in os.environ:
           return python_side_data
 
-      armor = "===== %S WORDPRESS JSON STATUS ====="
+      armor = "===== %s WORDPRESS JSON STATUS ====="
       armor_begin = armor % "BEGIN"
       armor_end = armor % "END"
 
