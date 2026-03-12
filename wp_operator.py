@@ -775,7 +775,6 @@ class WordPressSiteOperator:
       logging.info(f"Deactivate all plugins  for WordPressSite {self.name=} in {self.namespace=}")
       self.run_wp_cli(["plugin", "deactivate", "--all"])
 
-
   def run_wp_cli (self, cmdline, **kwargs):
       cmdline = ['wp', f'--ingress={self.ingress_name}'] + cmdline
       if 'DEBUG' in os.environ:
