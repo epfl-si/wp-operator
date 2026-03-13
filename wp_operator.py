@@ -759,11 +759,11 @@ class WordPressSiteOperator:
 
       self.create_ingress(body)
 
-      self.reconcile_site(spec, {})
-
       if restore:
           self.restore_site(restore, hostname, path)
           self.run_wp_cli(["eval", "do_action('wp_operator_post_restore', NULL);"])
+      else:
+          self.reconcile_site(spec, {})
 
       route_name = f"{self.prefix['route']}{self.name}"
       service_name = 'wp-nginx'
