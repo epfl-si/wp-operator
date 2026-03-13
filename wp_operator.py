@@ -761,6 +761,8 @@ class WordPressSiteOperator:
 
       if restore:
           self.restore_site(restore, hostname, path)
+          logging.info("Patch status")
+          self._patch_wordpresssite_status()
           self.run_wp_cli(["eval", "do_action('wp_operator_post_restore', NULL);"])
       else:
           self.reconcile_site(spec, {})
