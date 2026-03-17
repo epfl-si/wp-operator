@@ -781,6 +781,7 @@ class WordPressSiteOperator:
       cmdline = ['wp', f'--ingress={self.ingress_name}'] + cmdline
       if 'DEBUG' in os.environ:
           cmdline.insert(0, 'echo')
+      logging.info("Running: %s" % shlex.join(cmdline))
       return subprocess.run(cmdline, check=True, **kwargs)
 
   def restore_site(self, restore, hostname, path):
