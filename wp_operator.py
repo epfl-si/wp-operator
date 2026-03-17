@@ -27,7 +27,8 @@ from urllib3 import disable_warnings
 from urllib3.exceptions import InsecureRequestWarning
 
 from php import phpize
-from wp_kubernetes import KubernetesAPI, WordpressSite, NamespaceLeaderElection
+from wp_kubernetes import KubernetesAPI, NamespaceLeaderElection
+from wordpresses import WordpressSite
 
 
 disable_warnings(InsecureRequestWarning)
@@ -341,8 +342,8 @@ class RouteController:
 
 
 class SiteReconcilerWork:
-    def __init__(self, wp):
-        self.wp = wp
+    def __init__(self, wp_op):
+        self.wp_op = wp_op
         self._php_work = ''
         self._plugins_to_activate = []
         self._plugins_to_deactivate = []
@@ -387,7 +388,7 @@ class SiteReconcilerWork:
         self._php_work = ''
 
     def _do_run_wp(self, cmdline, **kwargs):
-        return self.wp.run_wp_cli(cmdline, **kwargs)
+        return self.wp_op.wp.run_wp_cli(cmdline, **kwargs)
 
 
 class PluginReconciler:
@@ -695,24 +696,23 @@ class WordPressSiteOperator:
       @kopf.on.create('wordpresssites')
       def on_create_wordpresssite(body, name, namespace, meta, **kwargs):
           wps_uid = meta.get('uid')
-          WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).create_site(body)
+          WordPressSiteOperator(body, placer, route_controller, wps_uid).create_site(body)
 
       @kopf.on.delete('wordpresssites')
       def on_delete_wordpresssite(body, name, namespace, meta, **kwargs):
           wps_uid = meta.get('uid')
-          WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).deactivate_all_plugins()
+          WordPressSiteOperator(body, placer, route_controller, wps_uid).deactivate_all_plugins()
 
       @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='spec')
       @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='status.wordpresssite.plugins')
       @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='status.wordpresssite.languages')
       @kopf.on.field('wordpress.epfl.ch', 'v2', 'wordpresssites', field='status.wordpresssite.unitid')
-      def on_update_wordpresssite(spec, name, namespace, meta, status, **kwargs):
+      def on_update_wordpresssite(body, name, namespace, meta, status, **kwargs):
           wps_uid = meta.get('uid')
-          WordPressSiteOperator(name, namespace, placer, route_controller, wps_uid).reconcile_site(spec, status)
+          WordPressSiteOperator(body, placer, route_controller, wps_uid).reconcile_site()
 
-  def __init__(self, name, namespace, placer, route_controller, wps_uid):
-      self.name = name
-      self.namespace = namespace
+  def __init__(self, body, placer, route_controller, wps_uid):
+      self.wp = WordpressSite(body, ingress_name=body["metadata"]["name"])
       self.placer = placer
       self.route_controller = route_controller
       self.wpn_uid = wps_uid
@@ -726,24 +726,15 @@ class WordPressSiteOperator:
       self.ownerReferences = {
           "apiVersion": "wordpress.epfl.ch/v2",
           "kind": "WordpressSite",
-          "name": self.name,
+          "name": self.wp.name,
           "uid": self.wpn_uid
       }
 
   def create_site(self, body):
-      logging.info(f"Create WordPressSite {self.name=} in {self.namespace=}")
+      logging.info(f"Create WordPressSite {self.wp.moniker}")
 
-      spec = body["spec"]
-      hostname = spec.get('hostname')
-      path = spec.get('path')
-      wordpress = spec.get("wordpress")
-      unit_id = spec.get("owner", {}).get("epfl", {}).get("unitId")
-      title = wordpress["title"]
-      tagline = wordpress["tagline"]
-      restore = spec.get("restore")
-
-      self.mariadb_name = self.placer.place_and_create_database(self.namespace, self.prefix, self.name, self.ownerReferences)
-      self.database_name = f"{self.prefix['db']}{self.name}"
+      self.mariadb_name = self.placer.place_and_create_database(self.wp.namespace, self.prefix, self.wp.name, self.ownerReferences)
+      self.database_name = f"{self.prefix['db']}{self.wp.name}"
 
       self._waitMariaDBObjectReady("databases", self.database_name)
 
@@ -751,76 +742,68 @@ class WordPressSiteOperator:
       self.create_user()
       self.create_grant()
 
-      mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.namespace).data['password'])
+      mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.wp.namespace).data['password'])
       mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
 
-      self.install_wordpress_via_php(title, tagline, unit_id,
-                                     mariadb_password, hostname, path)
+      self.install_wordpress_via_php(self.wp.title, self.wp.tagline, self.wp.unit_id,
+                                     mariadb_password, self.wp.hostname, self.wp.path)
 
-      self.create_ingress(body)
+      self.create_ingress()
 
-      if restore:
-          self.restore_site(restore, hostname, path)
-          logging.info("Patch status")
-          self._patch_wordpresssite_status()
-          self.run_wp_cli(["eval", "do_action('wp_operator_post_restore', NULL);"])
+      if self.wp.restore is not None:
+          self.restore_site(self.wp.restore, hostname, path)
+          self.wp.update_php_status()
+          self.wp.run_wp_cli(["eval", "do_action('wp_operator_post_restore', NULL);"])
       else:
-          self.reconcile_site(spec, {})
+          self.reconcile_site()
 
-      route_name = f"{self.prefix['route']}{self.name}"
+      route_name = f"{self.prefix['route']}{self.wp.name}"
       service_name = 'wp-nginx'
-      self.route_controller.create_route(self.namespace, self.name, route_name, hostname, path, service_name, self.ownerReferences)
+      self.route_controller.create_route(self.wp.namespace, self.wp.name, route_name, hostname, path, service_name, self.ownerReferences)
 
-      logging.info(f"End of create WordPressSite {self.name=} in {self.namespace=}")
+      logging.info(f"End of create WordPressSite {self.wp.moniker}")
 
   def deactivate_all_plugins(self):
-      logging.info(f"Deactivate all plugins  for WordPressSite {self.name=} in {self.namespace=}")
-      self.run_wp_cli(["plugin", "deactivate", "--all"])
-
-  def run_wp_cli (self, cmdline, **kwargs):
-      cmdline = ['wp', f'--ingress={self.ingress_name}'] + cmdline
-      if 'DEBUG' in os.environ:
-          cmdline.insert(0, 'echo')
-      logging.info("Running: %s" % shlex.join(cmdline))
-      return subprocess.run(cmdline, check=True, **kwargs)
+      logging.info(f"Deactivate all plugins  for WordPressSite {self.wp.moniker}")
+      self.wp.run_wp_cli(["plugin", "deactivate", "--all"])
 
   def restore_site(self, restore, hostname, path):
       if restore["wpDbBackupRef"]["mariaDBLookup"]:
           # - Get the mariadb from the source_information in the CR
           mariadb_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["mariadbNameSource"]
           db_source_name = restore["wpDbBackupRef"]["mariaDBLookup"]["databaseNameSource"]
-          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - by mariaDBLookup: {db_source_name} for {self.database_name}")
+          logging.info(f" ↳ [{self.wp.moniker}] RESTORE - by mariaDBLookup: {db_source_name} for {self.database_name}")
 
           # - From the s3, restore the db source on the mariadb-restore
-          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - create DB source: {db_source_name}")
+          logging.info(f" ↳ [{self.wp.moniker}] RESTORE - create DB source: {db_source_name}")
           k8s_name = self.create_database_for_restore(db_source_name)
           self._waitMariaDBObjectReady("databases", k8s_name)
 
           # - Read the root secret for mariadb-restore
           secret = KubernetesAPI.core.read_namespaced_secret(restore["wpDbBackupRef"]["mariaDBLookup"]["mariadbSecretName"],
-                                                             self.namespace)
+                                                             self.wp.namespace)
           decoded_secret = base64.b64decode(secret.data["root-password"]).decode("utf-8")
 
           # - When the DB is created, restore data from s3
-          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - restore DB from s3: {db_source_name}")
+          logging.info(f" ↳ [{self.wp.moniker}] RESTORE - restore DB from s3: {db_source_name}")
           restore_name = self.restore_from_s3 (restore["s3"], mariadb_source_name, db_source_name, os.getenv("MARIADB-RESTORE"))
-          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - waiting for restore: {restore_name}")
+          logging.info(f" ↳ [{self.wp.moniker}] RESTORE - waiting for restore: {restore_name}")
           self._waitMariaDBObjectComplete("restores", restore_name)
 
           # 5- Use mysqldump to dump the db from the restored DB into mariadb-restore
           logging.info(f"Running dump of {k8s_name} and import to {self.database_name}")
 
           dump_cmd = ["mariadb-dump", "-h", os.getenv("MARIADB-RESTORE"), "-u", "root", f"-p{decoded_secret}", "--databases", db_source_name]
-          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - DUMP: {' '.join(dump_cmd)}")
+          logging.info(f" ↳ [{self.wp.moniker}] RESTORE - DUMP: {' '.join(dump_cmd)}")
 
           sed_url = ["sed", "-e", rf"s|{restore['wpDbBackupRef']['mariaDBLookup']['urlSource']}|https://{hostname}{path}|g"]
-          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - SED URL: {' '.join(sed_url)}")
+          logging.info(f" ↳ [{self.wp.moniker}] RESTORE - SED URL: {' '.join(sed_url)}")
 
           sed_dbname = ["sed", "-e", rf"s|{db_source_name}|{self.database_name}|g"]
-          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - SED DB NAME: {' '.join(sed_dbname)}")
+          logging.info(f" ↳ [{self.wp.moniker}] RESTORE - SED DB NAME: {' '.join(sed_dbname)}")
 
           restore_cmd = ["mariadb", "-u", "root", "-h", self.mariadb_name, f"-p{decoded_secret}", self.database_name]
-          logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - IMPORT INTO NEW DB: {' '.join(restore_cmd)}")
+          logging.info(f" ↳ [{self.wp.moniker}] RESTORE - IMPORT INTO NEW DB: {' '.join(restore_cmd)}")
 
           mariadb_dump = subprocess.Popen(dump_cmd, stdout=subprocess.PIPE)
           dump_replaced_url = subprocess.Popen(sed_url, stdin=mariadb_dump.stdout, stdout=subprocess.PIPE)
@@ -860,29 +843,29 @@ class WordPressSiteOperator:
           logging.info(f"Delete temp database {k8s_name}")
           KubernetesAPI.custom.delete_namespaced_custom_object(group="k8s.mariadb.com",
                                 version="v1alpha1",
-                                namespace=self.namespace,
+                                namespace=self.wp.namespace,
                                 plural="databases",
                                 name=k8s_name
                                 )
 
-      logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - media for {self.name}")
+      logging.info(f" ↳ [{self.wp.moniker}] RESTORE - media for {self.wp.name}")
       MediaRestoreOperator(
-          namespace=self.namespace,
-          wp_name=self.name,
+          namespace=self.wp.namespace,
+          wp_name=self.wp.name,
           source_pvc=restore['mediaPersistentVolumeClaim']['claimName'],
           source_subdir=restore['mediaPersistentVolumeClaim']['subPath'],
           dest_pvc=Config.media_restore_to_pvc,
-          dest_subdir=self.name,
+          dest_subdir=self.wp.name,
           owner=self.ownerReferences
       ).run_pod()
 
-      logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - refresh menu-api for {self.name}")
+      logging.info(f" ↳ [{self.wp.moniker}] RESTORE - refresh menu-api for {self.wp.name}")
       self._refresh_menu_after_restore(hostname, path)
 
   def _refresh_menu_after_restore(self, hostname, path):
       url = f"https://{hostname}{path}"
       r = requests.get(f"http://{os.getenv('MENU_API_HOST')}:3001/refreshSingleMenu/?url={url}")
-      logging.info(f" ↳ [{self.namespace}/{self.name}] RESTORE - refresh menu-api for {url} ends with {r.json()}")
+      logging.info(f" ↳ [{self.wp.moniker}] RESTORE - refresh menu-api for {url} ends with {r.json()}")
 
   def create_database_for_restore(self, name):
     k8s_name = f"{name}-restore"
@@ -891,7 +874,7 @@ class WordPressSiteOperator:
         "kind": "Database",
         "metadata": {
             "name": k8s_name,
-            "namespace": self.namespace
+            "namespace": self.wp.namespace
         },
         "spec": {
             "name": name,
@@ -907,19 +890,19 @@ class WordPressSiteOperator:
         KubernetesAPI.custom.create_namespaced_custom_object(
             group="k8s.mariadb.com",
             version="v1alpha1",
-            namespace=self.namespace,
+            namespace=self.wp.namespace,
             plural="databases",
             body=body
         )
     except ApiException as e:
         if e.status != 409:
             raise e
-        logging.info(f" ↳ [{self.namespace}/{name}] Database {k8s_name} already exists in {os.getenv('MARIADB-RESTORE')}")
+        logging.info(f" ↳ [{self.wp.namespace}/{name}] Database {k8s_name} already exists in {os.getenv('MARIADB-RESTORE')}")
 
     return k8s_name
 
   def restore_from_s3 (self, s3_info, mariadb_name_src, db_name_src, mariadb_name_dst):
-    logging.info(f"   ↳ [{self.namespace}/{self.name}] Initiating restore on {mariadb_name_dst} for {mariadb_name_src}/{db_name_src}")
+    logging.info(f"   ↳ [{self.wp.moniker}] Initiating restore on {mariadb_name_dst} for {mariadb_name_src}/{db_name_src}")
 
     restore_name = f"m-{db_name_src[-50:]}-{round(time.time())}"
     # Initiate the restore process in MariaDB
@@ -928,7 +911,7 @@ class WordPressSiteOperator:
         "kind": "Restore",
         "metadata": {
             "name": restore_name,
-            "namespace": self.namespace
+            "namespace": self.wp.namespace
         },
         "spec": {
             "mariaDbRef": {
@@ -963,32 +946,32 @@ class WordPressSiteOperator:
         }
     }
 
-    logging.info(f"   ↳ [{self.namespace}/{self.name}] Creating restore object in Kubernetes")
+    logging.info(f"   ↳ [{self.wp.moniker}] Creating restore object in Kubernetes")
     try:
         KubernetesAPI.custom.create_namespaced_custom_object(
             group="k8s.mariadb.com",
             version="v1alpha1",
-            namespace=self.namespace,
+            namespace=self.wp.namespace,
             plural="restores",
             body=restore_spec
         )
     except ApiException as e:
         if e.status != 409:
             raise e
-        logging.info(f" ↳ [{self.namespace}/{self.name}] Restore {restore_name} already exists")
+        logging.info(f" ↳ [{self.wp.moniker}] Restore {restore_name} already exists")
 
     return restore_name
 
   def install_wordpress_via_php(self, title, tagline, unit_id, secret, hostname, path):
-      logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.name=}, {path=}, {title=}, {tagline=}")
+      logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.wp.name=}, {path=}, {title=}, {tagline=}")
 
       cmdline = [Config.php, "ensure-wordpress-and-theme.php",
-                 f"--name={self.name}", f"--path={path}",
+                 f"--name={self.wp.name}", f"--path={path}",
                  f"--wp-dir={Config.wp_dir}",
                  f"--wp-host={hostname}",
                  f"--db-host={self.mariadb_name}",
-                 f"--db-name={self.prefix['db']}{self.name}",
-                 f"--db-user={self.prefix['user']}{self.name}",
+                 f"--db-name={self.prefix['db']}{self.wp.name}",
+                 f"--db-user={self.prefix['user']}{self.wp.name}",
                  f"--db-password={secret}",
                  f"--title={title}",
                  f"--tagline={tagline}",
@@ -1008,63 +991,56 @@ class WordPressSiteOperator:
       else:
           logging.info(f" ↳ [install_wordpress_via_php] End of configuring")
 
-  def reconcile_site(self, spec, status):
-      logging.info(f"Reconcile WordPressSite {self.name} in {self.namespace}")
+  def reconcile_site(self):
+      logging.info(f"Reconcile WordPressSite {self.wp.moniker}")
 
       logging.info("Plugins")
-      self.reconcile_plugins(spec, status)
+      self.reconcile_plugins()
 
       logging.info("Languages")
-      self.reconcile_languages(spec, status)
+      self.reconcile_languages()
 
       logging.info("UnitId")
-      self.reconcile_unitId(spec)
+      self.reconcile_unitId()
 
-      logging.info("Patch status")
-      self._patch_wordpresssite_status()
+      self.wp.update_php_status()
 
-      logging.info(f"Reconcile WordPressSite {self.name=} in {self.namespace=} end")
+      logging.info(f"Reconcile WordPressSite {self.wp.moniker} end")
 
-  def reconcile_plugins(self, spec, status):
-      logging.info(f"Reconcile WordPressSite plugins {self.name=} in {self.namespace=}")
+  def reconcile_plugins(self):
+      logging.info(f"Reconcile WordPressSite plugins {self.wp.moniker}")
       work = SiteReconcilerWork(self)
 
-      wordpress = spec.get("wordpress")
-      plugins_wanted = set(wordpress.get("plugins", {}))
+      plugins_wanted = self.wp.plugins
+      plugins_got = self.wp.status_wordpresssite.get("plugins", {})
 
-      status_spec = status.get("wordpresssite", {})
-      plugins_got = set(status_spec.get("plugins", {}))
-
-      plugins_to_activate = plugins_wanted - plugins_got
+      plugins_to_activate = set(plugins_wanted) - set(plugins_got)
       logging.info(f'plugins_to_activate: {plugins_to_activate}')
       for name in plugins_to_activate:
-          p = PluginReconciler.get(plugin_name=name, work=work, k8s_namespace=self.namespace)
+          p = PluginReconciler.get(plugin_name=name, work=work, k8s_namespace=self.wp.namespace)
           p.activate()
       for name in plugins_to_activate:
-          p = PluginReconciler.get(plugin_name=name, work=work, k8s_namespace=self.namespace)
-          p.configure(wordpress['plugins'][name])
+          p = PluginReconciler.get(plugin_name=name, work=work, k8s_namespace=self.wp.namespace)
+          p.configure(plugins_wanted[name])
 
-      plugins_to_deactivate = plugins_got - plugins_wanted
+      plugins_to_deactivate = set(plugins_got) - set(plugins_wanted)
       logging.info(f'plugins_to_deactivate: {plugins_to_deactivate}')
       for name in plugins_to_deactivate:
-          p = PluginReconciler.get(plugin_name=name, work=work, k8s_namespace=self.namespace)
+          p = PluginReconciler.get(plugin_name=name, work=work, k8s_namespace=self.wp.namespace)
           p.deactivate()
 
       work.flush()
-      logging.info(f"End of reconcile WordPressSite plugins {self.name=} in {self.namespace=}")
+      logging.info(f"End of reconcile WordPressSite plugins {self.wp.moniker}")
 
-  def reconcile_languages(self, spec, status):
-    logging.info(f"Reconcile WordPressSite languages {self.name=} in {self.namespace=}")
+  def reconcile_languages(self):
+    logging.info(f"Reconcile WordPressSite languages {self.wp.moniker}")
     work = SiteReconcilerWork(self)
 
-    wordpress = spec.get("wordpress")
-    plugins = wordpress.get("plugins", {})
-    polylang = plugins.get("polylang", {}).get("polylang", {})
+    polylang = self.wp.plugins.get("polylang", {}).get("polylang", {})
     languages_wanted = polylang.get("languages", [])
     locale_wanted = {lang['locale'] for lang in languages_wanted}
 
-    status_spec = status.get("wordpresssite", {})
-    languages_got = status_spec.get("languages", [])
+    languages_got = self.wp.status_wordpresssite.get("languages", [])
     locale_got = {lang['locale'] for lang in languages_got}
 
     languages_to_deactivate = locale_got - locale_wanted
@@ -1082,110 +1058,49 @@ class WordPressSiteOperator:
             work.add_language(language)
 
     work.flush()
-    logging.info(f"End of reconcile WordPressSite languages {self.name=} in {self.namespace=}")
+    logging.info(f"End of reconcile WordPressSite languages {self.wp.moniker}")
 
-  def reconcile_unitId(self, spec):
-      logging.info(f"Reconcile WordPressSite unit_id {self.name=} in {self.namespace=}")
+  def reconcile_unitId(self):
+      logging.info(f"Reconcile WordPressSite unit_id {self.wp.moniker}")
       work = SiteReconcilerWork(self)
-      unit = spec.get("owner", {}).get("epfl", {}).get("unitId", {})
-      work.set_wp_option('plugin:epfl_accred:unit_id', unit)
+      work.set_wp_option('plugin:epfl_accred:unit_id', self.wp.unit_id)
       work.flush()
-      logging.info(f"Reconcile WordPressSite unit_id {self.name=} in {self.namespace=}")
-
-  def _patch_wordpresssite_status (self):
-      """
-      Patch the Wordpresssite CR status with:
-          plugins: The active plugins on the site
-      """
-      try:
-          KubernetesAPI.custom_jsonpatch.patch_namespaced_custom_object_status(
-              group="wordpress.epfl.ch",
-              version="v2",
-              plural="wordpresssites",
-              namespace=self.namespace,
-              name=self.name,
-              body=[
-                  {
-                      "op": "add",
-                      "path": "/status/wordpresssite",
-                      "value": self._status_wordpresssite_struct()
-                  }
-              ])
-      except ApiException:
-          logging.exception("when calling CustomObjectsApi->patch_namespaced_custom_object_status")
-          raise
-
-  def _status_wordpresssite_struct(self):
-      python_side_data = {
-          'lastCronJobRuntime': datetime.datetime.now().isoformat()
-      }
-      if 'DEBUG' in os.environ:
-          return python_side_data
-
-      armor = "===== %s WORDPRESS JSON STATUS ====="
-      armor_begin = armor % "BEGIN"
-      armor_end = armor % "END"
-
-      cmdline = ['eval',
-                 '''$w = apply_filters('wp_operator_status',[]); ''' +
-                 '''echo("%s\n"); ''' % armor_begin +
-                 '''echo(json_encode($w, JSON_PRETTY_PRINT)); ''' +
-                 '''echo("%s\n");''' % armor_end]
-      result = self.run_wp_cli(cmdline, capture_output=True, text=True)
-
-      start = result.stdout.find(armor_begin)
-      end = result.stdout.find(armor_end)
-      if start == -1 or end == -1 or end <= start:
-        raise RuntimeError("No armored JSON output: %s" % result.stdout)
-
-      unarmored = result.stdout[start + len(armor_begin):end]
-      try:
-        out = json.loads(unarmored)
-        return {
-          **python_side_data,
-          **({} if out == [] else out)
-        }
-      except json.JSONDecodeError:
-        raise RuntimeError("unparseable JSON: %s" % unarmored)
+      logging.info(f"Reconcile WordPressSite unit_id {self.wp.moniker}")
 
   @property
   def secret_name(self):
-      return self.prefix["password"] + self.name
-
-  @property
-  def ingress_name(self):
-      return self.name
+      return self.prefix["password"] + self.wp.name
 
   def create_secret(self):
       secret = secrets.token_urlsafe(32)
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Secret name={self.secret_name}")
+      logging.info(f" ↳ [{self.wp.moniker}] Create Secret name={self.secret_name}")
       body = client.V1Secret(
           type="Opaque",
           metadata=client.V1ObjectMeta(
               name=self.secret_name,
-              namespace=self.namespace,
+              namespace=self.wp.namespace,
               owner_references=[self.ownerReferences]
           ),
           string_data={"password": secret}
       )
 
       try:
-          KubernetesAPI.core.create_namespaced_secret(namespace=self.namespace, body=body)
+          KubernetesAPI.core.create_namespaced_secret(namespace=self.wp.namespace, body=body)
       except ApiException as e:
           if e.status != 409:
               raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Secret {self.secret_name} already exists")
+          logging.info(f" ↳ [{self.wp.moniker}] Secret {self.secret_name} already exists")
 
   def create_user(self):
-      user_name = f"{self.prefix['user']}{self.name}"
-      password_name = f"{self.prefix['password']}{self.name}"
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Create User name={user_name}")
+      user_name = f"{self.prefix['user']}{self.wp.name}"
+      password_name = f"{self.prefix['password']}{self.wp.name}"
+      logging.info(f" ↳ [{self.wp.moniker}] Create User name={user_name}")
       body = {
           "apiVersion": "k8s.mariadb.com/v1alpha1",
           "kind": "User",
           "metadata": {
               "name": user_name,
-              "namespace": self.namespace,
+              "namespace": self.wp.namespace,
               "ownerReferences": [self.ownerReferences]
           },
           "spec": {
@@ -1205,26 +1120,26 @@ class WordPressSiteOperator:
           KubernetesAPI.custom.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
-              namespace=self.namespace,
+              namespace=self.wp.namespace,
               plural="users",
               body=body
           )
       except ApiException as e:
           if e.status != 409:
               raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] User {user_name} already exists")
+          logging.info(f" ↳ [{self.wp.moniker}] User {user_name} already exists")
 
       self._waitMariaDBObjectReady("users", user_name)
 
   def create_grant(self):
-      grant_name = f"{self.prefix['grant']}{self.name}"
-      logging.info(f" ↳ [{self.namespace}/{self.name}] Create Grant: {grant_name}")
+      grant_name = f"{self.prefix['grant']}{self.wp.name}"
+      logging.info(f" ↳ [{self.wp.moniker}] Create Grant: {grant_name}")
       body = {
           "apiVersion": "k8s.mariadb.com/v1alpha1",
           "kind": "Grant",
           "metadata": {
               "name": grant_name,
-              "namespace": self.namespace,
+              "namespace": self.wp.namespace,
               "ownerReferences": [self.ownerReferences]
           },
           "spec": {
@@ -1234,9 +1149,9 @@ class WordPressSiteOperator:
               "privileges": [
                   "ALL PRIVILEGES"
               ],
-              "database": f"{self.prefix['db']}{self.name}",
+              "database": f"{self.prefix['db']}{self.wp.name}",
               "table" : "*",
-              "username": f"{self.prefix['user']}{self.name}",
+              "username": f"{self.prefix['user']}{self.wp.name}",
               "grantOption": False,
               "host": "%"
           }
@@ -1246,14 +1161,14 @@ class WordPressSiteOperator:
           KubernetesAPI.custom.create_namespaced_custom_object(
               group="k8s.mariadb.com",
               version="v1alpha1",
-              namespace=self.namespace,
+              namespace=self.wp.namespace,
               plural="grants",
               body=body
           )
       except ApiException as e:
           if e.status != 409:
               raise e
-          logging.info(f" ↳ [{self.namespace}/{self.name}] Grant {grant_name} already exists")
+          logging.info(f" ↳ [{self.wp.moniker}] Grant {grant_name} already exists")
 
       self._waitMariaDBObjectReady("grants", grant_name)
 
@@ -1265,7 +1180,7 @@ class WordPressSiteOperator:
     while(True):
         newUser = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
                                                                     version="v1alpha1",
-                                                                    namespace=self.namespace,
+                                                                    namespace=self.wp.namespace,
                                                                     plural=customObjectType,
                                                                     name=customObjectName)
         for condition in newUser.get("status", {}).get("conditions", []):
@@ -1290,7 +1205,7 @@ class WordPressSiteOperator:
       while(True):
           newUser = KubernetesAPI.custom.get_namespaced_custom_object(group="k8s.mariadb.com",
                                                                  version="v1alpha1",
-                                                                 namespace=self.namespace,
+                                                                 namespace=self.wp.namespace,
                                                                  plural=customObjectType,
                                                                  name=customObjectName)
           for condition in newUser.get("status", {}).get("conditions", []):
@@ -1308,8 +1223,8 @@ class WordPressSiteOperator:
               raise kopf.PermanentError(f"create {customObjectName} timed out or failed, last condition message: {message}")
 
   def create_ingress (self, body):
-      logging.info(f"Creating ingress for {self.name}")
-      WordpressIngressReconciler(WordpressSite(body)).reconcile()
+      logging.info(f"Creating ingress for {self.wp.name}")
+      WordpressIngressReconciler(WordpressSite(body, )).reconcile()
 
 
 class NamespaceFromEnv:

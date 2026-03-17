@@ -268,6 +268,14 @@ class CustomAPIKubernetesObject (KubernetesObject):
                     return default
         return walk
 
+    @property
+    def spec (self):
+        return self.field("spec")
+
+    @property
+    def status (self):
+        return self.field("status")
+
     # These accessors are called by `KubernetesObject().moniker` and
     # therefore, should not use `.field`:
     @property
@@ -285,6 +293,28 @@ class CustomAPIKubernetesObject (KubernetesObject):
     @property
     def namespace (self):
         return self._definition.get("metadata", {}).get("namespace", None)
+
+    def status_deep_merge (self, status_struct):
+        KubernetesAPI.custom.patch_namespaced_custom_object_status(
+            body=dict(status=status_struct),
+            name=self.name,
+            namespace=self.namespace,
+            **self._search_kwargs)
+
+    def status_set_key (self, status_key, status_value):
+        self.status_deep_merge({})   # In case there was no status yet
+
+        KubernetesAPI.custom_jsonpatch.patch_namespaced_custom_object_status(
+            body=[
+                {
+                    "op": "add",
+                    "path": f"/status/{status_key}",
+                    "value": status_value
+                }
+            ],
+            name=self.name,
+            namespace=self.namespace,
+            **self._search_kwargs)
 
 
 class MariaDBUser (CustomAPIKubernetesObject):
@@ -359,6 +389,30 @@ class WordpressSite (CustomAPIKubernetesObject):
     @property
     def tagline (self):
         return self.field("spec.wordpress.tagline")
+
+    @property
+    def hostname (self):
+        return self.field("spec.hostname")
+
+    @property
+    def path (self):
+        return self.field("spec.path")
+
+    @property
+    def unit_id (self):
+        return self.field("spec.owner.epfl.unitId", None)
+
+    @property
+    def restore (self):
+        return self.field("spec.restore", None)
+
+    @property
+    def plugins (self):
+        return self.field("spec.wordpress.plugins", {})
+
+    @property
+    def status_wordpresssite (self):
+        return self.field("status.wordpresssite", {})
 
     @cached_property
     def database (self):
