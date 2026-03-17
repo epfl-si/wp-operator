@@ -1125,12 +1125,12 @@ class WordPressSiteOperator:
       armor_begin = armor % "BEGIN"
       armor_end = armor % "END"
 
-      cmdline = ['wp', f'--ingress={self.ingress_name}', 'eval',
+      cmdline = ['eval',
                  '''$w = apply_filters('wp_operator_status',[]); ''' +
                  '''echo("%s\n"); ''' % armor_begin +
                  '''echo(json_encode($w, JSON_PRETTY_PRINT)); ''' +
                  '''echo("%s\n");''' % armor_end]
-      result = self._do_run_wp(cmdline, capture_output=True, text=True)
+      result = self.run_wp_cli(cmdline, capture_output=True, text=True)
 
       start = result.stdout.find(armor_begin)
       end = result.stdout.find(armor_end)
@@ -1146,11 +1146,6 @@ class WordPressSiteOperator:
         }
       except json.JSONDecodeError:
         raise RuntimeError("unparseable JSON: %s" % unarmored)
-
-  def _do_run_wp(self, cmdline, **kwargs):
-      if 'DEBUG' in os.environ:
-          cmdline.insert(0, 'echo')
-      return subprocess.run(cmdline, check=True, **kwargs)
 
   @property
   def secret_name(self):
