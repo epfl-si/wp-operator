@@ -744,8 +744,7 @@ class WordPressSiteOperator:
       mariadb_password_base64 = str(KubernetesAPI.core.read_namespaced_secret(self.secret_name, self.wp.namespace).data['password'])
       mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
 
-      self.install_wordpress_via_php(self.wp.title, self.wp.tagline, self.wp.unit_id,
-                                     mariadb_password, self.wp.hostname, self.wp.path)
+      self.install_wordpress_via_php(mariadb_password)
 
       self.create_ingress()
 
@@ -961,20 +960,20 @@ class WordPressSiteOperator:
 
     return restore_name
 
-  def install_wordpress_via_php(self, title, tagline, unit_id, secret, hostname, path):
-      logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.wp.name=}, {path=}, {title=}, {tagline=}")
+  def install_wordpress_via_php(self, secret):
+      logging.info(f" ↳ [install_wordpress_via_php] Configuring (ensure-wordpress-and-theme.php) with {self.wp.name=}, {self.wp.path=}, {self.wp.title=}, {self.wp.tagline=}")
 
       cmdline = [Config.php, "ensure-wordpress-and-theme.php",
-                 f"--name={self.wp.name}", f"--path={path}",
+                 f"--name={self.wp.name}", f"--path={self.wp.path}",
                  f"--wp-dir={Config.wp_dir}",
-                 f"--wp-host={hostname}",
+                 f"--wp-host={self.wp.hostname}",
                  f"--db-host={self.mariadb_name}",
                  f"--db-name={self.prefix['db']}{self.wp.name}",
                  f"--db-user={self.prefix['user']}{self.wp.name}",
                  f"--db-password={secret}",
-                 f"--title={title}",
-                 f"--tagline={tagline}",
-                 f"--unit-id={unit_id}",
+                 f"--title={self.wp.title}",
+                 f"--tagline={self.wp.tagline}",
+                 f"--unit-id={self.wp.unit_id}",
                  f"--secret-dir={Config.secret_dir}"]
 
       cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
