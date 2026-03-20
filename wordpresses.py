@@ -48,9 +48,9 @@ class WordpressSite:
     """Models a WordPress site.
 
     This class bridges the Kubernetes and PHP states together (the
-    latter as seen through the `wp` CLI). It has-a
-    `wp_kubernetes.WordpressSite` and delegates a number of properties
-    to it.
+    latter as seen through the `wp` CLI). It is-a
+    `wp_kubernetes.WordpressSite` with extra fields (i.e., an
+    `ingress_name`) to use when invoking WP-CLI.
     """
 
     @classmethod
@@ -72,81 +72,28 @@ class WordpressSite:
             if not wp:
                 continue
 
-            ret.append(cls(wp, ingress_name=ingress["metadata"]["name"]))
+            ret.append(cls(wp.body, ingress_name=ingress["metadata"]["name"]))
 
         return ret
 
-    def __init__ (self, wp, ingress_name):
-        if isinstance(wp, WordpressSiteK8s):
-            self._wp = wp
-        else:
-            self._wp = WordpressSiteK8s(wp)
+    def __init__ (self, body, ingress_name):
+        super(WordpressSite, self).__init__(body)
 
         self._ingress_name = ingress_name
 
-        self.name      = self._wp.name
-        self.namespace = self._wp.namespace
-        self.spec      = self._wp.spec
-        self.moniker   = self._wp.moniker
-
-    @property
-    def title (self):
-        return self._wp.title
-
-    @property
-    def tagline (self):
-        return self._wp.tagline
-
-    @property
-    def hostname (self):
-        return self._wp.hostname
-
-    @property
-    def path (self):
-        return self._wp.path
-
-    @property
-    def unit_id (self):
-        return self._wp.unit_id
-
-    @property
-    def restore (self):
-        return self._wp.restore
-
-    @property
-    def plugins (self):
-        return self._wp.plugins
-
-    # May not exist yet; caveat caller
-    @property
-    def status (self):
-        return self._wp.status
-
-    # Ditto
-    @property
-    def status_wordpresssite (self):
-        return self._wp.status_wordpresssite
-
-    @property
-    def protection_script (self):
-        return self._wp.protection_script
-
-    @property
-    def database (self):
-        return self._wp.database
 
     def status_deep_merge(self, *args, **kwargs):
-        return self._wp.status_deep_merge(*args, **kwargs)
+        return self.status_deep_merge(*args, **kwargs)
 
     def status_set_key(self, *args, **kwargs):
-        return self._wp.status_set_key(*args, **kwargs)
+        return self.status_set_key(*args, **kwargs)
 
     def update_php_status (self):
         """
         Patch the `wordpressite` field in the CR status with
         the structure returned by the `wp_operator_status` WordPress filter.
         """
-        logging.info(f"{self._wp.moniker}: update_php_status")
+        logging.info(f"{self.moniker}: update_php_status")
         if 'DEBUG' in os.environ:
             return
 
@@ -172,7 +119,7 @@ class WordpressSite:
         except json.JSONDecodeError:
           raise RuntimeError("unparseable JSON: %s" % unarmored)
 
-        self._wp.status_set_key("wordpresssite", status_wordpresssite)
+        self.status_set_key("wordpresssite", status_wordpresssite)
 
     def run_wp_cli (self, cmdline, **kwargs):
         cmdline = ['wp', f'--ingress={self._ingress_name}'] + cmdline
