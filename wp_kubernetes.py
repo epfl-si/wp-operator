@@ -379,24 +379,12 @@ class WordpressSite (CustomAPIKubernetesObject):
         return self.field("spec.wordpress.downloadsProtectionScript", None)
 
     @property
-    def unit_id (self):
-        return self.field("spec.owner.epfl.unitId")
-
-    @property
     def title (self):
         return self.field("spec.wordpress.title")
 
     @property
     def tagline (self):
         return self.field("spec.wordpress.tagline")
-
-    @property
-    def hostname (self):
-        return self.field("spec.hostname")
-
-    @property
-    def path (self):
-        return self.field("spec.path")
 
     @property
     def unit_id (self):
