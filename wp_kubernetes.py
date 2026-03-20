@@ -90,6 +90,13 @@ class KubernetesObject:
     This is an abstract base class. Instantiable subclasses are named after
     the `kind:` of the objects they model.
     """
+    def __init__ (self, definition):
+        self._definition = definition
+
+    @property
+    def body (self):
+        return self._definition
+
     @property
     def moniker (self):
         # Do *not* call self.field (even indirectly) to avoid a loop:
@@ -139,9 +146,6 @@ class KubernetesBuiltinObject (KubernetesObject):
     @classmethod
     def from_list (cls, k8s_list, owner=None):
         return [cls(s) for s in k8s_list.items]
-
-    def __init__ (self, definition):
-        self._definition = definition
 
     @property
     def kind (self):
@@ -227,13 +231,13 @@ class CustomAPIKubernetesObject (KubernetesObject):
     the `kind:` of the objects they model.
     """
     def __init__ (self, definition):
+        super(CustomAPIKubernetesObject, self).__init__(definition)
         if hasattr(definition, "items"):
             # Accepts plain Python dicts, as well as instances of
             # kopf._cogs.structs.bodies.Body
             pass
         else:
             raise ValueError(f"{definition} is not a Kubernetes object")
-        self._definition = definition
 
     @classmethod
     def all (cls, namespace):

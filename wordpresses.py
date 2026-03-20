@@ -44,7 +44,7 @@ class BagOfIngresses (_BagBase):
             self._bag[owner_uid] = ingress
 
 
-class WordpressSite:
+class WordpressSite (WordpressSiteK8s):
     """Models a WordPress site.
 
     This class bridges the Kubernetes and PHP states together (the
@@ -80,13 +80,6 @@ class WordpressSite:
         super(WordpressSite, self).__init__(body)
 
         self._ingress_name = ingress_name
-
-
-    def status_deep_merge(self, *args, **kwargs):
-        return self.status_deep_merge(*args, **kwargs)
-
-    def status_set_key(self, *args, **kwargs):
-        return self.status_set_key(*args, **kwargs)
 
     def update_php_status (self):
         """
