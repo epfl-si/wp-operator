@@ -696,7 +696,7 @@ class WordPressSiteOperator:
       @kopf.on.create('wordpresssites')
       def on_create_wordpresssite(body, name, namespace, meta, **kwargs):
           wps_uid = meta.get('uid')
-          WordPressSiteOperator(body, placer, route_controller, wps_uid).create_site(body)
+          WordPressSiteOperator(body, placer, route_controller, wps_uid).create_site()
 
       @kopf.on.delete('wordpresssites')
       def on_delete_wordpresssite(body, name, namespace, meta, **kwargs):
@@ -730,7 +730,7 @@ class WordPressSiteOperator:
           "uid": self.wpn_uid
       }
 
-  def create_site(self, body):
+  def create_site(self):
       logging.info(f"Create WordPressSite {self.wp.moniker}")
 
       self.mariadb_name = self.placer.place_and_create_database(self.wp.namespace, self.prefix, self.wp.name, self.ownerReferences)
@@ -1222,9 +1222,9 @@ class WordPressSiteOperator:
           else:
               raise kopf.PermanentError(f"create {customObjectName} timed out or failed, last condition message: {message}")
 
-  def create_ingress (self, body):
+  def create_ingress (self):
       logging.info(f"Creating ingress for {self.wp.name}")
-      WordpressIngressReconciler(WordpressSite(body, )).reconcile()
+      WordpressIngressReconciler(self.wp).reconcile()
 
 
 class NamespaceFromEnv:
