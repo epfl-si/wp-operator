@@ -87,7 +87,6 @@ class WordpressSite:
         self.name      = self._wp.name
         self.namespace = self._wp.namespace
         self.spec      = self._wp.spec
-        self.status    = self._wp.status
         self.moniker   = self._wp.moniker
 
     @property
@@ -118,6 +117,12 @@ class WordpressSite:
     def plugins (self):
         return self._wp.plugins
 
+    # May not exist yet; caveat caller
+    @property
+    def status (self):
+        return self._wp.status
+
+    # Ditto
     @property
     def status_wordpresssite (self):
         return self._wp.status_wordpresssite
