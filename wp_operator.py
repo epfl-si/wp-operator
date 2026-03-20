@@ -715,7 +715,6 @@ class WordPressSiteOperator:
       self.wp = WordpressSite(body, ingress_name=body["metadata"]["name"])
       self.placer = placer
       self.route_controller = route_controller
-      self.wpn_uid = wps_uid
       self.prefix = {
           "db": "wp-db-",
           "user": "wp-db-user-",
@@ -727,7 +726,7 @@ class WordPressSiteOperator:
           "apiVersion": "wordpress.epfl.ch/v2",
           "kind": "WordpressSite",
           "name": self.wp.name,
-          "uid": self.wpn_uid
+          "uid": wps_uid
       }
 
   def create_site(self):
