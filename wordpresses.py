@@ -131,6 +131,10 @@ class WordpressSite:
     def protection_script (self):
         return self._wp.protection_script
 
+    @property
+    def database (self):
+        return self._wp.database
+
     def status_deep_merge(self, *args, **kwargs):
         return self._wp.status_deep_merge(*args, **kwargs)
 
