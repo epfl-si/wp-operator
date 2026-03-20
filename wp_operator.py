@@ -979,6 +979,7 @@ class WordPressSiteOperator:
       cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
       logging.info(f" Running: {cmdline_text}")
       if 'DEBUG' in os.environ:
+          logging.info(f" (... not really)")
           cmdline.insert(0, "echo")
       result = subprocess.run(cmdline, capture_output=True, text=True)
 
