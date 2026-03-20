@@ -28,7 +28,7 @@ from urllib3.exceptions import InsecureRequestWarning
 
 from php import phpize
 from wp_kubernetes import KubernetesAPI, NamespaceLeaderElection
-from wordpresses import WordpressSite
+from wordpresses import WordpressSiteWithWpCli
 
 
 disable_warnings(InsecureRequestWarning)
@@ -712,7 +712,8 @@ class WordPressSiteOperator:
           WordPressSiteOperator(body, placer, route_controller, wps_uid).reconcile_site()
 
   def __init__(self, body, placer, route_controller, wps_uid):
-      self.wp = WordpressSite(body, ingress_name=body["metadata"]["name"])
+      self.wp = WordpressSiteWithWpCli(
+          body, ingress_name=body["metadata"]["name"])
       self.placer = placer
       self.route_controller = route_controller
       self.prefix = {

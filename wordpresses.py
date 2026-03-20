@@ -9,7 +9,7 @@ from kubernetes import client, config
 from kubernetes.dynamic import DynamicClient
 from kubernetes.client.exceptions import ApiException
 
-from wp_kubernetes import WordpressSite as WordpressSiteK8s, KubernetesAPI
+from wp_kubernetes import WordpressSite, KubernetesAPI
 
 
 class _BagBase:
@@ -44,7 +44,7 @@ class BagOfIngresses (_BagBase):
             self._bag[owner_uid] = ingress
 
 
-class WordpressSite (WordpressSiteK8s):
+class WordpressSiteWithWpCli (WordpressSite):
     """Models a WordPress site.
 
     This class bridges the Kubernetes and PHP states together (the
@@ -61,7 +61,7 @@ class WordpressSite (WordpressSiteK8s):
 
         ingresses = get_custom_resource_items(
             "networking.k8s.io", "v1", namespace, "ingresses")
-        wordpresssites = WordpressSiteK8s.all(namespace)
+        wordpresssites = WordpressSite.all(namespace)
 
         bag_ingress = BagOfIngresses(ingresses)
         bag_wp = BagOfWordpressSites(wordpresssites)
@@ -77,7 +77,7 @@ class WordpressSite (WordpressSiteK8s):
         return ret
 
     def __init__ (self, body, ingress_name):
-        super(WordpressSite, self).__init__(body)
+        super(WordpressSiteWithWpCli, self).__init__(body)
 
         self._ingress_name = ingress_name
 
