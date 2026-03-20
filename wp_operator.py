@@ -751,7 +751,7 @@ class WordPressSiteOperator:
       self.create_ingress()
 
       if self.wp.restore is not None:
-          self.restore_site(self.wp.restore, hostname, path)
+          self.restore_site(self.wp.restore, self.wp.hostname, self.wp.path)
           self.wp.update_php_status()
           self.wp.run_wp_cli(["eval", "do_action('wp_operator_post_restore', NULL);"])
       else:
@@ -759,7 +759,7 @@ class WordPressSiteOperator:
 
       route_name = f"{self.prefix['route']}{self.wp.name}"
       service_name = 'wp-nginx'
-      self.route_controller.create_route(self.wp.namespace, self.wp.name, route_name, hostname, path, service_name, self.ownerReferences)
+      self.route_controller.create_route(self.wp.namespace, self.wp.name, route_name, self.wp.hostname, self.wp.path, service_name, self.ownerReferences)
 
       logging.info(f"End of create WordPressSite {self.wp.moniker}")
 
