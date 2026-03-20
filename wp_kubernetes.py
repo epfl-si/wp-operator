@@ -227,8 +227,10 @@ class CustomAPIKubernetesObject (KubernetesObject):
     """An instance of one of the Kubernetes object whose type is not
     known until run time (e.g. because it belongs to a CRD).
 
-    This is an abstract base class. Instantiable subclasses are named after
-    the `kind:` of the objects they model.
+    This is an abstract base class. Subclasses should set
+    `cls._search_kwargs` for the `all()` and `get()` named
+    constructors to work. Instantiable subclasses are named after the
+    `kind:` of the objects they model.
     """
     def __init__ (self, definition):
         super(CustomAPIKubernetesObject, self).__init__(definition)
