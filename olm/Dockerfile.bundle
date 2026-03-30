@@ -4,7 +4,7 @@
 #   docker build -t quay-its.epfl.ch/svc0041/wordpress-olm-bundle:v0.0.1 \
 #       -f olm/Dockerfile.bundle .
 #
-FROM ubuntu:focal AS builder
+FROM ubuntu:noble AS builder
 
 RUN export DEBIAN_FRONTEND=noninteractive; \
     apt -qy update; apt -qy install curl
