@@ -31,6 +31,8 @@ RUN set -e -x; apt-get -qy update; \
         unzip \
      && rm -rf /var/lib/apt/lists/*; # from 1.12GB to 869MB
 
+RUN sed -i -e 's/memory_limit *= *-1/memory_limit = 256M/' /etc/php/*/cli/php.ini
+
 RUN set -e -x; cd /usr/local/bin/ ; \
     curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" ; \
     chmod +x kubectl
