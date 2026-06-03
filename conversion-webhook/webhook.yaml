@@ -67,6 +67,8 @@ spec:
             requests:
               cpu: 200m
               memory: 256Mi
+            limits:
+              memory: 256Mi
 ## Uncomment this volume to consume the PKI-as-a-service (see comment at the top of the file):
 #       volumes:
 #         - name: tls
