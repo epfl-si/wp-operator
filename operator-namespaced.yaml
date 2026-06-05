@@ -138,10 +138,10 @@ spec:
               mountPath: /wp-secrets
           resources:
             limits:
-              memory: 384Mi
+              memory: 1Gi
             requests:
               cpu: 300m
-              memory: 384Mi
+              memory: 1Gi
       restartPolicy: Always
       volumes:
         - name: wp-data
