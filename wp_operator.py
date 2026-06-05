@@ -917,6 +917,9 @@ class WordPressSiteOperator:
                 "name": mariadb_name_dst
             },
             "resources": {
+                "limits": {
+                    "memory": "256Mi"
+                },
                 "requests": {
                     "cpu": "100m",
                     "memory": "256Mi"
