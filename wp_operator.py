@@ -633,6 +633,9 @@ class MediaRestoreOperator:
                 containers=[
                     client.V1Container(
                         resources=client.V1ResourceRequirements(
+                            limits={
+                                "memory": "256Mi"
+                            },
                             requests={
                                 "cpu": "10m",
                                 "memory": "256Mi"
