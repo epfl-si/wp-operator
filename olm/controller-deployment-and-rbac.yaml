@@ -26,10 +26,10 @@ spec:
         imagePullPolicy: Always
         resources:
           limits:
-            memory: 1Gi
+            memory: 512Mi
           requests:
             cpu: 10m
-            memory: 256Mi
+            memory: 512Mi
       imagePullSecrets:
       - name: wordpress-olm-controller-image-pull
 ---
