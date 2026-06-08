@@ -1,4 +1,4 @@
-kopf
-kubernetes
-kubernetes-asyncio
-requests
+kopf==1.44.*
+kubernetes==35.0.*
+kubernetes-asyncio==35.0.*
+requests==2.25.*
