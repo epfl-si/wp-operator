@@ -393,6 +393,10 @@ class WordpressSite (CustomAPIKubernetesObject):
         return self.field("spec.wordpress.tagline")
 
     @property
+    def theme (self):
+        return self.field("spec.wordpress.theme")
+
+    @property
     def unit_id (self):
         return self.field("spec.owner.epfl.unitId", None)
 
