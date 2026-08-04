@@ -981,7 +981,8 @@ class WordPressSiteOperator:
                  f"--title={self.wp.title}",
                  f"--tagline={self.wp.tagline}",
                  f"--unit-id={self.wp.unit_id}",
-                 f"--secret-dir={Config.secret_dir}"]
+                 f"--secret-dir={Config.secret_dir}",
+                 f"--theme={self.wp.theme}"]
 
       cmdline_text = ' '.join(shlex.quote(arg) for arg in cmdline)
       logging.info(f" Running: {cmdline_text}")
