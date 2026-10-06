@@ -188,6 +188,17 @@ rules:
     resources:
       - ingresses
     verbs: ['get', 'list', 'watch']
+  # What `wp --site=<name>` reads to find the site's database, through the
+  # objects' ownerReferences (see wp-base's wp.sh)
+  - apiGroups: ['k8s.mariadb.com']
+    resources:
+      - databases
+      - users
+    verbs: ['get', 'list']
+  - apiGroups: ['']
+    resources:
+      - secrets
+    verbs: ['get']
 
 ---
 
