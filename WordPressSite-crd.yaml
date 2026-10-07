@@ -324,9 +324,6 @@ spec:
                   downloadsProtectionScript:
                     type: string
                     pattern: ^/(.*)
-                    x-kubernetes-validations:
-                      - message: Field 'wordpress.downloadsProtectionScript' is immutable
-                        rule: self == oldSelf
                   plugins:
                     description: WordpressSite's plugins
                     type: object
