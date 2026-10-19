@@ -619,7 +619,7 @@ class MediaRestoreOperator:
                 )
             ))
 
-        return client.V1Ingress(
+        return client.V1Pod(
             api_version="v1",
             kind="Pod",
             metadata=client.V1ObjectMeta(
@@ -716,7 +716,7 @@ class WordPressSiteOperator:
 
   def __init__(self, body, placer, route_controller, wps_uid):
       self.wp = WordpressSiteWithWpCli(
-          body, ingress_name=body["metadata"]["name"])
+          body, site_name=body["metadata"]["name"])
       self.placer = placer
       self.route_controller = route_controller
       self.prefix = {
