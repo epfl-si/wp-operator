@@ -31,55 +31,24 @@ class _BagBase:
         return self._bag.values()
 
 
-class BagOfWordpressSites (_BagBase):
-    def add (self, wp):
-        uid = wp.uid
-        self._bag[uid] = wp
-
-
-class BagOfIngresses (_BagBase):
-    def add (self, ingress):
-        if (ingress['metadata'].get('ownerReferences')):
-            owner_uid = ingress['metadata']['ownerReferences'][0]['uid']
-            self._bag[owner_uid] = ingress
-
-
 class WordpressSiteWithWpCli (WordpressSite):
     """Models a WordPress site.
 
     This class bridges the Kubernetes and PHP states together (the
     latter as seen through the `wp` CLI). It is-a
     `wp_kubernetes.WordpressSite` with extra fields (i.e., an
-    `ingress_name`) to use when invoking WP-CLI.
+    `site_name`) to use when invoking WP-CLI.
     """
 
     @classmethod
     def all (cls, namespace):
-        def get_custom_resource_items (group, version, namespace, plural):
-            api_response = KubernetesAPI.custom.list_namespaced_custom_object(group, version, namespace, plural)
-            return api_response['items']
+        return [cls(wp.body, site_name=wp.name)
+                for wp in WordpressSite.all(namespace)]
 
-        ingresses = get_custom_resource_items(
-            "networking.k8s.io", "v1", namespace, "ingresses")
-        wordpresssites = WordpressSite.all(namespace)
-
-        bag_ingress = BagOfIngresses(ingresses)
-        bag_wp = BagOfWordpressSites(wordpresssites)
-
-        ret = []
-        for uid, ingress in bag_ingress.items():
-            wp = bag_wp.lookup(uid)
-            if not wp:
-                continue
-
-            ret.append(cls(wp.body, ingress_name=ingress["metadata"]["name"]))
-
-        return ret
-
-    def __init__ (self, body, ingress_name):
+    def __init__ (self, body, site_name):
         super(WordpressSiteWithWpCli, self).__init__(body)
 
-        self._ingress_name = ingress_name
+        self._site_name = site_name
 
     def update_php_status (self):
         """
@@ -115,7 +84,7 @@ class WordpressSiteWithWpCli (WordpressSite):
         self.status_set_key("wordpresssite", status_wordpresssite)
 
     def run_wp_cli (self, cmdline, **kwargs):
-        cmdline = ['wp', f'--ingress={self._ingress_name}'] + cmdline
+        cmdline = ['wp', f'--site={self._site_name}'] + cmdline
         if 'DEBUG' in os.environ:
             cmdline.insert(0, 'echo')
         logging.info("Running: %s" % shlex.join(cmdline))
