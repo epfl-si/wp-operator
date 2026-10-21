@@ -80,6 +80,8 @@ rules:
   - wp-operator
   - wp-nginx
   - wp-fleet
+  - wp-patch
+  - wp-patch-cron
   verbs: ["*"]
 - apiGroups:
   - rbac.authorization.k8s.io
