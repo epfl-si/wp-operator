@@ -317,3 +317,21 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: wp-fleet
+
+---
+
+# RoleBinding/wp-patch-cron
+# ClusterRole/wp-patch is in `operator-non-namespaced.yaml`.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wp-patch-cron
+  namespace: wordpress-test
+subjects:
+  - kind: ServiceAccount
+    name: wp-cron
+    namespace: wordpress-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: wp-patch
