@@ -4,7 +4,7 @@
 # Kubernetes's API.
 # See https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
 
-FROM ubuntu:jammy
+FROM ubuntu:resolute
 
 ENV DEBIAN_FRONTEND=noninteractive
 
