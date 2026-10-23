@@ -40,7 +40,7 @@ RUN mkdir -p /srv/wp-operator
 ENV HOME=/srv/wp-operator
 WORKDIR /srv/wp-operator
 COPY ./requirements.txt .
-RUN pip3 install -r requirements.txt
+RUN pip3 install --break-system-packages -r requirements.txt
 COPY . .
 
 COPY --from=quay-its.epfl.ch/svc0041/wp-base:rc /wp /wp
