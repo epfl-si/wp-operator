@@ -320,8 +320,20 @@ roleRef:
 
 ---
 
+# Role/wp-patch
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wp-patch
+  namespace: wordpress-test
+rules:
+  - apiGroups: ['wordpress.epfl.ch']
+    resources: ['wordpresssites/status']
+    verbs: ['get', 'patch', 'update']
+
+---
+
 # RoleBinding/wp-patch-cron
-# ClusterRole/wp-patch is in `operator-non-namespaced.yaml`.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -333,5 +345,5 @@ subjects:
     namespace: wordpress-test
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
+  kind: Role
   name: wp-patch
