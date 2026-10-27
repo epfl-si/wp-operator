@@ -40,15 +40,3 @@ rules:
   - apiGroups: ['apiextensions.k8s.io']
     resources: ['customresourcedefinitions']
     verbs: ['list', 'watch']
-
----
-# ClusterRole/wp-patch: patch/update on wordpresssites/status, without
-# widening admin/edit/view (e.g. for wp-cron).
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: wp-patch
-rules:
-  - apiGroups: ['wordpress.epfl.ch']
-    resources: ['wordpresssites/status']
-    verbs: ['get', 'patch', 'update']
