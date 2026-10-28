@@ -3,34 +3,6 @@
 #
 # See also `opeator-namespaced.yaml`
 ---
-# IngressClass/wordpress
-
-apiVersion: networking.k8s.io/v1
-kind: IngressClass
-metadata:
-  name: wordpress
-spec:
-  controller: epfl.ch/ingress-wordpress
-
----
-# ClusterRole/wp-nginx
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: wp-nginx
-rules:
-  - apiGroups: ['']
-    resources:
-    - configmaps
-    - endpoints
-    - pods
-    - secrets
-    verbs: ['list', 'watch']
-  - apiGroups: ['networking.k8s.io']
-    resources: ['ingressclasses']
-    verbs: ['get', 'list', 'watch']
-
----
 # ClusterRole/wp-operator
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

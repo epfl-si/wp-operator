@@ -42,7 +42,6 @@ class KubernetesAPI:
         self._core = kubernetes.client.CoreV1Api()
         self._extensions = kubernetes.client.ApiextensionsV1Api()
         self._dynamic = kubernetes.dynamic.DynamicClient(kubernetes.client.ApiClient())
-        self._networking = kubernetes.client.NetworkingV1Api()
 
         class ApiClientForJsonPatch(kubernetes.client.ApiClient):
             """As seen in https://github.com/kubernetes-client/python/issues/1216#issuecomment-691116322"""
@@ -78,10 +77,6 @@ class KubernetesAPI:
     @classproperty
     def dynamic(cls):
         return cls.__get()._dynamic
-
-    @classproperty
-    def networking(cls):
-        return cls.__get()._networking
 
 
 class KubernetesObject:
