@@ -329,7 +329,7 @@ metadata:
 rules:
   - apiGroups: ['wordpress.epfl.ch']
     resources: ['wordpresssites/status']
-    verbs: ['get', 'patch', 'update']
+    verbs: ['patch']
 
 ---
 
