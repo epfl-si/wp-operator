@@ -454,113 +454,6 @@ class RedirectionPluginReconciler (PluginReconciler):
         self.work.apply_sql("redirection.sql")
 
 
-class WordpressIngressReconciler:
-    def __init__ (self, me):
-        self._me = me
-
-    @property
-    def name (self):
-        return self._me.name
-
-    @property
-    def namespace (self):
-        return self._me.namespace
-
-    @property
-    def hostname (self):
-        return self._me.hostname
-
-    @property
-    def db (self):
-        return self._me.database
-
-    @property
-    def user (self):
-        return self._me.user
-
-    @property
-    def secret (self):
-        return self._me.secret
-
-    @property
-    def uploads_dirname (self):
-        return self.name   # ⚠ Do *NOT* rely on that being the case forever!
-
-    @property
-    def protection_script (self):
-        return self._me.protection_script
-
-    @property
-    def _nginx_configuration_snippet (self):
-        if self.protection_script:
-            fastcgi_param_protection_script = f"""fastcgi_param DOWNLOADS_PROTECTION_SCRIPT    {self.protection_script};"""
-        else:
-            fastcgi_param_protection_script = ""
-
-        path_slash = ensure_final_slash(self._me.path)
-
-        return f"""
-fastcgi_param WP_DEBUG           true;
-fastcgi_param WP_ROOT_URI        {path_slash};
-fastcgi_param WP_UPLOADS_DIRNAME {self.uploads_dirname};
-fastcgi_param WP_DB_HOST         {self.db.mariadb.service.name};
-fastcgi_param WP_DB_NAME         {self.db.dbname};
-fastcgi_param WP_DB_USER         {self.user.username};
-fastcgi_param WP_DB_PASSWORD     {self.secret.mariadb_password};
-{fastcgi_param_protection_script}
-"""
-
-    def reconcile (self):
-        """TODO: doesn't actually handle anything but initial creation. (Yet)"""
-        annotations = {
-            "nginx.ingress.kubernetes.io/configuration-snippet":
-            self._nginx_configuration_snippet
-        }
-
-        if not self.protection_script:
-            annotations["wordpress.epfl.ch/nginx-uploads-dirname"] = self.uploads_dirname
-
-        body = client.V1Ingress(
-            api_version="networking.k8s.io/v1",
-            kind="Ingress",
-            metadata=client.V1ObjectMeta(
-                name=self._me.name,
-                namespace=self._me.namespace,
-                owner_references=[self._me.owner_reference],
-                annotations=annotations
-            ),
-            spec=client.V1IngressSpec(
-                ingress_class_name="wordpress",
-                rules=[client.V1IngressRule(
-                    host=self._me.hostname,
-                    http=client.V1HTTPIngressRuleValue(
-                        paths=[client.V1HTTPIngressPath(
-                            path=self._me.path,
-                            path_type="Prefix",
-                            backend=client.V1IngressBackend(
-                                service=client.V1IngressServiceBackend(
-                                    name="wp-nginx",
-                                    port=client.V1ServiceBackendPort(
-                                        number=80,
-                                    )
-                                )
-                            )
-                        )]
-                    )
-                )]
-            )
-        )
-
-        try:
-            KubernetesAPI.networking.create_namespaced_ingress(
-                namespace=self.namespace,
-                body=body
-            )
-        except ApiException as e:
-            if e.status != 409:
-                raise e
-            logging.info(f" ↳ [{self.namespace}/{self.name}] Ingress {self.name} already exists")
-
 class MediaRestoreOperator:
     def __init__ (self, namespace, wp_name, source_pvc, source_subdir, dest_pvc, dest_subdir, owner):
         self._pod_name = f"{wp_name}-media-restore-pod-{round(time.time())}"
@@ -749,8 +642,6 @@ class WordPressSiteOperator:
       mariadb_password = base64.b64decode(mariadb_password_base64).decode('ascii')
 
       self.install_wordpress_via_php(mariadb_password)
-
-      self.create_ingress()
 
       if self.wp.restore is not None:
           self.restore_site(self.wp.restore, self.wp.hostname, self.wp.path)
@@ -1229,10 +1120,6 @@ class WordPressSiteOperator:
           else:
               raise kopf.PermanentError(f"create {customObjectName} timed out or failed, last condition message: {message}")
 
-  def create_ingress (self):
-      logging.info(f"Creating ingress for {self.wp.name}")
-      WordpressIngressReconciler(self.wp).reconcile()
-
 
 class NamespaceFromEnv:
     @classmethod
@@ -1270,12 +1157,6 @@ class NamespaceFromEnv:
         except ValueError:
             dashdash_position = len(sys.argv)
         sys.argv[dashdash_position:dashdash_position] = [f'--namespace={namespace}']
-
-
-def ensure_final_slash (path):
-    if not path.endswith("/"):
-        path = f"{path}/"
-    return path
 
 
 if __name__ == '__main__':
