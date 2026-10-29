@@ -1114,8 +1114,8 @@ class WordPressSiteOperator:
                   else:
                       pass
 
-          if iteration < 12:
-              time.sleep(5)
+          if iteration < 60:
+              time.sleep(10)
               iteration = iteration + 1
           else:
               raise kopf.PermanentError(f"create {customObjectName} timed out or failed, last condition message: {message}")
